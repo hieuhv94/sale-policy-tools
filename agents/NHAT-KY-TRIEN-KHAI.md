@@ -21353,3 +21353,44 @@ phông và logo mới đúng (bố cục đăng nhập hai nửa của mockup l�
 `--network none` (demo đang bật, không gõ lệnh `compose.test.yml` nào). `make test` đầy đủ chưa chạy.
 
 **`tests/web` 1014/1014 xanh (55 tệp); typecheck xanh.**
+
+## P289 — `0257` Thiết kế lại giao diện, chặng 2: khung (thanh bên thu gọn · thanh trên · chân trang · đăng nhập)
+
+**Thanh bên THU GỌN** — khách hàng yêu cầu khi duyệt mockup, rồi chốt nút ở ĐẦU thanh bên cạnh logo *"cho dễ
+thấy"*. Thu gọn = 64px, chỉ cột biểu tượng; nhớ bằng `localStorage` (`lib/thanh-ben.ts`, khoá
+`csbh:thanh-ben-gon`), cùng lối `giao-dien.ts`: tiện ích của một người trên một máy, không lên máy chủ. Mọi lượt
+đọc/ghi bọc `try` — trình duyệt chặn lưu trữ thì `localStorage` NÉM lỗi chứ không trả `null`, và một tiện ích hiển
+thị không được làm sập khung. **Chỉ từ 1024px**: dưới đó thanh bên là ngăn kéo, CSS bỏ qua lớp `thu-gon` và nút không
+hiện. Chữ mục khi thu gọn ẩn bằng đúng kỹ thuật của `.chi-doc-man-hinh`, **không `display: none`** — trình đọc màn
+hình vẫn đọc tên mục; `title` trên liên kết cho người dùng chuột.
+
+**Bề rộng thanh bên 232 → 244px** — đo trên Chrome thật: nút thu gọn đứng cạnh *"Chính sách bán hàng"* thì ở 232px
+chữ bị cắt. Nút thu gọn 32px chứ không phải vùng chạm 44px: nó chỉ có ở màn hình dùng chuột.
+
+**Thanh trên nói TÊN MỤC đang ở**, ở mọi khổ (trước: tên phần mềm, chỉ trên điện thoại). Trang chi tiết thuộc mục
+cha (`/ho-so/:id` → *Hồ sơ CSBH*); `/` chỉ khớp chính nó, nếu không mọi đường đều "thuộc" Tổng quan. Không làm đường
+dẫn nhiều cấp như mockup (*Hồ sơ CSBH › CSBH-2026-000214*): cấp hai cần dữ liệu của trang con, mà mã/tên ấy đã là
+`h1` của chính trang. Nút giao diện và chuông trên thanh trên thôi viền.
+
+**Chân trang**: hai dòng bản quyền trái, phiên bản PHẢI cùng hàng — bằng LƯỚI, không bọc thêm thẻ, vì
+`chan-trang.test.tsx` đọc ba `span` là con trực tiếp của `footer`.
+
+**Đăng nhập hai nửa** từ 1024px: nửa trái logo đầy đủ + một câu mô tả + ba bước của luồng duyệt; thẻ biểu mẫu giữ
+nguyên (`h1` giữ chữ, các ca kiểm đăng nhập không phải sửa dòng nào). Nửa trái **cố ý không lặp** tiêu đề hay tên
+công ty đã có trong thẻ — trang đọc như in đôi, và trình đọc màn hình đọc hai lần. Dưới 1024px và ở lớp phủ hết
+phiên: một thẻ như cũ.
+
+Ca kiểm `tests/web/thanh-ben.test.tsx` (10 ca): nút ở đầu thanh bên, mặc định mở rộng · bấm thu gọn, nhớ qua lần mở
+sau, bấm lại thì quên · thu gọn vẫn đọc được tên mục · `localStorage` ném lỗi vẫn dựng · CSS chỉ áp từ 1024px và
+không `display: none` · tên mục cho bốn đường · lưới chân trang. **Ca CSS tự sai ở lượt đầu**: nó cắt khối
+`@media (min-width: 1024px)` ĐẦU TIÊN của tệp, mà khối đầu giờ là khối đăng nhập vừa thêm — giờ tìm khối mang luật
+thu gọn. Phá lại ba lượt (bỏ ghi `localStorage` · ẩn chữ mục bằng `display: none` · bỏ phép khớp trang chi tiết), cả
+ba đỏ đúng ca.
+
+**Xem bằng trình duyệt thật trên chồng demo**: Caddy của demo bind-mount `apps/web/dist`, nên `pnpm build:web` là
+demo chạy ngay giao diện mới, không đụng container nào. Đăng nhập `admin01` qua API rồi đưa phiên vào Chrome headless
+bằng một tệp tạm trong `dist/` (đã gỡ). Chụp: khung mở rộng/thu gọn 1440, giao diện tối, đăng nhập 1440, điện thoại
+390. **Còn thô ở điện thoại**: tên mục trên thanh trên bị cắt (*"Tổng q…"*) vì cụm nút bên phải chiếm chỗ — để P293.
+`dist/` do container dựng thuộc root; phải `chown` lại mới ghi tệp tạm được.
+
+**`tests/web` 1024/1024 xanh (56 tệp); typecheck xanh.**

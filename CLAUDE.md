@@ -104,7 +104,10 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
 Đang **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
-(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P288**: nền — giữ TÊN
+(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P289**: khung — thanh bên THU GỌN được (nút ở đầu, nhớ `localStorage`,
+chỉ từ 1024px), thanh trên nói tên mục, phiên bản ở chân trang bên phải, đăng nhập hai nửa. QA thật: Caddy demo
+bind-mount `apps/web/dist` → `pnpm build:web` là demo chạy giao diện mới (nhớ `chown` dist). **`tests/web` 1024/1024.**
+Trước đó **P288**: nền — giữ TÊN
 token, đổi giá trị (11 cặp màu trạng thái không đổi), thanh bên sáng, phông Be Vietnam Pro **tự host** ở `public/fonts/`
 (CSP chặn Google Fonts lặng lẽ), logo mới (`logo.png` đầy đủ, `logo-bieu-tuong.png` cho thanh bên). Chạy kiểm khi demo
 bật: ảnh rời `csbh-test` `--network none`. **`tests/web` 1014/1014 xanh.**

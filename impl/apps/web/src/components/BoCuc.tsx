@@ -22,8 +22,10 @@ import {
   BieuTuongDong,
   BieuTuongMenu,
   BieuTuongTaiKhoan,
+  BieuTuongThanhBen,
   bieuTuongMuc,
 } from './BieuTuong.js';
+import { useThanhBenGon } from '../lib/thanh-ben.js';
 import { ChuongThongBao } from './ChuongThongBao.js';
 import { NutGiaoDien } from './NutGiaoDien.js';
 
@@ -154,13 +156,25 @@ export function BoCuc({ children }: { children: ReactNode }) {
   const { duong } = useDuong();
   const [moMenu, datMoMenu] = useState(false);
   const muc = dieuHuongCho(nguoiDung?.role);
+  const { gon, doi: doiGon } = useThanhBenGon();
+  /*
+   * TÊN MỤC đang ở, cho thanh trên (`0257`). Trang chi tiết (`/ho-so/:id`,
+   * `/khach-hang/:id`) thuộc mục cha của nó; `/` chỉ khớp chính nó, nếu không
+   * mọi đường đều "thuộc" Tổng quan. Hai trang không có trên menu (mở từ chuông
+   * và từ menu tài khoản) đặt tên tay.
+   */
+  const mucDangO =
+    muc.find((m) => (m.duong === '/' ? duong === '/' : duong === m.duong || duong.startsWith(`${m.duong}/`)))
+      ?.nhan ??
+    ({ '/thong-tin': 'Thông tin của tôi', '/thong-bao': 'Thông báo' } as Record<string, string>)[duong] ??
+    'Chính sách bán hàng';
 
   // Chuyển màn hình thì đóng ngăn kéo lại. Thiếu chỗ này thì trên điện thoại,
   // bấm một mục xong màn hình mới nằm khuất sau ngăn kéo vẫn đang mở.
   useEffect(() => datMoMenu(false), [duong]);
 
   return (
-    <div className={moMenu ? 'khung-app mo-menu' : 'khung-app'}>
+    <div className={`khung-app${moMenu ? ' mo-menu' : ''}${gon ? ' thu-gon' : ''}`}>
       {/* Bỏ qua điều hướng — bắt buộc cho người dùng bàn phím (FE-35). */}
       <a className="bo-qua" href="#noi-dung-chinh">
         Bỏ qua, tới nội dung chính
@@ -182,6 +196,23 @@ export function BoCuc({ children }: { children: ReactNode }) {
             </span>
           </Lien>
 
+          {/*
+            Thu gọn / mở rộng (`0257`) — ở ĐẦU thanh bên, cạnh logo, cho dễ thấy
+            (khách hàng chốt khi duyệt mockup). Chỉ hiện từ 1024px: dưới đó thanh
+            bên là ngăn kéo, đã có nút đóng riêng.
+          */}
+          <button
+            type="button"
+            className="nut-bieu-tuong nut-thu-gon"
+            aria-expanded={!gon}
+            aria-controls="dieu-huong"
+            title={gon ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+            onClick={doiGon}
+          >
+            <span className="chi-doc-man-hinh">{gon ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span>
+            <BieuTuongThanhBen gon={gon} />
+          </button>
+
           {/* Chỉ hiện khi thanh bên đang là ngăn kéo. */}
           <button type="button" className="nut-bieu-tuong nut-dong-menu" onClick={() => datMoMenu(false)}>
             <span className="chi-doc-man-hinh">Đóng điều hướng</span>
@@ -197,6 +228,9 @@ export function BoCuc({ children }: { children: ReactNode }) {
                   den={m.duong}
                   className={duong === m.duong ? 'muc dang-o' : 'muc'}
                   {...(duong === m.duong ? { 'aria-current': 'page' as const } : {})}
+                  /* Thu gọn thì chữ mục chỉ ẨN KHỎI MẮT (vẫn đọc được bằng trình
+                     đọc màn hình); `title` cho người dùng chuột biết icon là gì. */
+                  {...(gon ? { title: m.nhan } : {})}
                 >
                   <span className="muc-hinh">{bieuTuongMuc(m.duong)}</span>
                   <span className="muc-chu">{m.nhan}</span>
@@ -233,8 +267,12 @@ export function BoCuc({ children }: { children: ReactNode }) {
             <BieuTuongMenu />
           </button>
 
-          {/* Nhắc lại tên phần mềm ở đây vì trên điện thoại thanh bên đang khuất. */}
-          <span className="tieu-de-gon">Chính sách bán hàng</span>
+          {/*
+            TÊN MỤC đang ở (`0257`). Trước là tên phần mềm, chỉ hiện trên điện
+            thoại "vì thanh bên đang khuất" — giờ hiện ở mọi khổ: thanh bên thu
+            gọn cũng chỉ còn biểu tượng, và tên mục là thứ người dùng cần đọc.
+          */}
+          <span className="tieu-de-gon">{mucDangO}</span>
 
           <div className="nguoi-dung">
             <NutGiaoDien />

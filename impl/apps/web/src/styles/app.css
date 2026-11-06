@@ -104,21 +104,20 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   background: var(--mau-thanh-ben);
   color: var(--mau-thanh-ben-chu);
   border-right: 1px solid var(--mau-thanh-ben-vien);
-  transition: transform 0.18s ease;
+  transition: transform 0.18s ease, width 0.18s ease;
 }
 
 .thanh-ben-dau {
   display: flex;
   align-items: center;
   gap: var(--k2);
-  padding: var(--k4);
-  border-bottom: 1px solid var(--mau-thanh-ben-vien);
+  padding: var(--k4) var(--k3) var(--k3) var(--k4);
 }
 
 .logo-lien {
   display: flex;
   align-items: center;
-  gap: var(--k3);
+  gap: var(--k2);
   min-width: 0;
   color: var(--mau-thanh-ben-chu-dam);
   text-decoration: none;
@@ -126,15 +125,15 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 /* Logo BIỂU TƯỢNG (`logo-bieu-tuong.png`, `0257`) — có kênh trong suốt nên không
    cần ô nền; xem ghi chú ở `--mau-nen-logo` trong tokens.css. */
 .logo {
-  height: 32px;
+  height: 28px;
   width: auto;
   display: block;
   flex: none;
 }
 
-.ten-thuong-hieu { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.ten-thuong-hieu { display: flex; flex-direction: column; min-width: 0; overflow: hidden; line-height: 1.2; }
 .ten-thuong-hieu strong { font-weight: 700; letter-spacing: 0.06em; color: var(--mau-thanh-ben-hoat-dong); }
-.ten-thuong-hieu small { font-size: var(--chu-rat-nho); color: var(--mau-thanh-ben-chu); }
+.ten-thuong-hieu small { font-size: var(--chu-rat-nho); color: var(--mau-thanh-ben-chu); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .dieu-huong { padding: var(--k3); }
 .dieu-huong ul {
@@ -153,7 +152,7 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   padding: var(--k2) var(--k3);
   border-radius: var(--bo-goc-nho);
   color: var(--mau-thanh-ben-chu);
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 .dieu-huong .muc:hover { background: var(--mau-thanh-ben-phu); color: var(--mau-thanh-ben-chu-dam); }
@@ -181,6 +180,7 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   flex-direction: column;
   min-height: 100vh;
   margin-left: var(--rong-thanh-ben);
+  transition: margin-left 0.18s ease;
 }
 
 .thanh-tieu-de {
@@ -190,13 +190,21 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   display: flex;
   align-items: center;
   gap: var(--k3);
-  padding: var(--k2) var(--k4);
+  min-height: 3.5rem;
+  padding: var(--k1) var(--k5);
   background: var(--mau-nen);
   border-bottom: 1px solid var(--mau-vien);
-  box-shadow: var(--bong-nho);
 }
 
-.tieu-de-gon { display: none; font-weight: 700; }
+/* Tên mục đang ở (`0257`) — hiện ở MỌI khổ, cắt bằng dấu ba chấm khi hẹp. */
+.tieu-de-gon {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--mau-chu);
+}
 
 .nguoi-dung {
   margin-left: auto;
@@ -214,9 +222,9 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   align-items: center;
   gap: var(--k2);
   padding: var(--k1) var(--k3) var(--k1) var(--k1);
-  border: 1px solid var(--mau-vien);
-  border-radius: 999px;
-  background: var(--mau-nen-phu);
+  border: 1px solid transparent;
+  border-radius: var(--bo-goc-nho);
+  background: none;
   /* Là nút mở menu nhưng KHÔNG trông như một cái nút: viền dày với chữ đậm ở
      đây làm thanh trên cùng thành một mớ nhấp nháy. */
   color: inherit;
@@ -542,12 +550,12 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 /* Vai trò đứng riêng, bên trái thẻ tài khoản (`0063`). Viên thuốc chứ không chữ
    trần: nó nằm cạnh một thẻ cũng bo tròn, và chữ trần ở đó trôi lẫn vào nền. */
 .vai-tro-rieng {
-  padding: var(--k1) var(--k3);
+  padding: 2px var(--k3);
+  border: 1px solid var(--mau-vien);
   border-radius: 999px;
-  background: var(--mau-thuong-hieu-nhat);
-  color: var(--mau-thuong-hieu);
+  color: var(--mau-chu-phu);
   font-size: var(--chu-rat-nho);
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -555,19 +563,31 @@ main { padding: var(--k5) var(--k4) var(--k6); }
 /* Nội dung giãn ra để chân trang nằm sát đáy kể cả khi trang ít chữ (`0244`). */
 .cot-chinh > main { flex: 1 0 auto; }
 
-/* Chân trang (`0244`): chữ nhỏ, màu phụ, căn giữa; ba mảnh xuống dòng khi hẹp. */
+/* Chân trang (`0244`, bố cục `0257`): hai dòng bản quyền bên TRÁI, số phiên bản
+   bên PHẢI trên cùng hàng. Lưới chứ không bọc thêm thẻ: ba `span` vẫn là con
+   trực tiếp của `footer` (có ca kiểm đọc đúng cấu trúc ấy). */
 .chan-trang {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--k4);
+  padding: var(--k4) var(--k5);
+  border-top: 1px solid var(--mau-vien);
+  font-size: var(--chu-rat-nho);
+  color: var(--mau-chu-nhat);
+}
+.chan-trang > span { grid-column: 1; }
+.chan-trang > .chan-trang-phien-ban { grid-column: 2; grid-row: 1; white-space: nowrap; }
+/* Màn hình đăng nhập (`rutGon`): một dòng + phiên bản, căn giữa dưới thẻ. */
+.dang-nhap .chan-trang {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--k1) var(--k4);
-  padding: var(--k3) var(--k4);
-  border-top: 1px solid var(--mau-vien);
-  font-size: var(--chu-nho);
-  color: var(--mau-chu-phu);
+  border-top: 0;
+  margin-top: var(--k4);
+  padding: var(--k3) 0 0;
   text-align: center;
 }
-.dang-nhap .chan-trang { border-top: 0; margin-top: var(--k4); }
 main:focus { outline: none; }
 
 .trang { max-width: 1200px; margin: 0 auto; }
@@ -712,8 +732,18 @@ main:focus { outline: none; }
 .nut-bieu-tuong:hover { background: var(--mau-nen-hover); color: var(--mau-thuong-hieu); }
 
 .nut-dong-menu { display: none; margin-left: auto; }
+/* Thu gọn thanh bên (`0257`): chỉ có từ 1024px — xem khối `min-width: 1024px`. */
+.nut-thu-gon { display: none; margin-left: auto; }
+/* 32px chứ không phải vùng chạm 44px: nút chỉ có từ 1024px (màn hình dùng chuột),
+   và ở 44px thì tên phần mềm cạnh logo không còn chỗ trong thanh bên 244px. */
+.thanh-ben .nut-thu-gon { width: 2rem; height: 2rem; }
+/* Nút biểu tượng trên thanh trên (giao diện, chuông) KHÔNG viền (`0257`): ba ô
+   vuông viền đậm cạnh nhau làm thanh trên thành một dải nút bấm, trong khi thứ
+   người dùng cần đọc ở đó là tên mục và tên tài khoản. Vẫn đủ vùng chạm 44px. */
+.thanh-tieu-de .nut-bieu-tuong { border-color: transparent; background: transparent; }
+.thanh-tieu-de .nut-bieu-tuong:hover { background: var(--mau-nen-hover); }
 .thanh-ben .nut-bieu-tuong {
-  border-color: var(--mau-thanh-ben-vien);
+  border-color: transparent;
   background: transparent;
   color: var(--mau-thanh-ben-chu);
 }
@@ -2148,6 +2178,77 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   padding: var(--k4);
 }
 .dang-nhap.trong-lop-phu { min-height: auto; padding: 0; }
+/* Nửa trái giới thiệu (`0257`): chỉ từ 1024px. Dưới đó màn hình đăng nhập là MỘT
+   thẻ như trước — trên điện thoại một khối giới thiệu đẩy ô nhập xuống dưới nếp
+   gấp, đúng thứ người mở trang không cần. */
+.dang-nhap-gioi-thieu { display: none; }
+@media (min-width: 1024px) {
+  .dang-nhap.co-gioi-thieu {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto 1fr;
+    justify-items: center;
+    padding: 0;
+  }
+  .co-gioi-thieu .dang-nhap-gioi-thieu {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    align-self: stretch;
+    justify-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--k5);
+    padding: var(--k6) clamp(var(--k6), 6vw, 6rem);
+    background: var(--mau-nen);
+    border-right: 1px solid var(--mau-vien);
+  }
+  .co-gioi-thieu .the-dang-nhap { grid-column: 2; grid-row: 2; box-shadow: none; }
+  .co-gioi-thieu .chan-trang { grid-column: 2; grid-row: 3; }
+  .co-gioi-thieu .the-dang-nhap .logo-lon { display: none; }
+}
+.logo-gioi-thieu {
+  width: 9rem;
+  height: auto;
+  padding: var(--k3);
+  border-radius: var(--bo-goc-to);
+  background: var(--mau-nen-logo);
+}
+.gioi-thieu-chinh {
+  margin: 0;
+  max-width: 34ch;
+  font-size: var(--chu-tieu-de);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.gioi-thieu-buoc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: buoc;
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+}
+.gioi-thieu-buoc li { display: flex; align-items: center; gap: var(--k3); counter-increment: buoc; }
+.gioi-thieu-buoc li::before {
+  content: counter(buoc);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--mau-vien);
+  border-radius: 50%;
+  background: var(--mau-nen-phu);
+  color: var(--mau-thuong-hieu);
+  font-size: var(--chu-rat-nho);
+  font-weight: 600;
+}
 .goc-tren-phai { position: absolute; top: var(--k4); right: var(--k4); }
 
 .the-dang-nhap {
@@ -2328,6 +2429,26 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 @media (min-width: 1024px) {
   .bang-san-pham { table-layout: auto; }
   main { padding: var(--k5) var(--k6) var(--k6); }
+
+  /* Thanh bên THU GỌN (`0257`, `lib/thanh-ben.ts`). Chữ mục ẩn bằng đúng kỹ thuật
+     của `.chi-doc-man-hinh` — KHÔNG `display: none`, để trình đọc màn hình vẫn
+     đọc được tên mục; `title` trên liên kết lo phần người dùng chuột. */
+  .nut-thu-gon { display: inline-grid; }
+  .khung-app.thu-gon .thanh-ben { width: var(--rong-thanh-ben-gon); }
+  .khung-app.thu-gon .cot-chinh { margin-left: var(--rong-thanh-ben-gon); }
+  .thu-gon .thanh-ben-dau { flex-direction: column; padding: var(--k4) 0 var(--k2); }
+  .thu-gon .ten-thuong-hieu { display: none; }
+  .thu-gon .nut-thu-gon { margin: 0; }
+  .thu-gon .dieu-huong { padding: var(--k2); }
+  .thu-gon .dieu-huong .muc { justify-content: center; padding: var(--k2) 0; }
+  .thu-gon .muc-chu {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /**

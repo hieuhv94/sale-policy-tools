@@ -157,7 +157,7 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
   };
 
   return (
-    <div className={lopPhu ? 'dang-nhap trong-lop-phu' : 'dang-nhap'}>
+    <div className={lopPhu ? 'dang-nhap trong-lop-phu' : 'dang-nhap co-gioi-thieu'}>
       {/*
         Nút đổi giao diện có mặt NGAY Ở MÀN HÌNH ĐĂNG NHẬP, không đợi vào trong.
         Người dùng đặt máy ở chế độ tối mà mở ra gặp một tấm trắng chói thì ấn
@@ -170,6 +170,28 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         <div className="goc-tren-phai">
           <NutGiaoDien />
         </div>
+      )}
+
+      {/*
+        NỬA TRÁI GIỚI THIỆU (`0257`) — chỉ hiện từ 1024px (CSS), và không bao giờ ở
+        lớp phủ hết phiên. CỐ Ý không lặp lại tiêu đề hay tên công ty đã có trong
+        thẻ bên phải: hai chỗ nói cùng một câu là trang đọc như bị in đôi, và
+        người dùng trình đọc màn hình nghe nó hai lần. Logo ở đây là logo ĐẦY ĐỦ;
+        thẻ bên phải giấu logo của nó ở khổ này.
+      */}
+      {!lopPhu && (
+        <aside className="dang-nhap-gioi-thieu" aria-label="Giới thiệu">
+          <img src={logo} alt="Nutricare — For Your Return" className="logo-gioi-thieu" />
+          <p className="gioi-thieu-chinh">
+            Lập, duyệt và lưu chính sách bán hàng cho từng khách hàng — từ trình dược viên tới bản cứng
+            đã ký.
+          </p>
+          <ol className="gioi-thieu-buoc">
+            <li>Trình dược viên lập hồ sơ và gửi duyệt</li>
+            <li>Trưởng bộ phận ký, Kế toán duyệt bản mềm</li>
+            <li>Sale Admin bàn giao, Kế toán duyệt bản cứng</li>
+          </ol>
+        </aside>
       )}
 
       <form className="the-dang-nhap" onSubmit={gui}>

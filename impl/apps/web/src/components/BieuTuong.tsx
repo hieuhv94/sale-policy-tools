@@ -173,6 +173,16 @@ export function BieuTuongDong() {
   );
 }
 
+/** Nút thu gọn / mở rộng thanh bên (`0257`): khung có cột trái, mũi tên chỉ hướng SẼ đi. */
+export function BieuTuongThanhBen({ gon }: { gon: boolean }) {
+  return (
+    <Hinh>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d={gon ? 'M9 4v16M13 10l2 2-2 2' : 'M9 4v16M16 10l-2 2 2 2'} />
+    </Hinh>
+  );
+}
+
 export function BieuTuongMatTroi() {
   return (
     <Hinh>
