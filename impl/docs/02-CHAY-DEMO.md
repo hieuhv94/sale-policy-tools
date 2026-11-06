@@ -39,7 +39,7 @@ khai danh mục và quy định chiết khấu, rồi Trình dược viên lập
 thì không phân biệt được cái mình vừa nhập với cái có sẵn, và cả nhánh onboarding không bao giờ được
 chạy thử.
 
-Xoá hẳn CSDL chứ không dọn từng bảng: danh sách bảng phải giữ đồng bộ với 77 migration, mà quên một
+Xoá hẳn CSDL chứ không dọn từng bảng: danh sách bảng phải giữ đồng bộ với 78 migration, mà quên một
 bảng thì chỗ "sạch" đó lặng lẽ còn dữ liệu cũ — đúng thứ khó nhìn ra nhất khi đang thử nghiệp vụ.
 
 > `make demo` **xoá luôn dữ liệu của bộ test** vì cả hai dùng chung một Postgres. Không sao:

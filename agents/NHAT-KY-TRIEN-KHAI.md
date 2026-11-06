@@ -21144,3 +21144,85 @@ vượt ngưỡng 80%"* và gửi **một** lá thư tới `admin01@csbh.test` q
 không lúc khởi động — chấp nhận được (trễ tối đa 5 phút), ghi ra để không ai tưởng là hỏng.
 
 **2921/2921 xanh.**
+
+## P285 — `0254` Tác tử vận hành trên máy chủ: Sao lưu ngay, trạng thái container, log hạ tầng, cỡ volume
+
+Chặng B4. **`./csbh tac-tu`** — vòng lặp shell dưới systemd (`deploy/systemd/csbh-tac-tu.service`), quyền docker
+của máy chủ, để không container nào cầm `docker.sock` (chốt 05/11). Tác tử và `van-hanh` **không gọi nhau**: cả
+hai chỉ đọc/ghi bảng `ops.*` (migration `0127`), tác tử qua `docker compose exec -T postgres psql -f -` (SQL đi
+bằng STDIN — đầu ra `docker system df -v` dài), không cổng mạng nào. `exec` chứ không `run --rm ops`: dựng một
+container mỗi 10 giây là không được.
+
+**Mọi câu SQL của tác tử là một lời gọi hàm** (`tac_tu_nhip` · `tac_tu_xong` · `tac_tu_khoi_dong` ·
+`ghi_container` · `ghi_docker` · `co_docker`). Shell chuyển nguyên văn đầu ra docker; phân tích JSON, đổi đơn vị,
+lọc dự án ở SQL — nên ca CSDL gọi đúng những hàm tác tử gọi, và một ca đối chiếu mọi `ops.<tên>(` trong
+`scripts/csbh` với `pg_proc` (gõ sai tên hàm ở shell thì tác tử lặng lẽ không làm gì). Định dạng **đo trên máy**
+trước khi viết (Docker 29.2 / Compose v5.0.2): `compose ps --format json` in MỘT đối tượng mỗi dòng (bản cũ in
+mảng — nhận cả hai); `system df -v` liệt kê **mọi** volume của máy (máy dev: 3052) nên lọc theo nhãn
+`com.docker.compose.project=` — so CẢ PHẦN TỬ, vì dự án `csbh` là tiền tố của `csbh-prod`; cỡ là chuỗi đơn vị
+THẬP PHÂN (`2.463kB`). `pg-init`/`migrate`/`ops` thoát 0 là đúng nên không vào ảnh chụp (nếu không thẻ Sức khoẻ
+luôn có hai dòng đỏ).
+
+**Nhịp** (mặc định 10 giây): nhịp tim + nhận MỘT việc khi rảnh (`FOR UPDATE SKIP LOCKED`); container mỗi 60 giây;
+log sáu container hạ tầng mỗi 5 phút vào CHÍNH thư mục log chung (`dang-ghi/<tên>-<ngày VN>.log` — lượt nén hằng
+đêm gom luôn), con trỏ mốc + 1 nano giây như `luu-log.sh`, dòng trước nửa đêm VN vào tệp HÔM QUA (không có
+`date -d` thì mọi dòng vào hôm nay, không mất dòng nào); Docker mỗi giờ. Mất liên lạc = quá **60 giây** không nhịp.
+
+**Sao lưu ngay**: `POST /van-hanh/sao-luu/chay-ngay {loai: CSDL|KHO_TEP}` → 202, `GET /van-hanh/viec/:id` để
+theo dõi, `GET /van-hanh/tac-tu`. Ba chốt: tác tử phải đang liên lạc (`AGENT_OFFLINE` — việc nằm chờ không ai nhận
+trông y như đang chạy), một việc dở mỗi loại (chỉ mục `uq_viec_tay_dang_do` là chốt thật cho hai lượt bấm song
+song, bắt `23505` theo TÊN), không lượt theo lịch cùng loại đang chạy (`JOB_RUNNING`). Tác tử chạy việc bằng CHÍNH
+`chay_theo_lich` của cron (khoá `flock`, số bản giữ từ cấu hình, ghi `ops.lan_chay`) — giờ ghi kèm người bấm
+(`nguoi_chay`, chỉ nhận đúng dạng uuid). **Danh sách trắng ở hai chỗ**: `CHECK` trên `ops.viec_tay.loai` và
+`case` trong tác tử; mã việc phải là số; không trường nào từ CSDL đi vào dòng lệnh. Việc chạy NỀN — một lượt sao
+lưu dài không được chặn nhịp tim, nếu không trang báo mất liên lạc đúng lúc đang sao lưu; một việc một lúc, dò bằng
+TỆP DẤU do chính việc gỡ (không `kill -0`: tiến trình xong mà shell chưa thu về vẫn trả "còn sống"). Khởi động lại
+thì việc "đang chạy" dở thành LỖI. `chay_theo_lich` gõ tay / từ tác tử gặp khoá bận giờ trả **75** (cron vẫn 0).
+
+`van-hanh` thêm: thẻ Sức khoẻ có `tacTu` + `container` (`/readyz` chỉ biết service Node); thẻ Ổ đĩa có
+`theoDocker`.
+
+**LỖI THẬT tìm ra bởi ca kiểm — lần thứ BA cùng một bẫy shell**: chụp kho tệp hỏng mà việc báo **THÀNH CÔNG**.
+Nguyên nhân là một `|| true` tôi vừa thêm quanh `chay_viec_tay`: sau `||`/`&&`/`if`, shell tắt `set -e` cho CẢ
+THÂN hàm, **kể cả subshell `( set -e; … )`** mà `0251` dựng ra chính để tránh bẫy này. Vòng lặp chính cũng viết
+`tac_tu_mot_nhip || true`. Sửa: hàm việc luôn trả 0, vòng lặp dùng `set +e; …; set -e`. Chú thích tại chỗ.
+
+**LỖI THẬT thứ hai**: `'toString' in LOAI` là true (prototype) → `LOAI.toString` là một HÀM đi xuống `INSERT`,
+máy chủ trả **500** thay vì 400. `Object.hasOwn`. Rà `van-hanh` + `notification` không còn phép `in` nào kiểu ấy.
+
+**Kèm sửa P284**: tệp kiểm `van-hanh-sao-luu.test.ts` có lỗi kiểu (`r.req` không có trên `Response`) — vitest
+không kiểm kiểu nên 2921 ca vẫn xanh, và tôi chạy `make typecheck` TRƯỚC khi viết tệp ấy. Lần này chạy lại sau.
+
+**Ca kiểm**: `tests/db/tac-tu.test.ts` (26) · `tests/http/csbh-tac-tu.test.ts` (21, chạy CHÍNH `scripts/csbh` với
+`docker` giả, kể cả vòng lặp thật nhịp 1 giây) · `tests/http/van-hanh-tac-tu.test.ts` (18). Phá lại **21 lượt**
+(11 shell · 5 API · 5 hàm SQL — hàm phá bằng `CREATE OR REPLACE`, khôi phục bằng chạy lại `0127`). Ba lượt XANH ở
+lần đầu: (a) **việc chạy tiền cảnh** — `docker` giả sao lưu xong tức thì nên nhịp tim không kịp ngừng, VÀ `docker`
+giả giao việc cả khi tác tử báo bận (hàm thật thì không); giờ sao lưu giả mất 4 giây, chỉ giao việc khi rảnh, ca đòi
+≥2 nhịp "bận" trước lượt xong → đỏ. (b) **ngưỡng 6000 giây** — ca dùng hằng của mã nguồn nên trôi theo; giờ viết
+thẳng 59/61 → đỏ. (c) **`|| true` ở vòng lặp** vẫn xanh, CÓ LÝ DO: việc chạy nền (`&`) thoát khỏi ngữ cảnh `||`
+nên lỗi chỉ cắn khi việc chạy tiền cảnh; giữ dạng `set +e` để không phụ thuộc vào điều ấy.
+
+**Dựng thật** (`make demo` + `./csbh tac-tu` thật từ một thư mục cài giả trỏ vào project `csbh`, nhịp 5 giây):
+nhịp tim tới trang (`online: true`, máy, phiên bản), 19 container, cỡ volume (`pgdata` 220MB…, ảnh Docker
+137GB — máy dev). **LỖI THẬT mà bộ kiểm không thể thấy**: bản đầu ghi log hạ tầng THẲNG vào thư mục log trên máy
+chủ, và `Permission denied` cả sáu tệp — các service tạo `dang-ghi/` bằng tài khoản TRONG container (root ở
+demo), tác tử chạy bằng tài khoản thường. `docker` giả của bộ kiểm ghi vào thư mục tạm của chính nó nên không bao
+giờ chạm tới chuyện quyền. Sửa ở nguồn: ghi QUA `docker compose exec -T van-hanh sh -c 'cat >> …' _ <tên>` (tên do
+tác tử dựng từ danh sách cố định + ngày) — tệp cùng chủ với mọi tệp log khác, lượt nén xoá được; con trỏ chỉ tiến
+khi ghi xong, có ca *"van-hanh không nhận ghi → lượt sau thu lại từ đầu"*. Dựng lại: sáu tệp `root`, xem được qua
+`GET /van-hanh/logs/dang-ghi/postgres`.
+
+"Sao lưu ngay": bấm → 202, bấm lần hai khi việc còn chờ → `JOB_RUNNING` (lượt hai tiêu một số của dãy nên mã việc
+nhảy 1 → 3); tác tử nhận trong 5 giây, chạy `chay_theo_lich` thật, `pg_dump` thật ghi `csbh-20261106T055018Z.dump`
+(mục lục đọc được) và bản ấy lên ĐẦU danh sách của trang. Việc kết thúc **LỖI, đúng**: ảnh `ops-1.1.0` trên máy là
+bản trước `0250`, vẫn chạy bản nền + `pg_archivecleanup` đã gỡ — **phải dựng ảnh mới (`make anh`) trước khi giao**;
+tác tử báo đúng đuôi đầu ra ấy. Hai lượt đầu hỏng vì giàn thử (`.env` thiếu biến bắt buộc của bản production, mật
+khẩu Postgres của demo khác tệp bí mật chép sang). Ở lượt thứ hai có hai nhịp tim *"không nối được CSDL"* trong lúc
+`run ops` đang dựng `pg-init`; lượt thứ ba ghi stderr của `q_pg` ra tệp và **không tái hiện** — ghi lại, chưa rõ
+nguyên nhân (một nhịp lỡ không đổi gì: ngưỡng mất liên lạc là 60 giây).
+
+**SỰ CỐ CỦA CHÍNH TÔI, lần thứ năm của cùng luật**: chạy `vitest` qua `compose.test.yml` trong lúc demo bật để kiểm
+bản sửa log — Caddy mất cổng 8080 (`readyz` → `000`), đúng triệu chứng `CLAUDE.md` mô tả. Hai tệp kiểm vừa chạy
+không đụng dữ liệu demo (ca CSDL lăn ngược, ca shell dùng `docker` giả); `make demo-down` + `make demo` dựng lại.
+
+**2986/2986 xanh.**

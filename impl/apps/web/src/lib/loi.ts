@@ -480,6 +480,10 @@ export const BANG_LOI: Record<string, Muc> = {
   SAO_LUU_KHONG_CO: { dang: 'thanh-noi', cau: 'Bản sao lưu này không còn — có thể đã bị xoá. Tải lại danh sách.' },
   SAO_LUU_CHUA_CAU_HINH: { dang: 'hop-thoai', cau: 'Máy chủ chưa được cấu hình thư mục sao lưu. Liên hệ người vận hành máy chủ.' },
   NGUONG_KHONG_HOP_LE: { dang: 'o-nhap', tuMayChu: true },
+  // `0254` — "Sao lưu ngay" đi qua tác tử trên máy chủ.
+  AGENT_OFFLINE: { dang: 'hop-thoai', cau: 'Máy chủ chưa sẵn sàng nhận lệnh lúc này. Bản sao lưu theo lịch vẫn chạy bình thường — thử lại sau ít phút, hoặc báo người vận hành máy chủ.' },
+  JOB_RUNNING: { dang: 'hop-thoai', cau: 'Đang có một lượt sao lưu loại này. Đợi lượt ấy xong rồi thử lại.' },
+  VIEC_KHONG_CO: { dang: 'thanh-noi', cau: 'Không tìm thấy lượt sao lưu này. Tải lại trang.' },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*
    * `0167` — chưa tạo bản mềm thì chưa bàn giao được.

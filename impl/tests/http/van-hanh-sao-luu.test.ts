@@ -121,7 +121,7 @@ afterAll(async () => {
 describe('`0253` chỉ Quản trị hệ thống', () => {
   it.each(['bld01', 'tdv01', 'kt01'])('%s nhận 403 ở mọi đường mới', async (u) => {
     const a = await goi();
-    for (const r of [
+    for (const [i, r] of [
       await a.get('/van-hanh/sao-luu').set(voi(u)),
       await a.get(`/van-hanh/sao-luu/csdl/${csdl(M1)}/tai`).set(voi(u)),
       await a.delete(`/van-hanh/sao-luu/csdl/${csdl(M1)}`).set(voi(u)),
@@ -129,8 +129,8 @@ describe('`0253` chỉ Quản trị hệ thống', () => {
       await a.get('/van-hanh/o-dia').set(voi(u)),
       await a.put('/van-hanh/o-dia/nguong').set(voi(u)).send({ nguong: 50, guiThu: true }),
       await a.get('/van-hanh/suc-khoe').set(voi(u)),
-    ]) {
-      expect(r.status, r.req.path).toBe(403);
+    ].entries()) {
+      expect(r.status, `đường thứ ${i}`).toBe(403);
     }
   });
 });

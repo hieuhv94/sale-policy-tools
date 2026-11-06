@@ -13,6 +13,7 @@ import { Bus, BUS } from '@csbh/bus';
 import { Roles } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ODiaService } from '../o-dia/o-dia.service.js';
+import { TacTuService } from '../tac-tu/tac-tu.service.js';
 
 const HANG_DOI_LOI = [
   ['thong-bao', BUS.queues.notificationDlq],
@@ -29,6 +30,7 @@ export class SucKhoeController {
   constructor(
     private readonly db: Db,
     private readonly oDia: ODiaService,
+    private readonly tacTu: TacTuService,
   ) {}
 
   private async thanhPhan(): Promise<{ ok: boolean; services: { service: string; ok: boolean; status?: number; error?: string }[] }> {
@@ -58,7 +60,7 @@ export class SucKhoeController {
   @Roles('QUAN_TRI')
   @Get('suc-khoe')
   async xem() {
-    const [thanhPhan, hangDoiLoi, outbox, thuHong, saoLuu, oDia] = await Promise.all([
+    const [thanhPhan, hangDoiLoi, outbox, thuHong, saoLuu, oDia, tacTu, container] = await Promise.all([
       this.thanhPhan(),
       this.hangDoiLoi(),
       this.db.q<{ nguon: string; so: string }>(`SELECT nguon, so::text FROM ops.dem_outbox_chua_phat()`),
@@ -73,6 +75,9 @@ export class SucKhoeController {
            FROM ops.cau_hinh_viec c WHERE c.viec IN ('SAO_LUU_CSDL', 'SAO_LUU_KHO_TEP') ORDER BY c.viec`,
       ),
       this.oDia.theoO(),
+      this.tacTu.nhipTim(),
+      // Container hạ tầng do TÁC TỬ chụp (`0254`) — `/readyz` chỉ biết các service Node.
+      this.tacTu.container(),
     ]);
     return {
       thanhPhan,
@@ -81,6 +86,8 @@ export class SucKhoeController {
       thuHong: Number(thuHong?.so ?? 0),
       saoLuu,
       oDia: oDia.map((d) => ({ o: d.o, phanTram: d.phanTram, vuotNguong: d.vuotNguong, duBaoNgayDay: d.duBaoNgayDay })),
+      tacTu: { online: tacTu.online, lanCuoi: tacTu.lanCuoi },
+      container,
     };
   }
 }

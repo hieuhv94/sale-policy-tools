@@ -39,6 +39,7 @@ Mười ba bước. Cột cuối nói bước ấy **bắt buộc phải sau bư
 | 10 | Nạp danh mục ban đầu | tự khai, **hoặc** `./csbh nap-danh-muc` | 8 | lệnh nạp đòi tài khoản đã đổi mật khẩu, và từ chối khi danh mục đã có sản phẩm. **Văn bản mẫu KHÔNG cần nạp** `sửa 30/08` |
 | 11 | Nghiệm thu: vòng mười bước, xuất hợp đồng, `pg_stat_archiver`, `dien-tap` | | 10 | phải có sản phẩm mới lập được hồ sơ |
 | 12 | Cài lịch tự động | `cp deploy/cron.mau /etc/cron.d/csbh` | 6 | làm được sớm hơn, nhưng **đừng giao khi chưa làm** |
+| 12b | Cài tác tử vận hành `0254` | `deploy/systemd/csbh-tac-tu.service` — `05-VAN-HANH` §2 | 6 | thiếu thì nút *Sao lưu ngay* xám và thẻ Sức khoẻ không thấy container hạ tầng; sao lưu theo lịch không phụ thuộc nó |
 | 13 | *(tuỳ chọn)* mở đường hầm cho người khác xem | `./csbh mo-thu-nghiem` | 10 | hệ trống trơn thì không có gì để xem |
 
 ### Bốn chỗ đảo thứ tự là hỏng
@@ -139,6 +140,7 @@ csbh-1.0.0/
   .env.mau             Bản khai môi trường
   deploy/              Ba tệp compose + cấu hình Postgres. KHÔNG sửa.
   deploy/cron.mau      Lịch sao lưu và dọn dữ liệu
+  deploy/systemd/      Unit systemd của tác tử vận hành
   mau-van-ban/         Bốn mẫu .docx để tải lên nếu muốn
   tai-lieu/            Bốn tài liệu
 ```
@@ -624,6 +626,8 @@ sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
 
 Sao lưu CSDL và kho tệp theo lịch đã cấu hình (cron hỏi mỗi 15 phút) · diễn tập phục hồi
 ngày 8 hằng tháng. Dọn dữ liệu do `sla-worker` tự chạy.
+
+Cài kèm **tác tử vận hành** (`0254`, một unit systemd) — cách cài ở `05-VAN-HANH.md` §2.
 
 > **Không cài cron là bỏ mất một nửa cam kết phục hồi.** Các lệnh chạy được từ
 > lúc bàn giao, nhưng chúng chỉ chạy khi có người gõ. Một cam kết RPO mà phụ

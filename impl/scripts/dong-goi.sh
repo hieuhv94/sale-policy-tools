@@ -178,6 +178,9 @@ goi() {
   cp scripts/csbh "$goc/csbh"
   cp scripts/cai-dat.sh "$goc/cai-dat.sh"
   cp deploy/cron/csbh.cron "$goc/deploy/cron.mau"
+  # `0254` — tác tử vận hành, cài bằng systemd (cách cài ghi ngay trong tệp).
+  mkdir -p "$goc/deploy/systemd"
+  cp deploy/systemd/csbh-tac-tu.service "$goc/deploy/systemd/"
   chmod +x "$goc/csbh" "$goc/cai-dat.sh"
 
   # --- Ba mẫu .docx ---------------------------------------------------------

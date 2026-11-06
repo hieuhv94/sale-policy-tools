@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 77 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 78 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -103,12 +103,20 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P284** (`0253`, B3b): `van-hanh` thêm **bản sao lưu** (liệt kê · tải bản CSDL · xoá; không xoá bản
+Chặng gần nhất **P285** (`0254`, B4): **tác tử vận hành** `./csbh tac-tu` dưới systemd
+(`deploy/systemd/csbh-tac-tu.service`) — không container nào cầm `docker.sock`; nói với ứng dụng CHỈ QUA CSDL
+(`exec -T postgres psql -f -`), mọi câu SQL là một hàm `ops.*` (migration `0127`). "Sao lưu ngay" (`POST
+/van-hanh/sao-luu/chay-ngay` → `ops.viec_tay`, danh sách trắng ở `CHECK` + `case`), trạng thái container, log sáu
+container hạ tầng **ghi qua container `van-hanh`** (ghi thẳng trên máy chủ là `Permission denied` — chỉ dựng thật
+bắt được), cỡ volume. **Bẫy lần ba**: `f || true` tắt `set -e` cho cả thân `f`, kể cả subshell `( set -e; … )` → sao
+lưu hỏng báo THÀNH CÔNG. **Ảnh `ops-1.1.0` trên registry là bản trước `0250` — dựng ảnh mới trước khi giao.**
+**2986/2986 xanh.** Kế tiếp: C (giao diện).
+
+Trước đó **P284** (`0253`, B3b): `van-hanh` thêm **bản sao lưu** (liệt kê · tải bản CSDL · xoá; không xoá bản
 mới nhất, không xoá khi lượt cùng loại đang chạy; bản chụp kho tệp không tải được), **ổ đĩa** (`statfs` hai ổ, cỡ theo
 hạng mục đếm mỗi inode một lần, mẫu mỗi giờ, dự báo ngày đầy, MỘT ngưỡng, thư tới mọi Quản trị **chỉ khi đi từ dưới
 lên**), **thẻ Sức khoẻ** (đọc `/readyz` của gateway + hàm `SECURITY DEFINER` ở `0126`). Lỗi thật: `checkQueue` hàng đợi
 chưa có làm **chết cả tiến trình** (sự kiện `error` của kênh) → `Bus.demHangDoi` mở kênh riêng. **2921/2921 xanh.**
-Kế tiếp: B4 (tác tử máy chủ), C (giao diện).
 
 Trước đó **P283** (`0252`, B3a): **service thứ 11 `van-hanh`** (cổng 3011, gateway `/van-hanh`, role CSDL
 `csbh_ops` chỉ thấy schema `ops`, mọi đường `@Roles('QUAN_TRI')`, ghi nhật ký qua `ops.outbox`): API lịch tự động +

@@ -55,7 +55,8 @@ csbh — vận hành Chính sách bán hàng
                      đụng đường hầm, nên địa chỉ công khai giữ nguyên.
 
   Dữ liệu
-    sao-luu          pg_dump + bản nền. Chạy hằng đêm qua cron.
+    sao-luu          Sao lưu CSDL, giữ tối đa N bản theo lịch đã cấu hình. Cron hỏi
+                     mỗi 15 phút (--neu-den-han); gõ tay là chạy ngay.
     dien-tap         DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng dữ liệu thật.
     phuc-hoi <tệp>   Phục hồi ĐÈ lên dữ liệu đang chạy. Hỏi lại trước khi làm.
     don-du-lieu      Dọn dữ liệu hết hạn ngay. sla-worker tự chạy hằng ngày theo giờ
@@ -84,6 +85,10 @@ csbh — vận hành Chính sách bán hàng
   Chạy thử qua Internet (KHÔNG dùng cho bàn giao thật)
     mo-thu-nghiem    Mở đường hầm Cloudflare, in ra địa chỉ công khai.
     dong-thu-nghiem  Đóng đường hầm, trả cấu hình về như cũ.
+
+  Tác tử vận hành (systemd chạy, không gõ tay)
+    tac-tu           Vòng lặp nhận việc từ trang Vận hành ("Sao lưu ngay"), báo trạng
+                     thái container, thu log hạ tầng, đo cỡ volume. --mot-nhip: một nhịp.
 
   psql [...]         Mở psql vào CSDL.
 HET
@@ -130,7 +135,13 @@ chay_theo_lich() {
   # đĩa. Khoá tệp tự nhả khi tiến trình chết — không có khoá mồ côi.
   if command -v flock > /dev/null 2>&1; then
     exec 9> "$PWD/.khoa-sao-luu"
-    flock -n 9 || { echo "==> $viec: một lượt sao lưu khác đang chạy — bỏ qua lượt này"; return 0; }
+    # Theo lịch: bỏ qua, thoát 0 (cron không có gì phải báo). Gõ tay / tác tử: mã 75 —
+    # người bấm "Sao lưu ngay" phải thấy lượt của mình KHÔNG chạy, không phải "xong" (`0254`).
+    flock -n 9 || {
+      echo "==> $viec: một lượt sao lưu khác đang chạy — bỏ qua lượt này"
+      [ "$co_lich" = 1 ] && return 0
+      return 75
+    }
   fi
 
   lich="$(doc_lich "$viec")"
@@ -147,7 +158,14 @@ chay_theo_lich() {
   [ "$co_lich" = 1 ] && [ "$den" != co ] && return 0
 
   tu_dong=false; [ "$co_lich" = 1 ] && tu_dong=true
-  id="$(q_ops "INSERT INTO ops.lan_chay (viec, tu_dong) VALUES ('$viec', $tu_dong) RETURNING id")"
+  # Lượt do Quản trị bấm trên web mang người bấm (`0254`). Chỉ nhận đúng dạng uuid — giá
+  # trị này đi thẳng vào câu SQL.
+  cot="viec, tu_dong"; gt="'$viec', $tu_dong"
+  case "${CSBH_NGUOI_CHAY:-}" in
+    *[!0-9a-f-]*|'') ;;
+    ????????-????-????-????-????????????) cot="$cot, nguoi_chay"; gt="$gt, '$CSBH_NGUOI_CHAY'" ;;
+  esac
+  id="$(q_ops "INSERT INTO ops.lan_chay ($cot) VALUES ($gt) RETURNING id")"
   ra="$(mktemp)"
   # KHÔNG `if "$ham" …; then`: trong điều kiện của `if`, `set -e` bị TẮT cho cả thân
   # hàm, nên một lượt chụp hỏng giữa chừng mà bước kiểm cuối vẫn chạy được sẽ ghi
@@ -367,7 +385,167 @@ so_phien_ban() {
     "${kho}:ops-latest" 2>/dev/null || true
 }
 
+# --- Tác tử vận hành (`0254`) ------------------------------------------------
+#
+# Vòng lặp chạy NGOÀI container (systemd, `deploy/systemd/csbh-tac-tu.service`) với quyền
+# docker của máy chủ — container không bao giờ cầm `docker.sock` (chốt 05/11). Nói chuyện
+# với ứng dụng CHỈ QUA CSDL, và mọi câu SQL là một lời gọi hàm `ops.*` (migration `0127`):
+# shell chuyển nguyên văn đầu ra của docker, phân tích nằm ở SQL.
+#
+# Mỗi nhịp (mặc định 10 giây): nhịp tim + nhận một việc web đang chờ; mỗi phút ghi trạng
+# thái container; mỗi 5 phút thu log sáu container hạ tầng vào thư mục log chung; mỗi giờ
+# đo cỡ volume và ảnh Docker.
+#
+# SAO LƯU THEO LỊCH KHÔNG đi qua đây — cron vẫn là bộ đếm giờ. Tác tử chết thì nút "Sao lưu
+# ngay" xám, còn bản sao lưu hằng đêm vẫn có.
+
+# Một câu SQL qua `exec` vào container Postgres đang chạy (`run --rm ops` mỗi 10 giây là
+# dựng một container mỗi nhịp). SQL đi qua STDIN: đầu ra `docker system df -v` có thể dài.
+q_pg() { printf '%s\n' "$1" | $DC exec -T postgres psql -U postgres -d csbh -v ON_ERROR_STOP=1 -qtA -f - 2>/dev/null; }
+
+HA_TANG="postgres redis rabbitmq minio gotenberg caddy"
+TT=".tac-tu"   # thư mục trạng thái cạnh .env: mốc log, mốc các việc định kỳ
+
+bay_gio_giay() { echo "${CSBH_EPOCH:-$(date +%s)}"; }     # CSBH_EPOCH: chỉ bộ kiểm đặt
+den_luot() { [ "$(( $(bay_gio_giay) - $(cat "$TT/luot-$1" 2>/dev/null || echo 0) ))" -ge "$2" ]; }
+danh_dau() { bay_gio_giay > "$TT/luot-$1"; }
+
+# Dấu thời gian Docker + 1 nano giây — `--since` là "lớn hơn HOẶC BẰNG" (xem `luu-log.sh`).
+moc_sau() {
+  awk -v t="$1" 'BEGIN {
+    n = split(t, a, "."); if (n < 2) { print t; exit }
+    giay = a[1]; le = a[2]; sub(/Z$/, "", le); moi = le + 1
+    if (length(moi) > length(le)) { print t; exit }
+    p = "" moi; while (length(p) < length(le)) p = "0" p
+    printf "%s.%sZ\n", giay, p }'
+}
+
+# Log hạ tầng vào `<CSBH_LOG_DIR>/dang-ghi/<service>-<ngày VN>.log` — cùng chỗ, cùng tên với
+# tệp của mười một service Node, nên lượt nén hằng đêm của `van-hanh` gom luôn chúng.
+#
+# Ghi QUA CONTAINER `van-hanh` (`exec … cat >>`), không ghi thẳng trên máy chủ: các service
+# tạo thư mục log bằng tài khoản TRONG container (root ở demo), tác tử chạy bằng một tài khoản
+# thường — ghi thẳng là `Permission denied` (dựng thật ở `0254` bắt được, bộ kiểm thì không).
+# Đi qua container thì tệp cùng chủ với mọi tệp log khác, và lượt nén xoá được chúng.
+#
+# Dòng trước nửa đêm VN (17:00Z hôm qua) vào tệp HÔM QUA: lượt thu lúc 00:03 không được đẩy
+# năm phút cuối của ngày cũ sang ngày mới. Con trỏ mốc chỉ tiến khi MỌI phần đã ghi xong —
+# `van-hanh` không chạy thì lượt sau thu lại từ mốc cũ, không mất dòng nào.
+ghi_log() { $DC exec -T van-hanh sh -c 'mkdir -p /var/log/csbh/dang-ghi && cat >> "/var/log/csbh/dang-ghi/$1"' _ "$1"; }
+
+thu_log_ha_tang() {
+  mkdir -p "$TT/moc-log"
+  hom_nay="${CSBH_HOM_NAY:-$(TZ=Asia/Ho_Chi_Minh date +%Y-%m-%d)}"
+  hom_qua="${CSBH_HOM_QUA:-$(TZ=Asia/Ho_Chi_Minh date -d '-1 day' +%Y-%m-%d 2>/dev/null || true)}"
+  for svc in $HA_TANG; do
+    moc="$TT/moc-log/$svc"
+    since=""; [ -s "$moc" ] && since="--since $(cat "$moc")"
+    tam="$(mktemp)"
+    # shellcheck disable=SC2086
+    if ! $DC logs --no-color --no-log-prefix --timestamps $since "$svc" > "$tam" 2>/dev/null || [ ! -s "$tam" ]; then
+      rm -f "$tam"; continue
+    fi
+    ok=1
+    if [ -n "$hom_qua" ]; then
+      awk -v r="${hom_qua}T17:00:00" -v a="$tam.qua" -v b="$tam.nay" \
+        '{ if (substr($1, 1, 19) < r) print > a; else print > b }' "$tam"
+      [ -s "$tam.qua" ] && { ghi_log "$svc-$hom_qua.log" < "$tam.qua" || ok=0; }
+      [ -s "$tam.nay" ] && { ghi_log "$svc-$hom_nay.log" < "$tam.nay" || ok=0; }
+    else
+      ghi_log "$svc-$hom_nay.log" < "$tam" || ok=0
+    fi
+    if [ "$ok" = 1 ]; then
+      cuoi="$(tail -n 1 "$tam" | cut -d' ' -f1)"
+      [ -n "$cuoi" ] && moc_sau "$cuoi" > "$moc"
+    else
+      echo "tac-tu: không ghi được log $svc qua van-hanh — lượt sau thu lại từ mốc cũ" >&2
+    fi
+    rm -f "$tam" "$tam.qua" "$tam.nay"
+  done
+}
+
+ghi_container() {
+  q_pg "SELECT ops.ghi_container(\$csbh_j\$$($DC ps -a --format json 2>/dev/null)\$csbh_j\$)" > /dev/null
+}
+
+ghi_docker() {
+  du_an="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)"
+  q_pg "SELECT ops.ghi_docker(\$csbh_j\$$du_an\$csbh_j\$,
+          \$csbh_j\$$(docker system df --format json 2>/dev/null)\$csbh_j\$,
+          \$csbh_j\$$(docker system df -v --format json 2>/dev/null)\$csbh_j\$)" > /dev/null
+}
+
+# Một việc web. DANH SÁCH TRẮNG: chỉ tên việc trong `case` dưới đây được chạy, và không
+# trường nào của dòng CSDL đi vào dòng lệnh — `id` phải là số, người bấm phải là uuid.
+chay_viec_tay() {
+  id=$1; loai=$2; nguoi=$3
+  # Luôn trả 0: hàm này KHÔNG được gọi sau `||`/`&&`/`if` — trong ngữ cảnh ấy shell tắt
+  # `set -e` cho cả thân hàm, KỂ CẢ subshell `( set -e; … )` của `chay_theo_lich`, và một lượt
+  # sao lưu hỏng giữa chừng báo THÀNH CÔNG (đo được ở `0254`, cùng lớp bẫy `0251`).
+  case "$id" in ''|*[!0-9]*) echo "tac-tu: bỏ việc mang mã lạ" >&2; return 0 ;; esac
+  ra="$(mktemp)"
+  case "$loai" in
+    SAO_LUU_CSDL)    viec="SAO_LUU_CSDL 7 0115 sao_luu_csdl" ;;
+    SAO_LUU_KHO_TEP) viec="SAO_LUU_KHO_TEP 7 0200 sao_luu_kho_tep" ;;
+    *) viec="" ;;
+  esac
+  if [ -z "$viec" ]; then
+    echo "Việc '$loai' không có trong danh sách được phép chạy." > "$ra"; ma=1
+  else
+    set +e
+    # shellcheck disable=SC2086
+    ( set -- $viec; CSBH_NGUOI_CHAY="$nguoi"; chay_theo_lich "$1" "$2" "$3" "" "$4" ) > "$ra" 2>&1
+    ma=$?
+    set -e
+  fi
+  ok=false; [ "$ma" = 0 ] && ok=true
+  q_pg "SELECT ops.tac_tu_xong($id, $ok, \$csbh_ra\$$(tail -n 60 "$ra")\$csbh_ra\$)" > /dev/null || true
+  echo "tac-tu: việc $id ($loai) xong — mã $ma"
+  rm -f "$ra"
+}
+
+tac_tu_mot_nhip() {
+  mkdir -p "$TT"
+  # Một việc một lúc. Tệp dấu do CHÍNH việc ấy gỡ khi xong — không dò bằng `kill -0`: tiến
+  # trình đã xong mà shell chưa thu về vẫn trả "còn sống".
+  ranh=true; [ -f "$TT/viec-dang-chay" ] && ranh=false
+  pb="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+  if ! viec="$(q_pg "SELECT ops.tac_tu_nhip(\$csbh_j\$$pb\$csbh_j\$, \$csbh_j\$$(hostname 2>/dev/null)\$csbh_j\$, $ranh)")"; then
+    echo "tac-tu: không nối được CSDL — thử lại ở nhịp sau" >&2
+    return 1
+  fi
+  if [ -n "$viec" ]; then
+    # shellcheck disable=SC2086
+    set -- $viec
+    if [ "${TAC_TU_MOT_NHIP:-0}" = 1 ]; then chay_viec_tay "$1" "$2" "$3"
+    else
+      # Nền: nhịp tim không được đợi một lượt sao lưu dài, nếu không trang báo mất liên lạc.
+      : > "$TT/viec-dang-chay"
+      ( chay_viec_tay "$1" "$2" "$3"; rm -f "$TT/viec-dang-chay" ) &
+    fi
+  fi
+  if den_luot container 60; then ghi_container || true; danh_dau container; fi
+  if den_luot log 300; then thu_log_ha_tang || true; danh_dau log; fi
+  if den_luot docker 3600; then ghi_docker || true; danh_dau docker; fi
+  return 0
+}
+
 case "${1:-help}" in
+  tac-tu)
+    case "${2:-}" in
+      --mot-nhip) TAC_TU_MOT_NHIP=1; tac_tu_mot_nhip ;;
+      '') echo "tac-tu: chạy, nhịp ${TAC_TU_NHIP:-10} giây"
+          # Khởi động lại thì không việc nào còn chạy: gỡ dấu cũ, và việc web đang
+          # "chạy" dở ở lượt trước thành LỖI thay vì treo mãi (chặn nút bấm của loại ấy).
+          mkdir -p "$TT"; rm -f "$TT/viec-dang-chay"
+          q_pg "SELECT ops.tac_tu_khoi_dong()" > /dev/null || true
+          # KHÔNG `tac_tu_mot_nhip || true` — xem chú thích ở `chay_viec_tay`.
+          while :; do
+            set +e; tac_tu_mot_nhip; set -e
+            sleep "${TAC_TU_NHIP:-10}"
+          done ;;
+      *) echo "Dùng: ./csbh tac-tu [--mot-nhip]" >&2; exit 2 ;;
+    esac ;;
   len)
     # Kéo hỏng mà đủ ảnh trên máy thì đi tiếp — xem `keo_anh`.
     keo_anh || exit 1

@@ -70,6 +70,33 @@ lượt bù. **CSDL không trả lời** thì vẫn sao lưu theo lịch mặc �
 mặc định. Hai việc dùng chung khoá tệp `.khoa-sao-luu` nên không chạy chồng nhau — cần
 lệnh `flock` (gói `util-linux`, có sẵn trên mọi bản Linux phổ biến).
 
+### Tác tử vận hành `mới 06/11 — 0254`
+
+Nút **Sao lưu ngay**, trạng thái sáu container hạ tầng, log hạ tầng và cỡ từng volume trên
+trang Vận hành đến từ **tác tử** — `./csbh tac-tu`, một vòng lặp chạy dưới systemd trên máy
+chủ (không container nào cầm `docker.sock`). Cài một lần:
+
+```sh
+sudo cp deploy/systemd/csbh-tac-tu.service /etc/systemd/system/
+sudo sed -i 's|/opt/csbh|<đường dẫn thật>|; s|^User=.*|User=<tài khoản chạy docker>|' \
+  /etc/systemd/system/csbh-tac-tu.service
+sudo systemctl daemon-reload && sudo systemctl enable --now csbh-tac-tu
+systemctl status csbh-tac-tu        # phải "active (running)"
+```
+
+Tài khoản chạy tác tử phải gõ được `docker` (nhóm `docker`) và đọc được `.env`. Mỗi 10 giây
+tác tử báo "còn sống" và nhận việc web đang chờ; mỗi phút ghi trạng thái container; mỗi 5
+phút chép log của postgres · redis · rabbitmq · minio · gotenberg · caddy vào thư mục log
+chung (`<CSBH_LOG_DIR>/dang-ghi/<tên>-<ngày>.log`, nén hằng đêm cùng log ứng dụng) — ghi QUA
+container `van-hanh`, nên `van-hanh` dừng thì lượt sau thu lại từ chỗ cũ, không mất dòng; mỗi giờ
+đo cỡ volume và ảnh Docker. Trạng thái của nó (mốc log) nằm ở `.tac-tu/` cạnh `.env`.
+
+**Tác tử dừng thì chỉ nút Sao lưu ngay xám đi** — trang nói "máy chủ chưa sẵn sàng nhận
+lệnh" sau 60 giây không nhịp. Sao lưu theo lịch vẫn do cron chạy. Tác tử chỉ chạy được
+**hai** việc (sao lưu CSDL, sao lưu kho tệp); tên việc kiểm ở cả CSDL lẫn tác tử, và không
+trường nào từ CSDL đi vào dòng lệnh. Khởi động lại giữa lúc đang sao lưu thì việc ấy được
+đánh **lỗi** ở lần khởi động sau, nút mở lại. Xem nó làm gì: `journalctl -u csbh-tac-tu -f`.
+
 Mỗi lượt (tự động hay gõ tay) ghi một dòng `ops.lan_chay`:
 
 ```sh

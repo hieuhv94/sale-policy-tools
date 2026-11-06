@@ -12,6 +12,8 @@ import { SaoLuuService } from './sao-luu/sao-luu.service.js';
 import { ODiaController } from './o-dia/o-dia.controller.js';
 import { ODiaService } from './o-dia/o-dia.service.js';
 import { SucKhoeController } from './suc-khoe/suc-khoe.controller.js';
+import { TacTuController } from './tac-tu/tac-tu.controller.js';
+import { TacTuService } from './tac-tu/tac-tu.service.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -38,13 +40,14 @@ class HealthController {
  * `@Roles('QUAN_TRI')`; mọi thao tác ghi phát sự kiện vào nhật ký kiểm toán.
  */
 @Module({
-  controllers: [HealthController, LichController, LogController, SaoLuuController, ODiaController, SucKhoeController],
+  controllers: [HealthController, LichController, LogController, SaoLuuController, ODiaController, SucKhoeController, TacTuController],
   providers: [
     Db,
     VanHanhOutbox,
     LogService,
     SaoLuuService,
     ODiaService,
+    TacTuService,
     HenGio,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
