@@ -35,6 +35,26 @@ export class Bus {
   }
 
   /**
+   * Số thư đang nằm trong một hàng đợi, hoặc `null` khi hàng đợi chưa tồn tại (`0253`).
+   *
+   * Mỗi lượt hỏi một KÊNH RIÊNG: hỏi một hàng đợi không có thì RabbitMQ ĐÓNG kênh (404), và
+   * kênh ấy phát sự kiện `error` — không ai nghe thì Node coi là lỗi không bắt được, cả tiến
+   * trình chết. Kênh chung của `channel()` cũng không được dùng: nó chết theo.
+   */
+  async demHangDoi(queue: string): Promise<number | null> {
+    await this.channel();
+    const ch = await this.conn!.createChannel();
+    ch.on('error', () => undefined);
+    try {
+      return (await ch.checkQueue(queue)).messageCount;
+    } catch {
+      return null;
+    } finally {
+      await ch.close().catch(() => undefined);
+    }
+  }
+
+  /**
    * Khai báo queue của một consumer và nối nó vào exchange.
    *
    * Làm ở phía CONSUMER chứ không phía publisher, và cũng không làm lúc publish:

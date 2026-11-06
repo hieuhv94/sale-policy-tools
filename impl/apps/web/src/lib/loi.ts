@@ -474,6 +474,12 @@ export const BANG_LOI: Record<string, Muc> = {
   TEN_TEP_SAI: { dang: 'thanh-noi', cau: 'Tên tệp không hợp lệ. Tải lại trang rồi thử lại.' },
   LOG_KHONG_CO: { dang: 'thanh-noi', cau: 'Tệp log này không còn — có thể đã bị xoá. Tải lại danh sách.' },
   LOG_CHUA_CAU_HINH: { dang: 'hop-thoai', cau: 'Máy chủ chưa được cấu hình thư mục log. Liên hệ người vận hành máy chủ.' },
+  // `0253` — sao lưu và ổ đĩa trên trang Vận hành.
+  SAO_LUU_CUOI_CUNG: { dang: 'hop-thoai', cau: 'Không xoá được bản sao lưu mới nhất — hệ thống luôn giữ lại ít nhất một bản.' },
+  SAO_LUU_DANG_CHAY: { dang: 'hop-thoai', cau: 'Đang có một lượt sao lưu chạy. Đợi lượt ấy xong rồi xoá.' },
+  SAO_LUU_KHONG_CO: { dang: 'thanh-noi', cau: 'Bản sao lưu này không còn — có thể đã bị xoá. Tải lại danh sách.' },
+  SAO_LUU_CHUA_CAU_HINH: { dang: 'hop-thoai', cau: 'Máy chủ chưa được cấu hình thư mục sao lưu. Liên hệ người vận hành máy chủ.' },
+  NGUONG_KHONG_HOP_LE: { dang: 'o-nhap', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*
    * `0167` — chưa tạo bản mềm thì chưa bàn giao được.

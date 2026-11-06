@@ -579,3 +579,53 @@ export function bodyFor(e: MailEvent, bac: Bac, webBaseUrl: string): string {
   );
   return lines.join('\n');
 }
+
+// --- Cảnh báo ổ đĩa (`0253`) -------------------------------------------------
+//
+// Người nhận là Quản trị hệ thống — KHÔNG có chuyên môn IT (chốt 05/11). Câu chữ nói
+// điều đang xảy ra và việc nên làm bằng lời thường: không tên ổ kiểu `/dev/sda1`, không
+// tên thư mục, không lệnh máy chủ.
+
+export type ODiaMail = {
+  o: string;
+  phanTram: number;
+  nguong: number;
+  conLai: number | null;
+  duBaoNgayDay: number | null;
+  at?: string | undefined;
+};
+
+/** Trang Vận hành, thẻ Ổ đĩa. */
+export const DUONG_O_DIA = '/van-hanh#o-dia';
+
+const TEN_O: Record<string, string> = { 'du-lieu': 'Ổ dữ liệu', 'ban-sao-ngoai': 'Ổ bản sao ngoài' };
+const gb = (b: number): string => `${(b / 1024 ** 3).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} GB`;
+
+export const titleODia = (e: ODiaMail): string =>
+  `${TEN_O[e.o] ?? 'Ổ đĩa'} đã dùng ${e.phanTram.toLocaleString('vi-VN')}% — vượt ngưỡng ${e.nguong}%`;
+
+export const subjectODia = (e: ODiaMail): string => `[CSBH] ${titleODia(e)}`;
+
+export const moTaODia = (e: ODiaMail): string | null =>
+  e.duBaoNgayDay !== null ? `đầy sau khoảng ${e.duBaoNgayDay} ngày` : null;
+
+export function bodyODia(e: ODiaMail, webBaseUrl: string): string {
+  const lines = [
+    `${TEN_O[e.o] ?? 'Ổ đĩa'} của máy chủ phần mềm Chính sách bán hàng đã dùng ${e.phanTram.toLocaleString('vi-VN')}% dung lượng, vượt ngưỡng cảnh báo ${e.nguong}%.`,
+  ];
+  if (e.conLai !== null) lines.push(`Còn trống: ${gb(e.conLai)}.`);
+  if (e.duBaoNgayDay !== null) lines.push(`Nếu giữ tốc độ hiện tại, ổ sẽ đầy sau khoảng ${e.duBaoNgayDay} ngày.`);
+  lines.push(
+    '',
+    'Ổ đầy thì phần mềm ngừng lưu dữ liệu mới. Việc nên làm:',
+    '  · giảm số bản sao lưu giữ lại hoặc xoá bớt bản cũ, ở trang Vận hành — thẻ Sao lưu;',
+    '  · xoá bớt tệp log cũ, ở trang Vận hành — thẻ Tệp log;',
+    '  · báo người quản lý máy chủ để mở rộng ổ đĩa.',
+    '',
+    `Xem chi tiết: ${webBaseUrl}${DUONG_O_DIA}`,
+    '',
+    'Thư này chỉ gửi một lần mỗi khi ổ vượt ngưỡng; ổ xuống dưới ngưỡng rồi vượt lại thì sẽ có thư mới.',
+    'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
+  );
+  return lines.join('\n');
+}

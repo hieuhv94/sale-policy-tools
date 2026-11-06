@@ -148,6 +148,17 @@ services:
     <<: *node
     build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: van-hanh } }
     healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3011/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      BACKUP_DIR: /backup
+      BACKUP_MIRROR_DIR: /mirror
+    # `volumes` của service THAY danh sách của x-node (YAML không gộp danh sách) — nên
+    # khai lại cả bí mật lẫn thư mục log, rồi mới thêm hai thư mục sao lưu (`0253`).
+    volumes:
+      - ./secrets:/run/secrets:ro
+      - ${CSBH_LOG_DIR:-../../logs}:/var/log/csbh
+      - pgbackup:/backup
+      - ../../workspace/backup-mirror:/mirror
 
   reporting:
     <<: *node

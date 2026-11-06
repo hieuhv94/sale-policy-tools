@@ -52,6 +52,19 @@ export class InternalController {
    * nằm trong nhật ký của nó mãi mãi, và gửi thư cho họ là gửi vào một hộp thư
    * không ai mở — hoặc tệ hơn, vào hộp thư công ty đã cấp lại cho người khác.
    */
+  /**
+   * Mọi Quản trị hệ thống đang hoạt động (`0253`) — người nhận thư cảnh báo ổ đĩa.
+   * Sự kiện ấy không thuộc hồ sơ nào nên không có bốn cột người để tra theo.
+   */
+  @Get('users/quan-tri')
+  async quanTri() {
+    const rows = await this.db.q<{ userId: string; role: string; email: string; fullName: string }>(
+      `SELECT id AS "userId", role::text AS role, email, full_name AS "fullName"
+         FROM idn.app_user WHERE role = 'QUAN_TRI' AND is_active ORDER BY username`,
+    );
+    return { targets: rows };
+  }
+
   @Post('users/mail-targets')
   @HttpCode(200)
   async mailTargets(@Body() body: unknown) {

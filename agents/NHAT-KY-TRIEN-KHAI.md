@@ -21076,3 +21076,71 @@ lưu CSDL `18:15Z` = 01:15 ngày 07/11 giờ VN; không token → 401; `readyz` 
 `THANH_CONG` — `tar` busybox của ảnh làm được việc.
 
 **2871/2871 xanh.**
+
+## P284 — `0253` Trang Vận hành: bản sao lưu (xem · tải · xoá), ổ đĩa + thư vượt ngưỡng, thẻ Sức khoẻ
+
+Chặng B3b. Thêm vào service `van-hanh` ba nhóm đường, đều `@Roles('QUAN_TRI')`:
+
+- **Sao lưu**: `GET /van-hanh/sao-luu` · `GET …/csdl/:ten/tai` · `DELETE …/csdl/:ten` · `DELETE …/kho-tep/:moc`
+  (`?caBanSaoNgoai=1` xoá cả ở bản sao ngoài). Đọc thẳng `BACKUP_DIR` (volume `pgbackup`, gắn tại `/backup`) và
+  `BACKUP_MIRROR_DIR` (`/mirror`) theo đúng bố cục `0250` ghi ra. Ba luật ở máy chủ: không xoá bản **mới nhất**
+  (`SAO_LUU_CUOI_CUNG`), không xoá khi một lượt **cùng loại** đang chạy trong vòng một giờ (`SAO_LUU_DANG_CHAY` —
+  lượt "đang chạy" cũ hơn là chết dở, không chặn mãi), tên khớp đúng mẫu. Bản chụp kho tệp KHÔNG có đường tải.
+  Tên tải về là `csbh-sao-luu-<mốc>.backup` — chữ "dump" không ra tới người dùng (chốt 05/11).
+  **"Chiếm thêm" của một bản chụp** = tổng cỡ tệp có `nlink === 1` — phần đĩa trả lại được nếu xoá nó; bản chụp
+  liên kết cứng làm phép cộng cỡ thông thường đếm một tệp N lần.
+- **Ổ đĩa**: `GET /van-hanh/o-dia` (`theoO` qua `statfs`, `theoHangMuc`, lịch sử 30 ngày) · `PUT …/o-dia/nguong`.
+  Hai ổ (dữ liệu, bản sao ngoài); cùng `stat().dev` thì `cungODuLieu: true`. Cỡ cây thư mục đếm **mỗi inode một
+  lần**. Mẫu đo mỗi giờ (`doVaBao` ở nhịp 5 phút, bỏ qua khi mẫu gần nhất chưa quá 55 phút), dọn sau 90 ngày; dự
+  báo ngày đầy là hàm thuần `duBaoNgayDay` (hồi quy 7 ngày, ≥24 mẫu trải ≥1 ngày). **MỘT ngưỡng** (chốt 05/11).
+  Thư chỉ khi đi **từ dưới lên** (`dang_vuot`); đổi ngưỡng thì quên trạng thái ấy.
+- **Sức khoẻ**: `GET /van-hanh/suc-khoe` — thành phần (từ `/readyz` của gateway, không hỏi lại mười một service),
+  hàng đợi lỗi RabbitMQ, sự kiện chờ phát theo nguồn, thư hỏng, sao lưu quá hạn (đến hạn mà mốc đã trôi hơn 2
+  giờ), tóm tắt ổ. Trả DỮ LIỆU, không trả câu chữ — câu cho người không chuyên IT là việc của giao diện.
+
+`csbh_ops` chỉ thấy schema `ops`; ba con số nằm ở schema khác (outbox của mọi service, `ntf.dead_letter`, cỡ
+`doc.stored_file`) đọc qua hàm `SECURITY DEFINER` trả về đúng con số (migration `0126`), không mở quyền đọc bảng.
+`dem_outbox_chua_phat()` hỏi `information_schema` chứ không chép danh sách — bảng outbox thứ tám tự vào.
+
+**Thư cảnh báo ổ đĩa** đi đường `notification` sẵn có: `van_hanh.o_dia_vuot_nguong` thêm vào bindings của hàng
+đợi thông báo; `notify.service` rẽ sớm như `customer.handover` (sự kiện không thuộc hồ sơ nào); người nhận là mọi
+Quản trị **đang hoạt động** — đường nội bộ mới `GET /internal/users/quan-tri` của `identity`. Có claim chống
+trùng, dòng chuông `CHINH`, thư hỏng vào `dead_letter`. Câu chữ không có thuật ngữ máy (`ổ`, `%`, ngày dự báo;
+ca kiểm cấm `docker|volume|df|inode|statfs|/dev/`).
+
+**LỖI THẬT tìm ra bởi ca kiểm đầu tiên**: hỏi `checkQueue` một hàng đợi CHƯA TỒN TẠI thì RabbitMQ đóng kênh, kênh
+phát sự kiện `error` mà không ai nghe → **lỗi không bắt được, cả tiến trình `van-hanh` chết** — chỉ vì mở thẻ
+Sức khoẻ trên một hệ mà một consumer chưa từng khởi động. `try/catch` quanh `await` không bắt được, vì lỗi đi
+đường sự kiện chứ không qua promise. Sửa ở nguồn: `Bus.demHangDoi(q)` mở **kênh riêng** cho mỗi lượt hỏi, gắn
+`on('error')`, trả `null` khi hàng đợi không có. Ca kiểm hỏi một hàng đợi không có, rồi hỏi tiếp một hàng đợi
+có thật để chứng minh kết nối còn sống.
+
+**Hai chỗ ca kiểm tự sai, tìm ra lúc chạy**: tên trường trả về (`theoO`/`theoHangMuc`, không `o`/`hangMuc`); và
+ca "tên lạ" ban đầu chấp nhận `400 hoặc 404` — lỏng tới mức nới regex tên tệp vẫn có thể xanh. Siết thành đúng
+400; hai trường hợp `..` tách thành ca riêng vì URL tự chuẩn hoá đoạn chấm trước khi tới máy chủ (404 từ bộ định
+tuyến, không bao giờ tới đường xoá).
+
+**50 ca** `tests/http/van-hanh-sao-luu.test.ts`. Phá lại mười bốn lượt, khôi phục kiểm bằng `cmp`: xoá được bản
+mới nhất · regex tên CSDL lỏng · regex mốc lỏng · bỏ chặn khi đang chạy · bỏ qua `caBanSaoNgoai` · "chiếm thêm"
+đếm cả tệp chung · cỡ cây đếm inode nhiều lần · báo ở mỗi lượt đo · đổi ngưỡng không quên trạng thái · bỏ nhịp 55
+phút · gửi thư dù đã tắt · đếm hàng đợi trên kênh chung (đỏ kèm lỗi không bắt được) · `notification` không định
+tuyến sự kiện · `identity` tính cả tài khoản bị khoá. **Lượt cuối XANH ở lần đầu**: dữ liệu mẫu không có Quản trị
+nào bị khoá, nên bỏ `is_active` khỏi câu SQL không đổi kết quả — ca giờ tự chèn một Quản trị bị khoá rồi đòi nó
+vắng mặt, và đỏ.
+
+**Compose**: `volumes` của service THAY danh sách của x-node, nên `van-hanh` khai lại bí mật và thư mục log rồi mới
+thêm `pgbackup` và bản sao ngoài — ở cả demo lẫn prod.
+
+**Ghi lại một sự cố của chặng trước** (`0252`): `.gitignore` có `logs/` (không `/` đầu) — khớp MỌI thư mục tên
+`logs`, nên `services/van-hanh/src/logs/` rơi khỏi commit đầu của P283 mà không gì đỏ (bộ kiểm chạy trên cây làm
+việc). Đổi thành `/logs/` và sửa commit. Đọc `git status` sau commit, không chỉ trước.
+
+**Dựng thật** (`make demo`, qua Caddy): `GET /api/van-hanh/sao-luu` liệt kê bảy bản CSDL có sẵn trong volume, đúng
+bản mới nhất, đúng một bản có ở bản sao ngoài; `o-dia` đo hai ổ khác thiết bị (`cungODuLieu: false`) — ổ dữ liệu
+của máy dev **91,1%**, bản sao ngoài 83,1%; `suc-khoe` đủ chín service từ `/readyz`, năm hàng đợi lỗi bằng 0, hai
+lịch sao lưu báo quá hạn (demo chưa có lượt nào qua cron). Nhịp đầu tiên của `van-hanh` (5 phút sau khởi động,
+11:13 giờ VN) ghi hai mẫu, đặt `dang_vuot`, phát sự kiện; `notification` ghi dòng chuông *"Ổ dữ liệu đã dùng 91,1% —
+vượt ngưỡng 80%"* và gửi **một** lá thư tới `admin01@csbh.test` qua Mailpit. Lượt đo đầu chạy SAU một nhịp chứ
+không lúc khởi động — chấp nhận được (trễ tối đa 5 phút), ghi ra để không ai tưởng là hỏng.
+
+**2921/2921 xanh.**

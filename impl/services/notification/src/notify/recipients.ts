@@ -60,6 +60,15 @@ export class RecipientsClient {
     return ((await res.json()) as { targets: Target[] }).targets;
   }
 
+  /** Mọi Quản trị đang hoạt động (`0253`, thư cảnh báo ổ đĩa). */
+  async quanTri(): Promise<Target[]> {
+    const res = await fetch(`${identityUrl()}/internal/users/quan-tri`, {
+      headers: { 'X-Service-Token': mintServiceToken('notification') },
+    });
+    if (!res.ok) throw new Error(`identity trả ${res.status} khi tra danh sách Quản trị`);
+    return ((await res.json()) as { targets: Target[] }).targets;
+  }
+
   /**
    * Lọc theo danh sách vai trò của bước, GIỮ NGUYÊN THỨ TỰ vai trò trong bảng
    * muc 3. Người nhận trùng địa chỉ hai lần chỉ xuất hiện một lần.

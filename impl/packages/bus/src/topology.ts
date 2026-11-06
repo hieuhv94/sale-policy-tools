@@ -30,7 +30,9 @@ export const BUS = {
    * đang hiệu lực có sản phẩm đó" thì chỉ policy trả lời được (NTF-13).
    */
   bindings: {
-    notification: ['policy.#', 'catalog.#', 'customer.#', 'sla.#'],
+    // `van_hanh.o_dia_vuot_nguong` (`0253`) — ĐÚNG một khoá: mọi sự kiện khác của
+    // `van-hanh` là vết nhật ký, không phải thư.
+    notification: ['policy.#', 'catalog.#', 'customer.#', 'sla.#', 'van_hanh.o_dia_vuot_nguong'],
     // `policy.scan_discarded` gỡ ở `0050`: yêu cầu in lại không còn xoá bản
     // scan nữa, nên không còn sự kiện nào để nghe.
     document: ['policy.rejected'],

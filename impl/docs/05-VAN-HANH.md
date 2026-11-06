@@ -142,6 +142,26 @@ phần thừa đi ở lượt chạy kế tiếp.
 `CSBH_BACKUP_MIRROR` phải nằm trên **ổ khác** (hoặc NAS) — production thiếu nó thì
 `sao-luu` vẫn ghi bản tại chỗ nhưng thoát lỗi.
 
+**Trên trang Vận hành** (`mới 06/11 — 0253`) Quản trị xem danh sách hai loại bản, **tải**
+bản CSDL (tên tải về `csbh-sao-luu-<mốc>.backup`) và **xoá** bản cũ — tuỳ chọn xoá cả bản ở
+bản sao ngoài. Ba luật ở máy chủ: không xoá được **bản mới nhất** của mỗi loại; không xoá
+khi một lượt sao lưu **cùng loại** đang chạy (lượt "đang chạy" quá một giờ coi là chết dở,
+không chặn); tên phải khớp đúng mẫu. Bản chụp kho tệp **không tải về qua trình duyệt** —
+mỗi bản là toàn bộ kho. Mọi lượt tải và xoá ghi vào nhật ký kiểm toán. Service `van-hanh`
+gắn volume `pgbackup` tại `/backup` và bản sao ngoài tại `/mirror`.
+
+### Ổ đĩa `mới 06/11 — 0253`
+
+`van-hanh` đo mỗi giờ hai ổ — ổ dữ liệu (nơi volume Docker nằm) và ổ bản sao ngoài — giữ
+mẫu 90 ngày, dự báo "đầy sau khoảng N ngày" từ 7 ngày gần nhất. Hai thư mục cùng một
+thiết bị thì trang nói ra: bản sao ngoài khi ấy **không** chống được hỏng ổ.
+
+**Một ngưỡng** (mặc định 80%, đặt trên trang). Vượt ngưỡng thì **một lá thư** tới mọi
+tài khoản Quản trị đang hoạt động, kèm thông báo trên chuông — chỉ khi đi từ dưới lên
+trên ngưỡng; ở trên nhiều ngày không thành mỗi giờ một lá. Đổi ngưỡng thì trạng thái "đã
+báo" được quên, nên ngưỡng mới vẫn ra thư ở lượt đo kế tiếp. Ổ đầy hẳn thì Postgres dừng
+ghi và thư cũng không ghi được — đừng đặt ngưỡng sát 100%.
+
 > **Máy nâng cấp từ trước `0250`** còn các thư mục cũ: `pgbackup/base` (bản nền),
 > `CSBH_BACKUP_MIRROR/base` và `/wal`, volume `<dự án>_pgarchive`, và kho tệp bố cục
 > cũ `pgbackup/tep`. Không lệnh nào tự xoá chúng — `sao-luu` in ra đường dẫn. Xoá tay

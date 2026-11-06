@@ -7,6 +7,7 @@
  */
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { LogService } from '../logs/log.service.js';
+import { ODiaService } from '../o-dia/o-dia.service.js';
 
 const NHIP_MS = 5 * 60 * 1000;
 
@@ -15,7 +16,10 @@ export class HenGio implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(HenGio.name);
   private timer: NodeJS.Timeout | undefined;
 
-  constructor(private readonly logs: LogService) {}
+  constructor(
+    private readonly logs: LogService,
+    private readonly oDia: ODiaService,
+  ) {}
 
   onModuleInit(): void {
     if (process.env.VAN_HANH_TU_CHAY === '0') return;
@@ -29,6 +33,12 @@ export class HenGio implements OnModuleInit, OnModuleDestroy {
       if (r) this.log.log(`nén log: ${JSON.stringify(r)}`);
     } catch (e) {
       this.log.error(`nén log hỏng: ${String(e)}`);
+    }
+    // Tách khối: nén hỏng không được làm lỡ lượt đo ổ đĩa, và ngược lại (`0253`).
+    try {
+      await this.oDia.doVaBao(new Date());
+    } catch (e) {
+      this.log.error(`đo ổ đĩa hỏng: ${String(e)}`);
     }
   }
 

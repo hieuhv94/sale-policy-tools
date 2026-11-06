@@ -266,6 +266,15 @@ services:
     environment:
       <<: *node-env
       SERVICE: van-hanh
+      BACKUP_DIR: /backup
+      BACKUP_MIRROR_DIR: /mirror
+    # `volumes` của service THAY danh sách của x-node (YAML không gộp danh sách) — nên
+    # khai lại cả bí mật lẫn thư mục log, rồi mới thêm hai thư mục sao lưu (`0253`).
+    volumes:
+      - ../secrets:/run/secrets:ro
+      - ${CSBH_LOG_DIR:-../logs}:/var/log/csbh
+      - pgbackup:/backup
+      - ${CSBH_BACKUP_MIRROR:-../backup-mirror}:/mirror
 
   reporting:
     <<: *node

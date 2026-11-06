@@ -24,6 +24,12 @@ import {
   bodyFor,
   duongDan,
   DUONG_BAN_GIAO,
+  DUONG_O_DIA,
+  bodyODia,
+  moTaODia,
+  subjectODia,
+  titleODia,
+  type ODiaMail,
   moTaBanGiao,
   moTaNgan,
   subjectBanGiao,
@@ -70,6 +76,8 @@ export class NotifyService {
     // Bàn giao khách hàng rẽ NGAY ở đây (`0085`): nó là sự kiện duy nhất không
     // nói về một hồ sơ, nên cả khung thư lẫn cách tra người nhận đều khác.
     if (ev.routingKey === 'customer.handover') return this.banGiao(ev);
+    // `0253` — cảnh báo ổ đĩa, cũng không nói về hồ sơ nào: người nhận là mọi Quản trị.
+    if (ev.routingKey === 'van_hanh.o_dia_vuot_nguong') return this.oDia(ev);
 
     const roles = Array.isArray(p['recipients']) ? (p['recipients'] as string[]) : [];
     const tdvUserId = s(p['tdvUserId']);
@@ -278,6 +286,73 @@ export class NotifyService {
    * KHÔNG có thư "để biết" đi kèm: người bàn giao vừa bị vô hiệu hoá tài khoản,
    * và Quản trị thì vừa tự tay bấm nút.
    */
+  /**
+   * Thư cảnh báo ổ đĩa (`0253`) — cùng khuôn `banGiao`: không thuộc hồ sơ nào, người nhận
+   * đích danh (mọi Quản trị đang hoạt động), chuông ghi TRƯỚC thư (SMTP chết thì chuông là
+   * đường duy nhất), hỏng hẳn thì vào bảng thư hỏng để gửi lại.
+   */
+  private async oDia(ev: Incoming): Promise<Outcome> {
+    const p = ev.payload;
+    const phanTram = typeof p['phanTram'] === 'number' ? p['phanTram'] : null;
+    const nguong = typeof p['nguong'] === 'number' ? p['nguong'] : null;
+    if (phanTram === null || nguong === null) return 'ignored';
+    if (!(await this.claim(ev))) return 'duplicate';
+    try {
+      const targets = await this.recipients.quanTri();
+      if (targets.length === 0) throw new Error('không có Quản trị hệ thống nào đang hoạt động để nhận cảnh báo');
+      const thu: ODiaMail = {
+        o: s(p['o']) ?? 'du-lieu',
+        phanTram,
+        nguong,
+        conLai: typeof p['conLai'] === 'number' ? p['conLai'] : null,
+        duBaoNgayDay: typeof p['duBaoNgayDay'] === 'number' ? p['duBaoNgayDay'] : null,
+        at: s(p['at']),
+      };
+      await this.ghiThongBao(ev, targets, {
+        kind: 'CHINH',
+        action: 'O_DIA_VUOT_NGUONG',
+        tieuDe: titleODia(thu),
+        moTa: moTaODia(thu),
+        duongDan: DUONG_O_DIA,
+        xayRaLuc: thu.at ?? null,
+      });
+      const subject = subjectODia(thu);
+      const sent = await this.withRetry(ev, () =>
+        this.mailer.send({
+          eventId: ev.eventId,
+          to: targets.map((t) => t.email),
+          subject,
+          text: bodyODia(thu, this.mailer.cfg.webBaseUrl),
+          threadKey: ev.eventId,
+        }),
+      );
+      await this.db.q(
+        `UPDATE ntf.sent_mail
+            SET message_id = $2, to_addresses = $3, subject = $4, attempts = $5
+          WHERE event_id = $1 AND kind = 'CHINH'`,
+        [ev.eventId, sent.messageId, sent.to, subject, sent.attempts],
+      );
+      return 'sent';
+    } catch (e) {
+      await this.db
+        .q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'CHINH'`, [ev.eventId])
+        .catch(() => undefined);
+      await this.db.q(
+        `INSERT INTO ntf.dead_letter (event_id, routing_key, payload, attempts, last_error)
+         VALUES ($1,$2,$3::jsonb,$4,$5)`,
+        [
+          ev.eventId,
+          ev.routingKey,
+          JSON.stringify(ev.payload),
+          this.mailer.cfg.retryBackoffMs.length + 1,
+          String(e instanceof Error ? e.message : e).slice(0, 2000),
+        ],
+      );
+      this.log.error(`thư cảnh báo ổ đĩa ${ev.eventId} vào DLQ: ${String(e)}`);
+      return 'dead';
+    }
+  }
+
   private async banGiao(ev: Incoming): Promise<Outcome> {
     const p = ev.payload;
     const nhan = s(p['tdvUserId']);

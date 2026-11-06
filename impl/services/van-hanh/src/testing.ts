@@ -12,3 +12,5 @@ export async function createTestApp(): Promise<INestApplication> {
 
 export { LogService, canNen, canDon, TEP_NEN, THANH_PHAN } from './logs/log.service.js';
 export { VanHanhOutbox } from './infra/outbox.js';
+export { SaoLuuService, mocThanhIso } from './sao-luu/sao-luu.service.js';
+export { ODiaService, duBaoNgayDay } from './o-dia/o-dia.service.js';
