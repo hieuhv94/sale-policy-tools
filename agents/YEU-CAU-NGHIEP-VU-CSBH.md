@@ -169,6 +169,11 @@ Một người. Toàn quyền đọc **dữ liệu nghiệp vụ** `sửa 21/08`
   về một chủ ngày 20/08. *Người ký* đã xoá hẳn — xem mục 6.4.
 - Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1 — quy trình tạo tài khoản ở mục 2.8.
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
+- **Trang Vận hành** `mới 06/11` — trông coi phần mềm không cần vào máy chủ: sức khoẻ, ổ đĩa (một
+  ngưỡng, thư khi vượt), sao lưu (xem · tải bản CSDL · xoá · *Sao lưu ngay* · lịch và số bản giữ),
+  tệp log (xem hôm nay · tải · xoá · lịch nén), thư hỏng và hạn xử lý, lịch tự động. Người dùng
+  vai trò này **không có chuyên môn IT**: trang không dùng thuật ngữ kỹ thuật, không bày câu lệnh
+  máy chủ, và **không có phục hồi** — phục hồi là việc của người vận hành máy chủ. Xem mục 10.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
 - Không tham gia luồng duyệt. Mọi thay đổi danh mục vào nhật ký kèm giá trị trước và sau.
 - Với khách hàng: **chỉ đổi TDV phụ trách**, không sửa thông tin khách hàng `sửa 28/09`.
@@ -1379,8 +1384,28 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   máy mới cài **cùng phiên bản**.
 - **Bí mật đi gói RIÊNG, mã hoá bằng mật khẩu** người vận hành đặt lúc xuất. Mất mật khẩu là
   không mở được CSDL ở máy mới.
-- **Sao lưu kho tệp là một lệnh có sẵn, CHƯA chạy định kỳ** — mất máy đột ngột thì tệp chỉ về
-  được tới lần chạy tay gần nhất, trong khi CSDL về được 5 phút trước.
+- ~~Sao lưu kho tệp CHƯA chạy định kỳ~~ `sửa 06/11` — **cơ sở dữ liệu và kho tệp đều sao lưu theo
+  lịch** Quản trị đặt trên trang Vận hành (tần suất 6 giờ · 12 giờ · ngày · tuần, giờ chạy, giữ
+  tối đa N bản, mặc định 7). Mất máy đột ngột thì cả hai về được tới **lượt sao lưu gần nhất** —
+  bản nền + WAL (phục hồi tới từng giây) đã bỏ theo chốt 05/11.
+
+### Trang Vận hành `mới 06/11`
+
+- **Chỉ Quản trị hệ thống.** Sáu thẻ: Sức khoẻ · Ổ đĩa · Sao lưu · Tệp log · Thư & hàng đợi · Lịch
+  tự động. Thẻ *Hệ thống* của trang Người dùng (hạn xử lý, thư hỏng) dời vào thẻ *Thư & hàng đợi*.
+- **Không chữ kỹ thuật, không câu lệnh, không phục hồi** (chốt 05/11). Bản sao lưu gọi là *bản sao
+  lưu*, không phải *dump*.
+- **Không xoá được bản sao lưu mới nhất**, và không xoá khi một lượt sao lưu cùng loại đang chạy.
+  Bản chụp kho tệp **không tải về qua trình duyệt** (mỗi bản là toàn bộ kho).
+- **Giảm số bản giữ lại thì phần thừa xoá ở lượt chạy KẾ TIẾP**, cũ nhất trước, chỉ sau khi bản mới
+  đã ghi xong — không xoá lúc bấm Lưu (chốt 05/11).
+- **Tệp log**: mỗi thành phần một tệp mỗi ngày; đêm hôm sau nén cả ngày thành **một** tệp; giữ tối
+  đa N tệp (mặc định 30, đặt được 1–90).
+- **Ổ đĩa: MỘT ngưỡng** (mặc định 80%). Vượt ngưỡng → một thư + một thông báo cho mọi Quản trị
+  đang hoạt động, chỉ lúc đi từ dưới lên trên ngưỡng.
+- ***Sao lưu ngay*** chạy qua một phần mềm nhận lệnh trên máy chủ; phần ấy tắt thì nút xám kèm câu
+  nói vì sao — **sao lưu theo lịch không phụ thuộc nó**.
+- Mọi lượt tải, xoá, sửa lịch, sửa ngưỡng, *Sao lưu ngay* ghi vào nhật ký kiểm toán.
 
 ## 11. Yêu cầu hiển thị file
 
@@ -2983,6 +3008,16 @@ phiên bản (`sửa 05/11` — người không đăng nhập được cần đ�
 mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
 mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**
 cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi.
+
+**TRANG VẬN HÀNH** `mới 05/11 — 06/11` — *"đưa mọi thao tác vận hành từ command line lên giao diện web
+của tài khoản admin, trong một trang riêng biệt gọi là vận hành"*. Mockup duyệt 05/11. Chốt khi hỏi:
+thao tác cần quyền máy chủ chạy qua **phần mềm nhận lệnh trên máy chủ**, không trao quyền ấy cho
+container · **phục hồi giữ ở máy chủ**, không lên web (*"admin không có chuyên môn IT"*) · bỏ khỏi
+trang: đường hầm, khởi động lại, nâng cấp, nạp danh mục, thư thử, diễn tập · **mỗi thành phần một
+tệp log, nén một tệp mỗi ngày, giữ 30** · sao lưu CSDL **và** kho tệp có lịch + số bản giữ cấu hình
+được · **bỏ bản nền + WAL**, sao lưu theo lịch là đủ · **bỏ trích kiểm toán** · **một ngưỡng ổ đĩa**
+· thu cả log sáu thành phần nền tảng · giảm số bản thì **đợi lượt kế tiếp** · *"bỏ khái niệm dump"* ·
+*Hạn xử lý hồ sơ* ghi rõ đơn vị **ngày**. Xem mục 2.7 và 10.
 
 **HẾT PHIÊN Ở BẤT KỲ CỬA SỔ NÀO, VÀ GOOGLE Ở Ô ĐĂNG NHẬP LẠI** `sửa 05/11` — *"tạo và test hết các
 case mà người dùng bị hết hạn đăng nhập ở bất kỳ cửa sổ nào, khi hiện hộp thư đăng nhập không có bất

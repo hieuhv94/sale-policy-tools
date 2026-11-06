@@ -21226,3 +21226,67 @@ bản sửa log — Caddy mất cổng 8080 (`readyz` → `000`), đúng triệu
 không đụng dữ liệu demo (ca CSDL lăn ngược, ca shell dùng `docker` giả); `make demo-down` + `make demo` dựng lại.
 
 **2986/2986 xanh.**
+
+## P286 — `0255` Giao diện trang Vận hành
+
+Chặng C — chặng cuối của trang Vận hành. `/van-hanh`, mục CUỐI menu Quản trị (`QUYEN_XEM.vanHanh`, chặn cả ở tầng
+định tuyến), sáu thẻ theo mockup đã duyệt: Sức khoẻ · Ổ đĩa · Sao lưu · Tệp log · Thư & hàng đợi · Lịch tự động.
+
+**Mockup gốc mất** — link artifact trả *not found*, tệp HTML trong scratchpad của phiên đã bị dọn. Dựng lại từ
+bản ghi phiên: phát lại lượt `Write` cuối cùng rồi 31 lượt `Edit` thành công theo đúng thứ tự (lọc theo
+`tool_result` không lỗi — lượt đầu không lọc thì 46 lượt sửa "trượt", vì gộp cả lượt `Read` có cùng đường dẫn).
+Bản dựng lại vẫn còn khối *Phục hồi* mà khách hàng đã bảo bỏ — lượt bỏ ấy không đi qua `Edit`. Giao diện làm theo
+các QUYẾT ĐỊNH đã chốt, không theo phần sót ấy.
+
+**Phần THUẦN ở `lib/van-hanh.ts`** (lối `0172`, để `tests/http/` đối chiếu được): nhãn tiếng Việt, mô tả lịch,
+`kiemLich`/`thanLich`, `canhBao` (dữ liệu Sức khoẻ → danh sách việc cần chú ý, mỗi việc dẫn tới đúng thẻ), `coTep`,
+`docDongLog` (dòng JSON của `LoggerTep` HOẶC dòng thô của hạ tầng). Bản CHÉP giới hạn giữ tối đa / việc chỉ-hằng-ngày
+/ tên thành phần / sáu thành phần nền tảng có ca đối chiếu với máy chủ và với `HA_TANG` của `./csbh`
+(`tests/http/van-hanh-giao-dien.test.ts`).
+
+**`KhoiLich` một component cho ba chỗ** — thẻ Sao lưu (hai khối), thẻ Tệp log, và hộp *Sửa* của thẻ Lịch tự động
+(chốt 05/11: lịch và số bản giữ phải NHÌN THẤY ngay ở thẻ của việc ấy). Ô giờ là ô CHỮ, không `type="time"` —
+cùng phép đo `0208`: Chromium vẽ ô giờ theo ngôn ngữ giao diện trình duyệt (01:15 AM). Lỗi của một ô từ máy chủ
+(`LICH_KHONG_HOP_LE` + `field`) rơi đúng vào ô ấy qua `bao(e, { vaoO })`.
+
+**Sao lưu ngay**: bấm → `POST` → hỏi `GET /van-hanh/viec/:id` mỗi 3 giây tới khi xong → tải lại danh sách. Mở trang
+giữa lúc một việc đang chạy thì tự theo dõi tiếp (đọc `tac-tu.viec`). Tác tử mất liên lạc → nút xám **kèm dòng
+chữ** (`title` không tới trình đọc màn hình trên nút `disabled`, `0160`). Lượt hỏi hỏng nuốt có lý do — khai ở
+`NUOT_CO_LY_DO`.
+
+**Thẻ Hệ thống dời** từ trang Người dùng sang thẻ *Thư & hàng đợi* bằng `git mv` (giữ lịch sử); hạn xử lý ghi rõ
+đơn vị **ngày** (chốt). Trang Người dùng còn đúng danh sách tài khoản. Ô *Thư hỏng* ở Tổng quan dẫn tới
+`/van-hanh#thu-hang-doi`. Thẻ Tệp log được phép bày chữ *"Mã tra cứu"* — công cụ tra cứu của Quản trị cùng loại
+màn hình Nhật ký (`0244`); ca quét miễn đúng hai tệp. Bấm một mã mở `/nhat-ky?traceId=` — **trang Nhật ký giờ đọc
+`?traceId=`** lúc mở và BỎ mốc *"từ đầu tháng"* (một request có thể ở tháng trước).
+
+**LỖ CÓ SẴN của bộ định tuyến**: `di()` chỉ tách `?`, nên `di('/van-hanh#o-dia')` — đúng liên kết thư và chuông
+cảnh báo ổ đĩa (`0253`) — cho `duong = '/van-hanh#o-dia'`, không khớp mục nào, ra *"Không có màn hình nào ở địa chỉ
+này"*. Sửa: tách `#` trước; cùng màn hình chỉ khác `#` thì `pushState` + bắn `hashchange` (vì `pushState` không tự
+bắn). Đổi thẻ trong trang dùng `replaceState` — bấm thẻ không thành một bước *Quay lại*.
+
+**Không thuật ngữ máy trên màn hình**: một ca dựng từng thẻ với dữ liệu XẤU nhất (mọi cảnh báo bật, tác tử chết) rồi
+quét chữ của MỌI nút lá, cấm `dump|docker|container|cron|outbox|volume|systemd|psql|./csbh|phuc-hoi` (trừ tên máy nhỏ
+`ma-phu` đứng cạnh tên tiếng Việt trong bảng thành phần, để người dùng đọc lại cho người vận hành).
+
+**Ca kiểm**: `tests/web/van-hanh.test.tsx` (50 — mọi thao tác: đổi thẻ / `#`, Xem cảnh báo, ngưỡng hợp lệ / sai,
+xoá có / không bản sao ngoài, huỷ, tải, Sao lưu ngay tới khi xong / hỏng / bấm trùng / tác tử chết, sửa lịch / giảm
+số bản / giờ sai / lỗi từ máy chủ vào ô, xem log / tra mã / mã độc / xoá / tải tệp nén, thư & hàng đợi, lịch sử, bộ
+định tuyến, Nhật ký mở theo mã) · `tests/http/van-hanh-giao-dien.test.ts` (6). Năm ca cũ phải sửa theo, đều đúng:
+thứ tự menu Quản trị (+ *Vận hành*), đường tệp bảng thao tác (`quan-tri/HeThong.tsx` → `van-hanh/ThuHangDoi.tsx`),
+miễn *"Mã tra cứu"*, `NUOT_CO_LY_DO`, và chú thích "tám mục". Một ca của chính tôi sai lúc đầu: dựng trang NGOÀI
+`BaoLoiProvider` thì `bao()` chỉ đọc lỗi, không gọi `vaoO` — ca *"lỗi vào đúng ô"* đỏ ở chỗ ứng dụng thật không hỏng.
+
+**Phá lại 18 lượt, 17 đỏ đúng chỗ.** Lượt XANH: *"cảnh báo không xếp đỏ trước"* — phép sắp ở cuối `canhBao` là MÃ
+CHẾT, vì các khối đỏ vốn được đẩy vào trước mọi khối vàng; gỡ hẳn, chú thích tại chỗ nói thứ tự đẩy vào là thứ tự
+hiện, và ca kiểm ghim CẢ DÃY bảy cảnh báo.
+
+**Tài liệu**: HDSD thêm mục 12b, thứ tự menu Quản trị chín mục; YCNV mục 2.7, mục 10 (*Trang Vận hành*) và Phụ lục
+B. **Lệch có sẵn sửa kèm**: YCNV mục *Sao lưu kho tệp* còn nói *"CHƯA chạy định kỳ"* và *"CSDL về được 5 phút
+trước"* — P281/P282 đổi cả hai mà không đồng bộ thân bài.
+
+**Dựng thật** (`make demo`): `/van-hanh` qua Caddy trả 200 (trang đơn); gói JS dựng ra mang trang mới, **136,5KB nén** /
+trần 250KB (`FE-38`). **Chưa xem bằng trình duyệt thật** — mọi thao tác chỉ đi qua jsdom; nhìn bằng mắt trên demo là việc còn
+lại.
+
+**3042/3042 xanh.**

@@ -99,18 +99,25 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (06/11/2026)
 
-Đang làm **trang Vận hành** cho Quản trị — kế hoạch + quyết định đã chốt ở `agents/KE-HOACH-VAN-HANH.md`, mockup
+Đã xong **trang Vận hành** cho Quản trị (P280–P286) — kế hoạch + quyết định đã chốt ở `agents/KE-HOACH-VAN-HANH.md`, mockup
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P285** (`0254`, B4): **tác tử vận hành** `./csbh tac-tu` dưới systemd
+Chặng gần nhất **P286** (`0255`, C): **giao diện trang Vận hành** — `/van-hanh`, mục cuối menu Quản trị, sáu thẻ
+(Sức khoẻ · Ổ đĩa · Sao lưu · Tệp log · Thư & hàng đợi · Lịch tự động), thẻ đang mở trên `#…`. Phần thuần ở
+`lib/van-hanh.ts` (bản chép giới hạn có ca đối chiếu máy chủ); `KhoiLich` MỘT component cho ba chỗ sửa lịch. Thẻ
+*Hệ thống* dời khỏi trang Người dùng. **Lỗ có sẵn**: `di()` không tách `#` — liên kết `/van-hanh#o-dia` của thư cảnh
+báo ra "không có màn hình". Ca quét chữ: không thuật ngữ máy trên màn hình. **Chưa xem bằng trình duyệt thật.**
+**3042/3042 xanh.** Trang Vận hành xong (A → C).
+
+Trước đó **P285** (`0254`, B4): **tác tử vận hành** `./csbh tac-tu` dưới systemd
 (`deploy/systemd/csbh-tac-tu.service`) — không container nào cầm `docker.sock`; nói với ứng dụng CHỈ QUA CSDL
 (`exec -T postgres psql -f -`), mọi câu SQL là một hàm `ops.*` (migration `0127`). "Sao lưu ngay" (`POST
 /van-hanh/sao-luu/chay-ngay` → `ops.viec_tay`, danh sách trắng ở `CHECK` + `case`), trạng thái container, log sáu
 container hạ tầng **ghi qua container `van-hanh`** (ghi thẳng trên máy chủ là `Permission denied` — chỉ dựng thật
 bắt được), cỡ volume. **Bẫy lần ba**: `f || true` tắt `set -e` cho cả thân `f`, kể cả subshell `( set -e; … )` → sao
 lưu hỏng báo THÀNH CÔNG. **Ảnh `ops-1.1.0` trên registry là bản trước `0250` — dựng ảnh mới trước khi giao.**
-**2986/2986 xanh.** Kế tiếp: C (giao diện).
+**2986/2986 xanh.**
 
 Trước đó **P284** (`0253`, B3b): `van-hanh` thêm **bản sao lưu** (liệt kê · tải bản CSDL · xoá; không xoá bản
 mới nhất, không xoá khi lượt cùng loại đang chạy; bản chụp kho tệp không tải được), **ổ đĩa** (`statfs` hai ổ, cỡ theo

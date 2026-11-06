@@ -181,6 +181,11 @@ export const QUYEN_XEM = {
    */
   nhatKy: ['QUAN_TRI'],
   nguoiDung: ['QUAN_TRI'],
+  /*
+   * Vận hành CHỈ Quản trị hệ thống (`0255`) — sức khoẻ, ổ đĩa, sao lưu, tệp log, thư hỏng,
+   * lịch tự động. Máy chủ chặn cùng câu ấy ở mọi đường `/van-hanh` (`@Roles('QUAN_TRI')`).
+   */
+  vanHanh: ['QUAN_TRI'],
 } as const satisfies Record<string, readonly VaiTro[]>;
 
 export type MucXem = keyof typeof QUYEN_XEM;
@@ -266,6 +271,8 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/van-ban-mau', nhan: 'Văn bản mẫu', muc: 'vanBanMau' },
   { duong: '/thong-ke', nhan: 'Thống kê', muc: 'thongKe' },
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },
+  // Mục CUỐI của Quản trị (`0255`, mockup duyệt 05/11).
+  { duong: '/van-hanh', nhan: 'Vận hành', muc: 'vanHanh' },
 ];
 
 export const dieuHuongCho = (vaiTro: string | undefined): MucDieuHuong[] =>

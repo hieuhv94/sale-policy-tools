@@ -45,11 +45,24 @@ export function BoDinhTuyen({ children }: { children: ReactNode }) {
   }, []);
 
   const di = useCallback((d: string) => {
-    const [dan = '/', hoi = ''] = d.split('?');
+    // Tách `#…` TRƯỚC (`0255`): liên kết `/van-hanh#o-dia` của thư và chuông cảnh báo ổ
+    // đĩa. Không tách thì `duong` thành `/van-hanh#o-dia`, không khớp mục nào, và người
+    // bấm rơi vào màn hình "không có màn hình nào ở địa chỉ này".
+    const [truocHash = '', sauHash] = d.split('#');
+    const hash = sauHash === undefined ? '' : `#${sauHash}`;
+    const [dan = '/', hoi = ''] = truocHash.split('?');
     const search = hoi === '' ? '' : `?${hoi}`;
     // So CẢ chuỗi truy vấn: bấm hai con số khác nhau cùng trỏ về `/ho-so` là hai
     // lần chuyển màn hình thật, không phải một lần lặp lại.
-    if (dan === window.location.pathname && search === window.location.search) return;
+    if (dan === window.location.pathname && search === window.location.search) {
+      // Cùng màn hình, chỉ khác `#` — báo cho màn hình ấy (vd. đổi thẻ của trang Vận
+      // hành). `pushState` không tự bắn `hashchange`.
+      if (hash !== '' && hash !== window.location.hash) {
+        window.history.pushState(null, '', d);
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }
+      return;
+    }
     window.history.pushState(null, '', d);
     datDuong(dan);
     datChuoiTruyVan(search);

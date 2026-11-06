@@ -157,8 +157,8 @@ Thứ tự các mục `sửa 29/08` theo đúng trình tự công việc, không
 | 5 | **Chiết khấu** | cùng cụm tra cứu với Sản phẩm |
 | 6 | **Thống kê** | nhìn lại cả kỳ — việc của cuối tháng, không phải của hôm nay |
 
-**Quản trị hệ thống có thứ tự RIÊNG** `sửa 31/08` — tám mục, và ba mục chỉ họ thấy **không dồn ở
-cuối** nữa mà xen vào giữa:
+**Quản trị hệ thống có thứ tự RIÊNG** `sửa 31/08, 06/11` — chín mục, và các mục chỉ họ thấy **không dồn ở
+cuối** mà xen vào giữa; riêng *Vận hành* đứng cuối:
 
 | | Mục | |
 | --- | --- | --- |
@@ -170,6 +170,7 @@ cuối** nữa mà xen vào giữa:
 | 6 | **Văn bản mẫu** | chỉ Quản trị |
 | 7 | **Thống kê** | |
 | 8 | **Nhật ký** | chỉ Quản trị |
+| 9 | **Vận hành** `mới 06/11` | chỉ Quản trị — xem mục 12b |
 
 > **Quản trị hệ thống không có mục *Hồ sơ CSBH*** `mới 27/08`. Vai trò này đứng ngoài luồng duyệt
 > nên không có hồ sơ nào thuộc phạm vi của họ — mục menu ấy chỉ dẫn tới một màn hình trống.
@@ -2221,15 +2222,36 @@ phận kỹ thuật **khai thêm tên miền ấy** vào cấu hình nhận thư
 không nên có: một tài khoản không nhận được thư của hệ thống thì cũng không đặt lại được mật khẩu
 khi quên.
 
-### Hạn xử lý và thư hỏng — thẻ *Hệ thống*
+### Hạn xử lý và thư hỏng `sửa 06/11`
 
-**Hạn xử lý (SLA)**: số ngày cho mỗi bước chờ. Đổi số này **tính lại hạn cho mọi hồ sơ đang chờ**,
-kể cả hồ sơ nộp từ trước — rút ngắn hạn có thể làm một số hồ sơ chuyển sang *Quá hạn duyệt* ngay.
+Thẻ *Hệ thống* của trang này đã **dời sang trang Vận hành**, thẻ *Thư & hàng đợi* — xem mục 12b.
+Trang *Người dùng* giờ chỉ còn danh sách tài khoản.
 
-**Thư hỏng**: thư hệ thống không gửi được sau nhiều lần thử. Người phụ trách ở bước đó **không nhận
-được thông báo**, nên họ chỉ biết có việc khi tự mở phần mềm. Bấm *Gửi lại* chạy lại đúng đường xử
-lý cũ. Kết quả *"đã gửi thành công trước đó"* không phải lỗi — sự kiện đã đi lọt ở một lượt khác, và
-thư được đánh dấu đã xử lý.
+## 12b. Vận hành (Quản trị hệ thống) `mới 06/11`
+
+Trang để trông coi phần mềm mà **không cần vào máy chủ**: hệ thống có ổn không, ổ đĩa còn bao nhiêu,
+bản sao lưu nằm đâu, log ghi gì. Sáu thẻ:
+
+| Thẻ | Dùng để |
+| --- | --- |
+| **Sức khoẻ** | Mở ra là thấy: danh sách **việc cần chú ý** (mỗi dòng có nút *Xem* dẫn tới đúng thẻ để xử lý), bốn ô số, và bảng thành phần. Không có việc gì thì trang nói *"Mọi thứ đang hoạt động bình thường"*. Tự làm mới mỗi 15 giây; nhãn thẻ đếm số việc cần chú ý |
+| **Ổ đĩa** | Mức dùng của ổ dữ liệu và ổ bản sao ngoài, đường 30 ngày, dự báo *"đầy sau khoảng N ngày"*, cỡ theo hạng mục. **Một ngưỡng cảnh báo** (mặc định 80%) — vượt ngưỡng thì mọi Quản trị nhận **một lá thư** và một thông báo ở chuông, chỉ lúc vừa vượt, không lặp mỗi giờ. Bản sao ngoài nằm cùng ổ với dữ liệu thì trang nói ra: hỏng ổ là mất cả hai |
+| **Sao lưu** | Hai khối — *Cơ sở dữ liệu* và *Kho tệp* (bản scan, bản mềm, giấy tờ, văn bản mẫu). Mỗi khối có **lịch tự động** sửa ngay tại chỗ (tần suất, giờ chạy, giữ tối đa bao nhiêu bản), nút **Sao lưu ngay**, và danh sách bản: **Tải** (chỉ bản cơ sở dữ liệu) và **Xoá** (tuỳ chọn xoá cả bản ở bản sao ngoài) |
+| **Tệp log** | Xem log **hôm nay** của một thành phần (lọc lỗi / cảnh báo, hoặc theo mã tra cứu ở mọi thành phần — bấm mã là mở *Nhật ký* lọc đúng mã ấy); danh sách tệp nén mỗi ngày: tải, xoá, và lịch nén + số tệp giữ lại (mặc định 30) |
+| **Thư & hàng đợi** | Thư gửi hỏng (nút *Gửi lại*), sự kiện chờ gửi đi và sự kiện xử lý hỏng theo từng phần, **hạn xử lý hồ sơ** (đơn vị: ngày) |
+| **Lịch tự động** | Mọi việc định kỳ một chỗ — lịch, số bản giữ, lần chạy cuối, kết quả, nút *Sửa* — và lịch sử các lượt chạy, có nút *Xem chi tiết* khi lượt ấy có ghi lại |
+
+Ba điều nên biết:
+
+- **Giảm số bản giữ lại thì không xoá gì lúc bấm Lưu.** Lượt chạy kế tiếp mới dọn phần thừa, cũ
+  nhất trước, và chỉ sau khi bản mới đã ghi xong. Muốn có chỗ trống ngay thì bấm *Xoá* từng bản.
+- **Bản mới nhất không xoá được** — luôn còn ít nhất một bản để phục hồi. Đang có lượt sao lưu cùng
+  loại chạy thì cũng không xoá được; đợi lượt ấy xong.
+- **Nút *Sao lưu ngay* có lúc xám**, kèm dòng *"Máy chủ chưa sẵn sàng nhận lệnh"*: phần nhận lệnh
+  trên máy chủ đang tắt. **Sao lưu theo lịch vẫn chạy bình thường**; báo người vận hành máy chủ.
+
+Mọi lượt tải, xoá, sửa lịch, sửa ngưỡng, bấm *Sao lưu ngay* đều ghi vào **Nhật ký**. **Phục hồi**
+dữ liệu từ một bản sao lưu **không làm trên trang này** — đó là việc của người vận hành máy chủ.
 
 ## 13. Sản phẩm, Chiết khấu, Văn bản mẫu
 

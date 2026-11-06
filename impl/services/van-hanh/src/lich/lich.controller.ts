@@ -23,7 +23,7 @@ export const GIU_TOI_DA: Record<Viec, { min: number; max: number } | null> = {
   DON_DU_LIEU: null,
 };
 /** Việc chỉ chạy hằng ngày — tần suất không đổi được. */
-const CHI_HANG_NGAY: readonly Viec[] = ['NEN_LOG', 'DON_DU_LIEU'];
+export const CHI_HANG_NGAY: readonly Viec[] = ['NEN_LOG', 'DON_DU_LIEU'];
 
 type DongLich = {
   viec: Viec;

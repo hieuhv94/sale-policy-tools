@@ -278,7 +278,7 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
     /*
      * Ba mục riêng thôi dồn ở CUỐI: *Người dùng* lên ngay sau *Tổng quan*, *Văn
      * bản mẫu* chen giữa *Chiết khấu* và *Thống kê*. Quản trị không thấy *Hồ sơ
-     * CSBH* (`0133`) nên danh sách của họ có tám mục.
+     * CSBH* (`0133`) nên danh sách của họ có tám mục — chín từ `0255` (*Vận hành* đứng cuối).
      *
      * Khẳng định CẢ DÃY bằng `toEqual`, không kiểm từng cặp lân cận: kiểm từng
      * cặp thì chèn một mục mới vào giữa vẫn xanh, mà chèn vào giữa chính là cách
@@ -293,6 +293,8 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
       'Văn bản mẫu',
       'Thống kê',
       'Nhật ký',
+      // `0255` — trang Vận hành, mục CUỐI (mockup duyệt 05/11).
+      'Vận hành',
     ]);
   });
 });

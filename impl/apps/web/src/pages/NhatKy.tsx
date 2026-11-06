@@ -14,6 +14,7 @@
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
+import { useDuong } from '../lib/router.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, DangTai, ONhapNgay, Trong, Truong } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
@@ -115,7 +116,13 @@ const chuoiLoc = (b: BoLoc): string => {
 };
 
 export function NhatKy() {
-  const [boLoc, datBoLoc] = useState<BoLoc>(rong);
+  // `?traceId=` từ trang Vận hành (`0255`, bấm một mã trong log): mở thẳng chuỗi của mã ấy,
+  // bỏ mốc "từ đầu tháng" — một request có thể nằm ở tháng trước. Chỉ nhận đúng dạng mã.
+  const { truyVan } = useDuong();
+  const [boLoc, datBoLoc] = useState<BoLoc>(() => {
+    const ma = truyVan.get('traceId') ?? '';
+    return /^[A-Za-z0-9_-]{4,64}$/.test(ma) ? { ...rong, from: '', traceId: ma } : rong;
+  });
   const [facets, datFacets] = useState<Facets | null>(null);
   const [mo, datMo] = useState<string | null>(null);
 

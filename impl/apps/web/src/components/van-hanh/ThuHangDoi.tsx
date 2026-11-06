@@ -1,18 +1,20 @@
 /**
- * Thẻ "Hệ thống" của màn hình Quản trị: hạn xử lý và thư hỏng.
+ * Thẻ *Thư & hàng đợi* của trang Vận hành (`0255`): thư hỏng, sự kiện chờ phát, sự kiện xử
+ * lý hỏng, và hạn xử lý hồ sơ.
  *
- * Hai việc không liên quan gì nhau về nghiệp vụ, nhưng cùng một tính chất: chỉ
- * Quản trị hệ thống làm được, không thuộc luồng duyệt, và trước P11b **không có
- * màn hình nào**. Trang tổng quan đã hiện con số thư hỏng từ P10 mà bấm vào
- * không đi đâu — đây là chỗ nó dẫn tới.
+ * Hai khối thư hỏng và hạn xử lý là thẻ *Hệ thống* cũ của trang Người dùng, DỜI NGUYÊN sang
+ * đây (`git mv`, chốt kế hoạch Vận hành) — ca kiểm cũ của chúng giữ nguyên. Trước P11b hai
+ * việc này **không có màn hình nào**; trang tổng quan hiện con số thư hỏng từ P10 và giờ
+ * dẫn tới đây.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dang, dat, layJson } from '../../lib/api.js';
 import { ngayGio } from '../../lib/format.js';
 import { BaoLoi, DangTai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
 import { useBaoLoi } from '../../lib/bao-loi.js';
+import { NHAN_HANG_DOI, NHAN_NGUON, type SucKhoe } from '../../lib/van-hanh.js';
 
 type CauHinhSla = {
   days: number;
@@ -31,12 +33,39 @@ type ThuHong = {
   resolvedAt: string | null;
 };
 
-export function TheHeThong() {
+export function TheThuHangDoi({ sk }: { sk: SucKhoe | null }) {
   return (
     <>
-      <CauHinhHanXuLy />
       <ThuHongChuaXuLy />
+      {sk && (
+        <div className="luoi-hai-khoi">
+          <section className="khoi">
+            <h2>Sự kiện chờ gửi đi</h2>
+            <BangSo ds={sk.suKienChoPhat.map((x) => ({ ten: NHAN_NGUON[x.nguon] ?? x.nguon, so: x.so }))} nhan="Sự kiện chờ gửi đi" />
+          </section>
+          <section className="khoi">
+            <h2>Sự kiện xử lý hỏng</h2>
+            <BangSo ds={sk.hangDoiLoi.map((x) => ({ ten: NHAN_HANG_DOI[x.hangDoi] ?? x.hangDoi, so: x.so }))} nhan="Sự kiện xử lý hỏng" />
+          </section>
+        </div>
+      )}
+      <CauHinhHanXuLy />
     </>
+  );
+}
+
+function BangSo({ ds, nhan }: { ds: { ten: string; so: number | null }[]; nhan: string }) {
+  return (
+    <table className="bang" aria-label={nhan}>
+      <tbody>
+        {ds.map((d) => (
+          <tr key={d.ten}>
+            <td>{d.ten}</td>
+            <td className="so">{d.so === null ? '—' : d.so}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -87,7 +116,7 @@ function CauHinhHanXuLy() {
 
   return (
     <section className="khoi">
-      <h2>Hạn xử lý (SLA)</h2>
+      <h2>Hạn xử lý hồ sơ</h2>
       <p className="ghi-chu">
         Số ngày tối đa cho mỗi bước chờ. Tính <strong>cả thứ bảy và chủ nhật</strong>, không trừ ngày
         lễ. Trước hạn {ch.remindDaysBefore} ngày hệ thống gửi thư nhắc.
@@ -111,7 +140,7 @@ function CauHinhHanXuLy() {
         }}
         className="hang-nhap"
       >
-        <Truong id="sla-ngay" nhan="Số ngày" bắtBuộc>
+        <Truong id="sla-ngay" nhan="Hạn xử lý" donVi="ngày" bắtBuộc>
           {(p) => (
             <input
               {...p}

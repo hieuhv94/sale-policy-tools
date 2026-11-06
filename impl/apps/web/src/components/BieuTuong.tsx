@@ -99,6 +99,15 @@ const HinhNguoiDung = (
   </Hinh>
 );
 
+// Trang Vận hành (`0255`): một chiếc máy chủ hai tầng.
+const HinhVanHanh = (
+  <Hinh>
+    <rect x="4" y="4.5" width="16" height="6" rx="1.5" />
+    <rect x="4" y="13.5" width="16" height="6" rx="1.5" />
+    <path d="M7.5 7.5h.01M7.5 16.5h.01" />
+  </Hinh>
+);
+
 const HinhNhatKy = (
   <Hinh>
     <circle cx="12" cy="12" r="8.5" />
@@ -141,6 +150,8 @@ export function bieuTuongMuc(duong: string): ReactNode {
       return HinhNguoiDung;
     case '/nhat-ky':
       return HinhNhatKy;
+    case '/van-hanh':
+      return HinhVanHanh;
     default:
       return null;
   }

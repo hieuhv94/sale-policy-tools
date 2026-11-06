@@ -91,6 +91,7 @@ export function OHeThong() {
           giaTri={thu.du?.total ?? 0}
           phu="thông báo không tới được người nhận"
           kieu={(thu.du?.total ?? 0) > 0 ? 'loi' : 'tot'}
+          den="/van-hanh#thu-hang-doi"
         />
         <ChiSo nhan="Người dùng" giaTri={nd.du?.total ?? 0} phu="tổng số tài khoản" />
         <ChiSo

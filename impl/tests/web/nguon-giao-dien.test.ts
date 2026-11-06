@@ -522,7 +522,8 @@ describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () =>
     'components/danh-muc/ChietKhau.tsx',
     'pages/MauHopDong.tsx',
     'pages/NguoiDung.tsx',
-    'components/quan-tri/HeThong.tsx',
+    // `0255`: thẻ Hệ thống dời sang trang Vận hành, thẻ Thư & hàng đợi.
+    'components/van-hanh/ThuHangDoi.tsx',
     // `components/BangSanPham.tsx` RA KHỎI danh sách ở `0228`: khách hàng bỏ cơ
     // chế rê chuột ở bảng sản phẩm của hồ sơ (nút luôn hiện, tiêu đề hiện). Sáu
     // bảng còn lại GIỮ luật `0132`. Khối `0228` bên dưới canh chiều ngược.

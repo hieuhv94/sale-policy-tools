@@ -360,15 +360,17 @@ describe('`0244` không chỗ nào bày mã lỗi hay mã tra cứu', () => {
     expect(k.textContent).not.toMatch(/Mã tra cứu/);
   });
 
-  it('không tệp giao diện nào còn in chữ "Mã tra cứu", trừ màn hình Nhật ký của Quản trị', () => {
+  it('không tệp giao diện nào còn in chữ "Mã tra cứu", trừ hai công cụ tra cứu của Quản trị', () => {
     // Nhật ký là công cụ tra cứu của Quản trị — mã ở đó là CHÌA KHOÁ để lọc cả
     // chuỗi của một lượt bấm, không phải một lời báo lỗi bày cho người dùng.
+    // `0255`: thẻ Tệp log của trang Vận hành cùng loại — lọc log theo mã, bấm mã mở Nhật ký.
+    const MIEN = ['NhatKy.tsx', 'van-hanh/TepLog.tsx'];
     const lo: string[] = [];
     const quet = (d: string) => {
       for (const t of readdirSync(d, { withFileTypes: true })) {
         const p = join(d, t.name);
         if (t.isDirectory()) quet(p);
-        else if (p.endsWith('.tsx') && !p.endsWith('NhatKy.tsx') && /Mã tra cứu/.test(readFileSync(p, 'utf8'))) lo.push(p);
+        else if (p.endsWith('.tsx') && !MIEN.some((m) => p.endsWith(m)) && /Mã tra cứu/.test(readFileSync(p, 'utf8'))) lo.push(p);
       }
     };
     quet('apps/web/src');

@@ -3731,3 +3731,124 @@ svg.bd-nho { width: 62px; margin: 0; }
   cursor: pointer;
 }
 .nut-lich:hover { background: var(--mau-nen-phu); }
+
+/* =============================================================================
+   Trang Vận hành (`0255`) — chỉ Quản trị hệ thống.
+   ============================================================================= */
+
+.tom-tat-tot {
+  margin: 0 0 var(--k4);
+  padding: var(--k3) var(--k4);
+  border-radius: var(--bo-goc);
+  background: var(--mau-tot-nen);
+  color: var(--mau-tot);
+}
+
+/* Việc cần chú ý: một dòng một việc, kẻ dọc màu theo mức, nút Xem dẫn tới đúng thẻ. */
+.ds-canh-bao-vh {
+  list-style: none;
+  margin: 0 0 var(--k4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k2);
+}
+.ds-canh-bao-vh li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k3);
+  padding: var(--k2) var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-left-width: 4px;
+  border-radius: var(--bo-goc-nho);
+  background: var(--mau-nen-tren);
+}
+.ds-canh-bao-vh li.muc-do { border-left-color: var(--mau-loi); }
+.ds-canh-bao-vh li.muc-vang { border-left-color: var(--mau-canh-bao); }
+
+.dau-khoi-vh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--k3);
+}
+.dau-khoi-vh h2 { margin-bottom: var(--k1); }
+.nut-sao-luu-ngay { display: flex; flex-direction: column; align-items: flex-end; gap: var(--k1); max-width: 22rem; }
+.nut-sao-luu-ngay .ghi-chu { margin: 0; text-align: right; }
+
+/* Khối lịch tự động đặt ngay trong thẻ của việc ấy (chốt 05/11: phải nhìn thấy được). */
+.khoi-lich {
+  margin: var(--k3) 0;
+  padding: var(--k3) var(--k4);
+  border: 1px dashed var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-phu);
+}
+.khoi-lich.trong-hop { padding: 0; border: 0; background: none; }
+.khoi-lich-tieu { margin: 0 0 var(--k2); font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+.khoi-lich-tieu strong { color: var(--mau-chu); }
+
+.ds-o-dia { display: flex; flex-direction: column; gap: var(--k5); }
+.o-dia-dau { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--k2) var(--k3); }
+.o-dia-dau .so { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+.o-dia-phan-tram { margin-left: auto; font-size: var(--chu-to); }
+.thanh-o-dia {
+  height: 10px;
+  margin: var(--k2) 0;
+  border-radius: 999px;
+  background: var(--mau-nen-hover);
+  overflow: hidden;
+}
+.thanh-o-dia i { display: block; height: 100%; background: var(--mau-thuong-hieu); }
+.thanh-o-dia i.vuot { background: var(--mau-canh-bao); }
+.o-dia-duoi { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k2) var(--k3); }
+.duong-o-dia { width: 160px; height: 32px; margin-left: auto; color: var(--mau-thuong-hieu); }
+
+.luoi-hai-khoi { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--k4); }
+
+/* Xem log: chữ đều cột, cuộn trong khung, dòng lỗi / cảnh báo có kẻ màu. */
+.xem-log {
+  max-height: 28rem;
+  overflow: auto;
+  margin-top: var(--k3);
+  padding: var(--k2);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-duoi);
+  font-family: var(--so-deu-cot);
+  font-size: var(--chu-nho);
+}
+.dong-log {
+  display: flex;
+  gap: var(--k2);
+  padding: 2px var(--k2);
+  border-left: 3px solid transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.dong-log-loi { border-left-color: var(--mau-loi); color: var(--mau-loi); }
+.dong-log-canh-bao { border-left-color: var(--mau-canh-bao); }
+.dong-log-luc { flex: none; color: var(--mau-chu-nhat); }
+.dong-log-ma { flex: none; }
+.dong-log-chu { min-width: 0; }
+
+.dau-ra-van-hanh {
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: var(--k3);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-duoi);
+  font-family: var(--so-deu-cot);
+  font-size: var(--chu-nho);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .nut-sao-luu-ngay { align-items: stretch; max-width: none; }
+  .nut-sao-luu-ngay .ghi-chu { text-align: left; }
+  .duong-o-dia { margin-left: 0; }
+}

@@ -1,7 +1,8 @@
 /**
  * Quản trị người dùng (ONB-02) — chỉ Quản trị hệ thống.
  *
- * Hai thẻ trong MỘT màn hình: tài khoản, và cấu hình hệ thống (SLA, thư hỏng).
+ * Từ `0255` chỉ còn danh sách tài khoản: thẻ *Hệ thống* (hạn xử lý, thư hỏng) dời sang
+ * trang **Vận hành**, thẻ *Thư & hàng đợi*.
  *
  * KHÔNG còn thẻ "Bộ phận". Trước 0017, một TDV nối với người duyệt qua hai bước
  * gián tiếp — tạo bộ phận, gán người duyệt cho bộ phận, gán TDV vào bộ phận —
@@ -21,7 +22,6 @@ import type { NguoiChon } from '../lib/nguoi-xu-ly.js';
 import {
   BaoLoi,
   ChuThichBatBuoc,
-  DaiThe,
   DangTai,
   OTimKiem,
   HopThoai,
@@ -31,14 +31,9 @@ import {
 } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
-import { TheHeThong } from '../components/quan-tri/HeThong.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
-type The = 'nguoi-dung' | 'he-thong';
-
 export function NguoiDung() {
-  const [the, datThe] = useState<The>('nguoi-dung');
-
   return (
     <section className="trang">
       <div className="dau-trang">
@@ -48,25 +43,7 @@ export function NguoiDung() {
         </div>
       </div>
 
-      {/*
-        Thẻ *Người dùng* KHÔNG còn ô đếm (`0049`).
-        Danh sách giờ do máy chủ cắt trang, nên màn hình chỉ cầm 20 dòng và con
-        số duy nhất nó biết là TỔNG SAU KHI LỌC. Dán con số ấy lên nhãn thẻ thì
-        nó tụt xuống mỗi lần gõ vào ô tìm, và đọc ra như "công ty vừa mất mấy
-        chục tài khoản". Tổng vẫn nói ra, ở thanh phân trang — chỗ nó đúng nghĩa.
-      */}
-      <DaiThe
-        nhanVung="Nhóm nội dung"
-        dangChon={the}
-        chon={datThe}
-        muc={[
-          { khoa: 'nguoi-dung', nhan: 'Người dùng' },
-          { khoa: 'he-thong', nhan: 'Hệ thống' },
-        ]}
-      />
-
-      {the === 'nguoi-dung' && <TheNguoiDung />}
-      {the === 'he-thong' && <TheHeThong />}
+      <TheNguoiDung />
     </section>
   );
 }

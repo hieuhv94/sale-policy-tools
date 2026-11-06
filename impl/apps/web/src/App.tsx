@@ -22,6 +22,7 @@ import { NhatKyHoSo } from './pages/NhatKyHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
 import { ThongKe } from './pages/ThongKe.js';
 import { NhatKy } from './pages/NhatKy.js';
+import { VanHanh } from './pages/VanHanh.js';
 import { TrangChietKhau, TrangSanPham } from './pages/DanhMuc.js';
 
 export function App() {
@@ -252,6 +253,10 @@ export function noiDung(duong: string, vaiTro: string) {
   // duyệt là đường đi vòng hiển nhiên nhất qua một menu bị ẩn.
   if (duong === '/nhat-ky') {
     return xem(vaiTro, 'nhatKy') ? <NhatKy /> : <KhongCoQuyen />;
+  }
+
+  if (duong === '/van-hanh') {
+    return xem(vaiTro, 'vanHanh') ? <VanHanh /> : <KhongCoQuyen />;
   }
 
   return <KhongCoManHinh />;
