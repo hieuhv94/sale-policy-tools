@@ -29,6 +29,23 @@ import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { la404 } from '../lib/loi.js';
+import { KanbanHoSo } from '../components/KanbanHoSo.js';
+import { laVaiTroKanban } from '../lib/kanban.js';
+
+/**
+ * CÁCH XEM của trang (`0257`): kanban là mặc định — khách hàng chọn khi duyệt
+ * mockup — còn dạng bảng giữ lại cho người quen dùng và cho đọc lướt nhiều dòng.
+ * Nhớ trên máy người dùng (`localStorage`, bọc `try` như `thanh-ben.ts`).
+ */
+type CachXem = 'kanban' | 'bang';
+const KHOA_CACH_XEM = 'csbh:ho-so-cach-xem';
+function docCachXem(): CachXem {
+  try {
+    return localStorage.getItem(KHOA_CACH_XEM) === 'bang' ? 'bang' : 'kanban';
+  } catch {
+    return 'kanban';
+  }
+}
 
 type Dong = {
   policyId: string;
@@ -286,6 +303,17 @@ export function DanhSachHoSo() {
   const [loi, datLoi] = useState<unknown>(null);
   const [moLoc, datMoLoc] = useState(false);
   const [lan, datLan] = useState(0);
+  const [cachXem, datCachXem] = useState<CachXem>(docCachXem);
+  const vaiTro = nguoiDung?.role;
+  const kanban = cachXem === 'kanban' && laVaiTroKanban(vaiTro);
+  const doiCachXem = (c: CachXem) => {
+    datCachXem(c);
+    try {
+      localStorage.setItem(KHOA_CACH_XEM, c);
+    } catch {
+      /* Không ghi được: cách xem chỉ sống trong phiên này. */
+    }
+  };
 
   /**
    * Điều kiện lọc lúc mở màn hình. Hai nguồn, và LIÊN KẾT THẮNG.
@@ -335,8 +363,12 @@ export function DanhSachHoSo() {
       limit: String(MOI_TRANG),
       ...(mo === null ? {} : { cursor: mo }),
     });
+    // Ở dạng kanban mỗi cột tự tải thẻ của nó; trang chỉ cần TỔNG cho dòng
+    // "N hồ sơ khớp điều kiện".
     Promise.all([
-      layJson<{ items: Dong[]; nextCursor: string | null }>(`/reports/policies?${qs}`, huy.signal),
+      kanban
+        ? Promise.resolve({ items: [] as Dong[], nextCursor: null })
+        : layJson<{ items: Dong[]; nextCursor: string | null }>(`/reports/policies?${qs}`, huy.signal),
       layJson<{ total: number }>(`/reports/policies/count?${chuoiTruyVan()}`, huy.signal),
     ])
       .then(([ds, dem]) => {
@@ -348,7 +380,7 @@ export function DanhSachHoSo() {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [chuoiTruyVan, lan, trang, moTrang]);
+  }, [chuoiTruyVan, lan, trang, moTrang, kanban]);
 
   // Đổi bộ lọc là đổi hẳn tập kết quả: mọi con trỏ đã ghi lại đều trỏ vào tập
   // cũ, nên phải vứt cả ngăn xếp chứ không chỉ về trang 1.
@@ -417,6 +449,16 @@ export function DanhSachHoSo() {
           `0071` — chỗ này là chỗ bị bỏ sót.
         */}
         <div className="nhom-nut nhom-nut-dau">
+          {laVaiTroKanban(vaiTro) && (
+            <div className="cong-tac" role="group" aria-label="Cách xem">
+              <button type="button" aria-pressed={kanban} onClick={() => doiCachXem('kanban')}>
+                Kanban
+              </button>
+              <button type="button" aria-pressed={!kanban} onClick={() => doiCachXem('bang')}>
+                Bảng
+              </button>
+            </div>
+          )}
           {can(nguoiDung?.role, 'lapHoSo') && (
             <Lien den="/ho-so/moi" className="nut nut-chinh">
               Lập hồ sơ
@@ -543,16 +585,24 @@ export function DanhSachHoSo() {
       </div>
 
       {loi !== null && <BaoLoi loi={loi} thuLai={() => datLan((x) => x + 1)} />}
-      {dong === null && loi === null && <DangTai />}
+      {kanban && laVaiTroKanban(vaiTro) && loi === null && (
+        <KanbanHoSo
+          vaiTro={vaiTro}
+          truyVan={chuoiTruyVan}
+          locTrangThai={boLoc.status ? boLoc.status.split(',') : []}
+          lan={lan}
+        />
+      )}
+      {!kanban && dong === null && loi === null && <DangTai />}
 
-      {dong?.length === 0 && (
+      {!kanban && dong?.length === 0 && (
         <Trong
           tieuDe="Không có hồ sơ nào khớp"
           moTa="Thử bỏ bớt điều kiện lọc, hoặc bấm Xoá bộ lọc để xem lại toàn bộ."
         />
       )}
 
-      {dong && dong.length > 0 && (
+      {!kanban && dong && dong.length > 0 && (
         <>
           <div className="khung-cuon" role="region" aria-label="Danh sách hồ sơ" tabIndex={0}>
             <table className="bang">

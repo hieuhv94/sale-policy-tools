@@ -1917,6 +1917,26 @@ mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi h�
 
 ## 10. Tìm kiếm và bộ lọc
 
+### 10a. Hai cách xem danh sách: Kanban và Bảng `sửa 06/11`
+
+Trang *Hồ sơ CSBH* mở ở dạng **Kanban**: mỗi trạng thái một cột, xếp theo đúng thứ tự luồng duyệt (*Nháp* →
+*Yêu cầu chỉnh sửa* → *Chờ TBP duyệt* → … → *Đã xoá*). Mỗi thẻ là một hồ sơ — bấm vào để mở. Kanban **không kéo
+thả**: đổi trạng thái hồ sơ vẫn bằng các nút thao tác trên trang hồ sơ. Nút **Kanban | Bảng** ở góc trên đổi sang
+dạng bảng như trước; phần mềm nhớ lựa chọn trên máy của bạn.
+
+Cột hiện ra **tuỳ vai trò**:
+
+| Mức | Nghĩa |
+|---|---|
+| **Việc của bạn** | cột tô viền xanh — hồ sơ đang chờ chính bạn xử lý (Trình dược viên: *Nháp*, *Yêu cầu chỉnh sửa*; Trưởng bộ phận: *Chờ TBP duyệt*; Kế toán: *Chờ KT duyệt L1*, *KT duyệt bản cứng*; Sale Admin: hai bước của Sale Admin). Không gập được |
+| **Mở sẵn** | các bước bạn cần theo dõi |
+| **Gập** | dải hẹp chỉ có tên và số hồ sơ — bấm vào để mở; nút ở đầu một cột đang mở để gập nó lại |
+
+**Cột không có hồ sơ nào thì ẩn**; dòng chữ phía trên bảng ghi tên các cột đang ẩn vì trống. Cột bạn tự gập hay
+mở được nhớ trên máy; nút **Về bộ cột mặc định** trả lại bộ cột theo vai trò. Mỗi cột hiện 20 hồ sơ, bấm **Tải
+thêm** để xem tiếp. Bộ lọc bên dưới áp cho **mọi cột**; lọc theo *Trạng thái* thì chỉ còn các cột được chọn.
+
+
 *Hồ sơ CSBH* → **Bộ lọc** — **9 tiêu chí** `sửa 21/08`, kết hợp được với nhau:
 
 | Tiêu chí | Cách nhập |

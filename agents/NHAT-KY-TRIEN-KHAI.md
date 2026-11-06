@@ -21464,3 +21464,42 @@ hai đỏ đúng ca. Lớp `.da-duyet` gỡ khỏi `app.css`.
 chồng). Công cụ QA ở scratchpad mất khi tắt máy — dựng lại nguyên cách cũ.
 
 **`tests/web` 1043/1043 xanh (58 tệp); typecheck xanh.**
+
+## P292 — `0257` Thiết kế lại giao diện, chặng 5: kanban hồ sơ theo vai trò
+
+Trang *Hồ sơ CSBH* mở ở dạng **KANBAN**, không kéo thả. Khách hàng xem bốn phương án trong mockup rồi chọn **phương
+án 2 — mỗi trạng thái một cột** — kèm hai yêu cầu: bộ cột KHÁC NHAU theo vai trò (đánh giá trạng thái nào quan trọng
+với ai), và **cột không có thẻ nào thì ẩn**. Ma trận vai trò × trạng thái được duyệt trong mockup; dạng bảng giữ lại
+sau nút **Kanban | Bảng** (nhớ trên máy, `localStorage`).
+
+**Thứ tự cột giống nhau với MỌI người** (thứ tự luồng); chỉ MỨC đổi theo vai trò — *Việc của bạn* / mở / gập / ẩn.
+Hai người nói chuyện về "cột thứ ba" thì cùng một cột. **Không có đường máy chủ mới**: mười một lượt
+`/reports/policies/count` (cùng bộ lọc của trang, thay riêng `status`) cho số đầu cột, rồi mỗi cột MỞ tự tải 20 thẻ
+qua `/reports/policies` với con trỏ cho *Tải thêm*; cột gập chỉ cần con số. Phạm vi theo vai trò là việc của máy chủ
+như ở dạng bảng. Lượt tải bảng của trang thôi tải dòng khi đang ở kanban — chỉ còn lượt đếm tổng.
+
+**"Việc của bạn" SUY từ `CHU_BUOC` của `domain-policy`** — cùng bảng chuông thông báo đọc, nên cột tô viền và con số
+đỏ trên chuông không nói hai điều khác nhau — CỘNG `NHAP → TDV`. `CHU_BUOC` cố ý không có `NHAP` (bảng ấy nói việc
+khi hồ sơ ĐÃ vào luồng, `0192`); trên bảng việc của trình dược viên, bản Nháp của họ đúng là việc của họ. Các mức
+còn lại khai ở `MUC_KHAC` (`lib/kanban.ts`), mỗi dòng kèm lý do của ô trong ma trận.
+
+**Mức "ẩn" KHÔNG BAO GIỜ giấu hồ sơ**: ma trận chỉ đoán cột nào thường trống với vai trò ấy (vd. Kế toán không bao giờ
+thấy Nháp — `0157`); phạm vi thật vẫn là máy chủ. Lỡ có hồ sơ thì cột hiện ra dạng gập. Luật **ẩn cột trống đứng
+trên mọi mức**, kể cả *Việc của bạn*, và trang ghi tên các cột đang ẩn để không ai tưởng phần mềm mất cột. Lọc theo
+*Trạng thái* thì cột ngoài bộ lọc không thành cột và cũng không tính là "ẩn vì trống". Gập/mở tay nhớ theo vai trò
+(`csbh:kanban-cot:<vai trò>`); cột *Việc của bạn* không gập được.
+
+Ca kiểm: `tests/web/kanban.test.ts` (13 ca — **ma trận chép nguyên từ mockup**, đổi một ô là đổi một quyết định đã
+duyệt; *Việc của bạn* = `CHU_BUOC` + Nháp; các luật hiện/ẩn/gập) · `tests/web/kanban-ho-so.test.tsx` (4 ca DOM, `fetch`
+giả: thứ tự cột, dòng nhắc cột ẩn, bộ lọc đi kèm MỌI lượt gọi, cột gập không tải thẻ, thẻ dẫn tới hồ sơ, mở cột gập
+rồi nhớ, *Về bộ cột mặc định*). Phá lại ba lượt (*Việc của bạn* hiện cả khi trống · bỏ Nháp khỏi việc của TDV · đếm
+không kèm trạng thái), cả ba đỏ đúng ca. HDSD thêm mục **10a**.
+
+**Xem thật trên demo** với dữ liệu `make demo-mau`: `tdv01` (hai cột việc tô viền, thẻ *Sắp quá hạn*), `kt01` (dòng
+*"Đang ẩn 4 cột"*, hai cột Sale Admin kẹp giữa hai bàn Kế toán, hai cột kết thúc gập dọc), `bld01` (Nháp và Yêu cầu
+chỉnh sửa gập), điện thoại 390 (cột gần hết bề ngang, vuốt ngang). Lỗi lộ ra từ ảnh và đã sửa: đầu cột lệch nhau vì
+cột có nút gập cao hơn. **Bẫy của công cụ, không phải của mã**: ca `tests/http/tai-lieu.test.ts` đỏ "không đọc được
+`/tai-lieu/CLAUDE.md`" khi chạy bằng ảnh rời — `compose.test.yml` gắn CẢ `agents/` lẫn `CLAUDE.md`, công cụ chỉ gắn
+`agents/`.
+
+**`tests/web` 1060/1060 xanh (60 tệp); `tests/http/tai-lieu` 4/4; typecheck xanh.**

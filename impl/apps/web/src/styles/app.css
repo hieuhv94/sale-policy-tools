@@ -4079,3 +4079,134 @@ svg.bd-nho { width: 62px; margin: 0; }
   .nut-sao-luu-ngay .ghi-chu { text-align: left; }
   .duong-o-dia { margin-left: 0; }
 }
+
+/* =========================================================================
+   Công tắc hai lựa chọn (`0257`) — *Kanban | Bảng* ở trang hồ sơ.
+   ========================================================================= */
+.cong-tac {
+  display: inline-flex;
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc-nho);
+  overflow: hidden;
+}
+.cong-tac button {
+  min-height: var(--vung-cham);
+  padding: 0 var(--k3);
+  border: 0;
+  border-right: 1px solid var(--mau-vien);
+  background: var(--mau-nen);
+  color: var(--mau-chu-phu);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.cong-tac button:last-child { border-right: 0; }
+.cong-tac button[aria-pressed='true'] {
+  background: var(--mau-thuong-hieu-nhat);
+  color: var(--mau-thuong-hieu);
+  font-weight: 600;
+}
+
+/* =========================================================================
+   Kanban hồ sơ (`0257`, `components/KanbanHoSo.tsx`). Cột theo thứ tự luồng,
+   cuộn ngang trong khung riêng — thân trang không bao giờ cuộn ngang.
+   ========================================================================= */
+.kb-tren { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k2) var(--k4); margin-bottom: var(--k3); }
+.kb-an { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-nhat); }
+.kb-mac-dinh { min-height: 0; padding: var(--k1) var(--k3); font-size: var(--chu-nho); }
+.kb {
+  display: flex;
+  gap: var(--k3);
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: var(--k3);
+}
+.kb-cot {
+  flex: 0 0 15rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid transparent;
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-hover);
+}
+.kb-cua-ban { border-color: var(--mau-thuong-hieu); background: var(--mau-thuong-hieu-nhat); }
+.kb-dau { display: flex; align-items: center; gap: var(--k2); min-height: 3rem; padding: var(--k2) var(--k3) var(--k1); }
+.kb-ten { display: flex; align-items: center; gap: var(--k2); min-width: 0; flex: 1; font-size: var(--chu-nho); font-weight: 600; }
+.kb-cot .kb-cham { flex: none; width: 8px; height: 8px; padding: 0; border-radius: 50%; background: currentColor; }
+.kb-dem {
+  flex: none;
+  padding: 0 var(--k2);
+  border: 1px solid var(--mau-vien);
+  border-radius: 999px;
+  background: var(--mau-nen);
+  font-size: var(--chu-rat-nho);
+  color: var(--mau-chu-phu);
+  font-variant-numeric: tabular-nums;
+}
+.kb-nut-gap {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: var(--bo-goc-nho);
+  background: transparent;
+  color: var(--mau-chu-nhat);
+  cursor: pointer;
+}
+.kb-nut-gap:hover { background: var(--mau-nen); color: var(--mau-chu); }
+.kb-viec { margin: 0; padding: 0 var(--k3) var(--k1); font-size: var(--chu-rat-nho); font-weight: 600; color: var(--mau-thuong-hieu); }
+.kb-ds { list-style: none; margin: 0; padding: var(--k2); display: flex; flex-direction: column; gap: var(--k2); }
+.kb-the {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--k2) var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc-nho);
+  background: var(--mau-nen);
+  color: var(--mau-chu);
+  text-decoration: none;
+}
+.kb-the:hover { border-color: var(--mau-vien-dam); box-shadow: var(--bong-menu); }
+.kb-ma { font-size: var(--chu-nho); font-weight: 600; color: var(--mau-thuong-hieu); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kb-kh { font-size: var(--chu-nho); font-weight: 500; line-height: 1.35; }
+.kb-phu { font-size: var(--chu-rat-nho); color: var(--mau-chu-nhat); }
+.kb-chan { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k1) var(--k2); margin-top: var(--k1); font-size: var(--chu-rat-nho); color: var(--mau-chu-nhat); }
+.kb-chan .nhan { padding: 0 var(--k2); }
+.kb-them {
+  margin: 0 var(--k2) var(--k2);
+  padding: var(--k2);
+  border: 1px dashed var(--mau-vien-dam);
+  border-radius: var(--bo-goc-nho);
+  background: none;
+  color: var(--mau-chu-phu);
+  font: inherit;
+  font-size: var(--chu-rat-nho);
+  cursor: pointer;
+}
+.kb-them:hover { background: var(--mau-nen); }
+/* Cột GẬP: dải hẹp, tên xoay dọc; cả dải là một nút. */
+.kb-gap { flex: 0 0 2.75rem; align-self: stretch; min-height: 16rem; }
+.kb-mo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--k2);
+  width: 100%;
+  height: 100%;
+  padding: var(--k3) 0;
+  border: 0;
+  border-radius: var(--bo-goc);
+  background: transparent;
+  color: var(--mau-chu-phu);
+  font: inherit;
+  cursor: pointer;
+}
+.kb-mo:hover { background: var(--mau-nen); color: var(--mau-chu); }
+.kb-doc { writing-mode: vertical-rl; font-size: var(--chu-nho); font-weight: 600; white-space: nowrap; }
+@media (max-width: 639px) {
+  .kb { scroll-snap-type: x mandatory; }
+  .kb-cot { flex-basis: 84%; scroll-snap-align: start; }
+  .kb-gap { flex-basis: 2.75rem; }
+}
