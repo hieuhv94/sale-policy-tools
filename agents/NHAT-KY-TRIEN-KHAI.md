@@ -21536,3 +21536,17 @@ mã đến từ mười service, đáng một chặng riêng có ca đối chi�
 `tests/web` (+ `tests/http/tai-lieu`) bằng ảnh rời `--network none`. Không đổi một dòng máy chủ nào.
 
 **`tests/web` 1065/1065 + `tests/http/tai-lieu` 4/4 xanh (61 tệp); typecheck xanh.**
+
+## P294 — `0258` Màn hình đăng nhập: câu mô tả và chức năng nổi bật
+
+Khách hàng đổi nội dung nửa giới thiệu (`0257`) thành câu **"Phần mềm số hóa quy trình xử lý chính sách bán hàng"**,
+rồi khi xem bản chỉ có một câu thì bảo **thêm các chức năng nổi bật**. Ba bước luồng duyệt gỡ hẳn (lớp
+`.gioi-thieu-buoc` gỡ theo); thay bằng năm chức năng — lập hồ sơ + tự tính tỷ lệ chiết khấu · luồng duyệt nhiều
+bước có hạn · thông báo email và trên phần mềm · lưu bản mềm, bản scan, hồ sơ pháp lý · bảng việc, thống kê, xuất
+Excel. **Chọn theo đúng thứ phần mềm làm thật**: một dòng ở đây là một lời hứa với người mở trang. Danh sách **không
+đánh số** (đây không phải trình tự — ba bước cũ thì có), dấu tích vẽ bằng viền CSS, không ký tự hay emoji.
+
+Ca kiểm ở `tests/web/dang-nhap.test.tsx`: đúng câu mô tả, đủ năm mục, không còn danh sách đánh số và câu của ba bước
+cũ. Phá lại (đổi câu mô tả) → đỏ. Đã xem thật màn hình đăng nhập 1440 sáng và tối.
+
+**`tests/web` 1066/1066 xanh; typecheck xanh.**

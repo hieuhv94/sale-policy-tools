@@ -2340,6 +2340,31 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   border-radius: var(--bo-goc-to);
   background: var(--mau-nen-logo);
 }
+.gioi-thieu-tinh-nang {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 40ch;
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+  line-height: 1.45;
+}
+/* Dấu tích vẽ bằng viền (không ký tự, không emoji) — cùng màu thương hiệu. */
+.gioi-thieu-tinh-nang li { position: relative; padding-left: 1.75rem; }
+.gioi-thieu-tinh-nang li::before {
+  content: '';
+  position: absolute;
+  left: 0.3rem;
+  top: 0.2em;
+  width: 0.4rem;
+  height: 0.75rem;
+  border: solid var(--mau-thuong-hieu);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
 .gioi-thieu-chinh {
   margin: 0;
   max-width: 34ch;
@@ -2348,32 +2373,6 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   line-height: 1.35;
   letter-spacing: -0.01em;
   text-wrap: balance;
-}
-.gioi-thieu-buoc {
-  display: flex;
-  flex-direction: column;
-  gap: var(--k3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: buoc;
-  color: var(--mau-chu-phu);
-  font-size: var(--chu-nho);
-}
-.gioi-thieu-buoc li { display: flex; align-items: center; gap: var(--k3); counter-increment: buoc; }
-.gioi-thieu-buoc li::before {
-  content: counter(buoc);
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 1px solid var(--mau-vien);
-  border-radius: 50%;
-  background: var(--mau-nen-phu);
-  color: var(--mau-thuong-hieu);
-  font-size: var(--chu-rat-nho);
-  font-weight: 600;
 }
 .goc-tren-phai { position: absolute; top: var(--k4); right: var(--k4); }
 

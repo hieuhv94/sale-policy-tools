@@ -182,15 +182,19 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
       {!lopPhu && (
         <aside className="dang-nhap-gioi-thieu" aria-label="Giới thiệu">
           <img src={logo} alt="Nutricare — For Your Return" className="logo-gioi-thieu" />
-          <p className="gioi-thieu-chinh">
-            Lập, duyệt và lưu chính sách bán hàng cho từng khách hàng — từ trình dược viên tới bản cứng
-            đã ký.
-          </p>
-          <ol className="gioi-thieu-buoc">
-            <li>Trình dược viên lập hồ sơ và gửi duyệt</li>
-            <li>Trưởng bộ phận ký, Kế toán duyệt bản mềm</li>
-            <li>Sale Admin bàn giao, Kế toán duyệt bản cứng</li>
-          </ol>
+          {/*
+            Câu mô tả + CHỨC NĂNG NỔI BẬT, khách hàng chốt 06/11 — thay câu giới thiệu
+            và ba bước luồng duyệt. Danh sách KHÔNG đánh số: đây không phải trình tự.
+            Chỉ nêu thứ phần mềm làm thật; thêm một dòng ở đây là hứa với người dùng.
+          */}
+          <p className="gioi-thieu-chinh">Phần mềm số hóa quy trình xử lý chính sách bán hàng</p>
+          <ul className="gioi-thieu-tinh-nang">
+            <li>Lập hồ sơ cho từng khách hàng, tự tính tỷ lệ chiết khấu và đối chiếu quy định</li>
+            <li>Luồng duyệt nhiều bước, chọn người xử lý và theo dõi hạn từng bước</li>
+            <li>Thông báo qua email và trên phần mềm khi có việc cần làm</li>
+            <li>Lưu bản mềm, bản scan đã ký và hồ sơ pháp lý của khách hàng</li>
+            <li>Bảng việc theo vai trò, thống kê và xuất Excel</li>
+          </ul>
         </aside>
       )}
 

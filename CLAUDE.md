@@ -103,7 +103,10 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Đang **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
+Chặng gần nhất **P294** (`0258`): nửa giới thiệu màn hình đăng nhập = câu *"Phần mềm số hóa quy trình xử lý chính sách
+bán hàng"* + năm chức năng nổi bật (thay ba bước luồng duyệt). **`tests/web` 1066/1066.**
+
+Đã **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
 (https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293 — **XONG**. Chặng cuối **P293**: rà mọi trang bằng ảnh thật; nút nguy hiểm ngoài hộp thoại
 thành viền + chữ đỏ; **bẫy `*/` trong CHÚ THÍCH CSS nuốt mất luật ngay sau mà không gì báo** (giờ có ca quét). Còn
 ghi lại: mã máy (`LOGIN_OK`…) ở Nhật ký và *Hoạt động hôm nay*. `make test` đầy đủ chưa chạy suốt lượt (demo bật).

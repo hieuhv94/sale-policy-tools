@@ -269,3 +269,21 @@ describe('`0041` `duongSauDangNhap`', () => {
     expect(duongSauDangNhap('/ho-so/moi')).toBe('/');
   });
 });
+
+describe('nửa giới thiệu của màn hình đăng nhập (`0257`, câu chữ chốt 06/11)', () => {
+  it('một câu mô tả + năm chức năng nổi bật; không còn ba bước luồng duyệt', () => {
+    chanMang('TDV');
+    mo('/');
+    const gt = document.querySelector('.dang-nhap-gioi-thieu') as HTMLElement;
+    expect(gt).not.toBeNull();
+    expect(gt.querySelector('.gioi-thieu-chinh')?.textContent).toBe(
+      'Phần mềm số hóa quy trình xử lý chính sách bán hàng',
+    );
+    const tinhNang = [...gt.querySelectorAll('.gioi-thieu-tinh-nang > li')].map((li) => li.textContent);
+    expect(tinhNang).toHaveLength(5);
+    expect(tinhNang[0]).toContain('tự tính tỷ lệ chiết khấu');
+    // Danh sách chức năng không phải một trình tự — không đánh số.
+    expect(gt.querySelector('ol')).toBeNull();
+    expect(gt.textContent).not.toContain('Sale Admin bàn giao, Kế toán duyệt bản cứng');
+  });
+});
