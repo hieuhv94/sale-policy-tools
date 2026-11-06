@@ -1146,6 +1146,8 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     expect(muc).toEqual([
       // MỘT khối tóm tắt ở đầu trang — `0061` dựng hai, `0206` gộp lại.
       'Thông tin chung',
+      // Cột phải của đầu trang (`0257`) — thay dải "đã duyệt" vốn không có tiêu đề.
+      'Tiến trình duyệt',
       'Sản phẩm',
       /*
         *Giấy tờ hồ sơ* đứng ở ĐÂY tới `0170`, và `0172` bỏ hẳn khối ấy — khách
@@ -1203,6 +1205,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     const muc = [...document.querySelectorAll('h2')].map((e) => e.textContent);
     expect(muc).toEqual([
       'Thông tin chung',
+      'Tiến trình duyệt',
       'Sản phẩm',
       'Hồ sơ pháp lý của khách hàng',
       'Bản mềm',

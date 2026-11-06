@@ -1718,19 +1718,74 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    Lưới tự giãn thay vì bốn cột cứng: số ô đổi theo bước hồ sơ đã đi qua — một ô
    ở hồ sơ vừa được ký, bốn ô ở hồ sơ đã có hiệu lực — và bốn cột cứng thì hồ sơ
    một ô có ba khoảng trống nằm chờ. */
-.da-duyet {
+
+/* HAI CỘT ở đầu trang hồ sơ (`0257`): thông tin chung | tiến trình duyệt. */
+.ho-so-hai-cot {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, max-content));
-  gap: var(--k2) var(--k5);
-  margin: 0 0 var(--k4);
-  padding: var(--k3) var(--k4);
+  grid-template-columns: minmax(0, 1fr) 18.5rem;
+  gap: var(--k4);
+  align-items: start;
+  margin-bottom: var(--k4);
+}
+.ho-so-hai-cot > .tom-tat { margin-bottom: 0; }
+@media (max-width: 1099px) { .ho-so-hai-cot { grid-template-columns: minmax(0, 1fr); } }
+
+.tien-trinh {
+  padding: var(--k4);
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
 }
-.da-duyet dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
-.da-duyet dd { margin: 0; display: flex; flex-direction: column; line-height: 1.35; }
-.da-duyet .phu { font-family: var(--so-deu-cot); }
+.tien-trinh h2 { margin: 0 0 var(--k3); font-size: var(--chu-thuong); }
+.tien-trinh-buoc { list-style: none; margin: 0; padding: 0; }
+.tien-trinh-buoc li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: var(--k3);
+  padding-bottom: var(--k4);
+}
+.tien-trinh-buoc li:last-child { padding-bottom: 0; }
+/* Đường nối giữa hai vòng tròn — xanh khi bước TRÊN đã xong. */
+.tien-trinh-buoc li::after {
+  content: '';
+  position: absolute;
+  left: calc(0.625rem - 1px);
+  top: 1.35rem;
+  bottom: 0.1rem;
+  width: 2px;
+  background: var(--mau-vien);
+}
+.tien-trinh-buoc li:last-child::after { display: none; }
+.tien-trinh-buoc li.buoc-xong::after { background: var(--mau-thuong-hieu); }
+.buoc-tron {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  border: 2px solid var(--mau-vien-dam);
+  border-radius: 50%;
+  background: var(--mau-nen);
+  box-sizing: border-box;
+}
+.buoc-xong .buoc-tron { border-color: var(--mau-thuong-hieu); background: var(--mau-thuong-hieu); }
+.buoc-dang .buoc-tron {
+  border-color: var(--mau-thuong-hieu);
+  box-shadow: var(--vong-tieu-diem);
+  background: radial-gradient(circle, var(--mau-thuong-hieu) 0 3px, var(--mau-nen) 3.5px);
+}
+.buoc-chu { display: flex; flex-direction: column; min-width: 0; line-height: 1.4; }
+.buoc-chu strong { font-size: var(--chu-nho); font-weight: 600; }
+.buoc-dang .buoc-chu strong { color: var(--mau-thuong-hieu); }
+.buoc-chua .buoc-chu strong { color: var(--mau-chu-nhat); font-weight: 500; }
+.buoc-chu .phu { font-size: var(--chu-rat-nho); color: var(--mau-chu-phu); font-variant-numeric: tabular-nums; }
+.tien-trinh-dung {
+  margin: var(--k3) 0 0;
+  padding-top: var(--k3);
+  border-top: 1px solid var(--mau-vien);
+  font-size: var(--chu-nho);
+  font-weight: 600;
+  color: var(--mau-loi);
+}
 
 /* MỘT khối thông tin ở đầu màn hình hồ sơ (`0206`) — hồ sơ và khách hàng gộp.
 

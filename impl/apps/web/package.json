@@ -19,6 +19,7 @@
     "./xep-hang": "./src/components/bieu-do/XepHang.tsx",
     "./nguoi-dung": "./src/lib/nguoi-dung.ts",
     "./van-hanh": "./src/lib/van-hanh.ts",
+    "./tien-trinh": "./src/lib/tien-trinh.ts",
     "./van-hanh-ui": "./src/pages/VanHanh.tsx",
     "./nhat-ky-ui": "./src/pages/NhatKy.tsx",
     "./nguoi-xu-ly": "./src/lib/nguoi-xu-ly.ts",

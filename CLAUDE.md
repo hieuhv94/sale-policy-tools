@@ -104,7 +104,9 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
 Đang **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
-(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P290**: thành phần — `--vung-cham` 38px khi `pointer: fine` ≥1024px (cảm ứng
+(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P291**: trang hồ sơ hai cột — *Tiến trình duyệt* (`lib/tien-trinh.ts`)
+thay dải "đã duyệt", chỉ phần đầu chia cột. **`tests/web` 1043/1043.**
+Trước đó **P290**: thành phần — `--vung-cham` 38px khi `pointer: fine` ≥1024px (cảm ứng
 vẫn 44), nhãn chấm màu, tiêu đề cột chữ thường, hộp thoại có nút × (`tabIndex=-1`), `HopThoai ngan` = ngăn trượt cho ba
 biểu mẫu dài. **`tests/web` 1030/1030.**
 Trước đó **P289**: khung — thanh bên THU GỌN được (nút ở đầu, nhớ `localStorage`,

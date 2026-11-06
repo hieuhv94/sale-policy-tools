@@ -21432,3 +21432,35 @@ compose DEMO, không đụng `compose.test.yml`; `localhost:8080` vẫn 200 sau 
 dùng.
 
 **`tests/web` 1030/1030 xanh (57 tệp); typecheck xanh.**
+
+## P291 — `0257` Thiết kế lại giao diện, chặng 4: trang hồ sơ hai cột
+
+Đầu trang hồ sơ thành HAI CỘT: *Thông tin chung* trái, **Tiến trình duyệt** phải. **Chỉ phần đầu chia cột** — bảng
+sản phẩm mười ba cột và các khối tệp trải hết bề ngang. Bản mockup đầu ép cả bảng vào cột trái: tên sản phẩm xuống
+ba dòng (đo bằng ảnh chụp), sửa ngay trong mockup trước khi khách duyệt.
+
+**Tiến trình duyệt THAY dải "đã duyệt" của `0056`**, và trả lời rộng hơn nó: dải cũ chỉ bày bước ĐÃ xảy ra (*"ai ký
+cái này"*) và tự ẩn ở hồ sơ Nháp; cột mới bày cả bước ĐANG ở và bước CÒN LẠI — câu hỏi kế tiếp của người vừa đọc cái
+tên là *"giờ nó nằm ở bàn ai"*. Lập luận của `0056` (*"bốn ô rỗng chờ điền là bốn dòng chữ không nói gì"*) giữ
+nguyên văn trong chú thích: nó đúng với Ô DỮ LIỆU, còn một bước chưa tới vẫn nói một điều thật — hồ sơ còn phải qua
+bàn ấy. **Không thêm dữ liệu nào**: trạng thái cho bước đang ở, `nguoiDuyet` (đúng thứ dải cũ đọc) cho tên + mốc
+của bốn bước có chữ ký, `nguoiDeNghi` cho bước gửi. Nhãn bốn bước giữa giữ nguyên chữ của `BUOC_DUYET`.
+
+Phép suy ở hàm thuần `lib/tien-trinh.ts`. *Sale Admin sửa bản cứng* (`0225`) là CÙNG bước bàn giao — Kế toán bắt in
+lại thì hồ sơ quay về đúng bàn ấy. Hai trạng thái DỪNG (`QUA_HAN_DUYET`, `DA_XOA`) không có bước đang ở: bước nào có
+chữ ký thì xong, cộng một dòng *"Dừng: …"*. **Bảng tra `DANG_O` là chỗ dễ trôi nhất**: một trạng thái mới thêm vào
+máy trạng thái mà quên khai sẽ rơi vào nhánh DỪNG — hồ sơ đang đi trong luồng hiện chữ đỏ *"Dừng"*. Ca kiểm quét
+`STATUSES` của `domain-policy` và đòi tập trạng thái dừng ĐÚNG BẰNG hai cái kia.
+
+**Hai ca dãy `h2` phải sửa, và đó là sửa đúng chứ không né**: chúng ghim TOÀN BỘ dãy tiêu đề của trang, và trang
+vừa có thêm một mục thật — hạ khối mới xuống `h3` để khỏi sửa ca là nói dối cấu trúc trang với trình đọc màn hình.
+
+Ca kiểm `tests/web/tien-trinh.test.ts` (13 ca: chín trạng thái trong luồng, ghi chú bước đang ở, tên + mốc, hai
+trạng thái dừng, phủ đủ `STATUSES`). Phá lại hai lượt (gỡ `YEU_CAU_CHINH_SUA` khỏi `DANG_O` · gỡ cột khỏi trang), cả
+hai đỏ đúng ca. Lớp `.da-duyet` gỡ khỏi `app.css`.
+
+**Xem thật trên demo** (`bld01`): hồ sơ *Sale Admin đang xử lý* ở 1440 (ba bước xong có tên + giờ, bước bàn giao
+đang chờ, bảng sản phẩm đủ cột không cuộn) · hồ sơ *Quá hạn duyệt* (dòng *Dừng* đỏ) · điện thoại 390 (hai khối xếp
+chồng). Công cụ QA ở scratchpad mất khi tắt máy — dựng lại nguyên cách cũ.
+
+**`tests/web` 1043/1043 xanh (58 tệp); typecheck xanh.**

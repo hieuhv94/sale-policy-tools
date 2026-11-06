@@ -42,6 +42,7 @@ import {
 import { DanhSachLech, type LechMuc } from '../components/Lech.js';
 import { batTinhNang } from '@csbh/domain-policy';
 import { useBaoLoi } from '../lib/bao-loi.js';
+import { tienTrinh } from '../lib/tien-trinh.js';
 
 type HoSo = {
   id: string;
@@ -696,7 +697,17 @@ export function ChiTietHoSo({ id }: { id: string }) {
         rỗng với mọi ai khác) VÀ vai trò có quyền. Khách hàng của hồ sơ là khách
         của chính TDV ấy (`0085`), nên `PATCH /customers/:id` không chặn gì thêm.
       */}
-      <ThongTinHoSo hoSo={hoSo} suaKhach={dangSua ? moSuaKhach : undefined} />
+      {/*
+        HAI CỘT ở đầu trang (`0257`): thông tin chung bên trái, TIẾN TRÌNH DUYỆT bên
+        phải — thay dải "đã duyệt" của `0056`. Chỉ phần đầu chia cột; bảng sản phẩm
+        mười ba cột và các khối tệp bên dưới trải hết bề ngang (bảng ép vào cột
+        trái thì tên sản phẩm xuống ba dòng — đo trên mockup). Dưới 1100px hai khối
+        xếp chồng.
+      */}
+      <div className="ho-so-hai-cot">
+        <ThongTinHoSo hoSo={hoSo} suaKhach={dangSua ? moSuaKhach : undefined} />
+        <TienTrinhDuyet hoSo={hoSo} />
+      </div>
       {khachDangSua && (
         <BieuMauKhachHang
           khach={khachDangSua}
@@ -708,18 +719,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
         />
       )}
 
-      {/*
-        AI ĐÃ DUYỆT (`0056`).
-
-        Trước đó đầu màn hình chỉ có mã, phiên bản, ngày áp dụng và trạng thái —
-        nên câu hỏi thường gặp nhất khi mở một hồ sơ đã đi được vài bước ("ai ký
-        cái này?") phải trả lời bằng cách sang màn hình *Nhật ký*. Một chuyến đi
-        cho một dòng thông tin.
-
-        Chỉ hiện bước ĐÃ XẢY RA. Bày sẵn bốn ô rỗng chờ điền là bốn dòng chữ
-        không nói gì trên mọi hồ sơ còn ở Nháp.
-      */}
-      <DaDuyet nguoiDuyet={hoSo.nguoiDuyet} />
 
       {/*
         KHỐI LÝ DO nói đủ BỐN VẾ (`0189`): nói gì · ai · từ bước nào · lúc nào.
@@ -1611,43 +1610,45 @@ function ThongTinHoSo({
   );
 }
 
-/** Nhãn của từng bước duyệt, theo đúng thứ tự hồ sơ đi qua. */
-const BUOC_DUYET: { khoa: 'tbp' | 'keToanL1' | 'keToanL2' | 'saleAdmin'; nhan: string }[] = [
-  { khoa: 'tbp', nhan: 'Trưởng bộ phận ký' },
-  { khoa: 'keToanL1', nhan: 'KT duyệt bản mềm' },
-  { khoa: 'saleAdmin', nhan: 'Sale Admin bàn giao' },
-  { khoa: 'keToanL2', nhan: 'KT duyệt bản cứng' },
-];
-
 /**
- * Dải "đã duyệt" ở đầu màn hình hồ sơ.
+ * Cột TIẾN TRÌNH DUYỆT (`0257`) — thay dải "đã duyệt" (`DaDuyet`, `0056`).
  *
- * MỐC THỜI GIAN đi kèm TÊN, không tách: "Trưởng bộ phận Nguyễn Văn A ký" mà
- * thiếu ngày thì vẫn phải mở nhật ký ra mới biết hồ sơ nằm đó bao lâu — và đó
- * chính là câu hỏi tiếp theo của người vừa đọc cái tên.
- *
- * Thứ tự theo LUỒNG, không theo thời gian: bốn bước luôn đi đúng trình tự ấy,
- * nên xếp theo luồng thì mắt đọc được cả những bước CHƯA có mà không cần ô rỗng.
+ * Dải cũ chỉ bày bước ĐÃ xảy ra và tự ẩn ở hồ sơ Nháp; cột này luôn có mặt và bày
+ * cả bước đang ở lẫn bước còn lại. Lập luận cũ *"bốn ô rỗng chờ điền là bốn dòng
+ * chữ không nói gì"* đúng với Ô DỮ LIỆU — ở đây mỗi bước chưa tới vẫn nói một điều
+ * thật: hồ sơ còn phải qua bàn ấy. MỐC THỜI GIAN vẫn đi kèm TÊN, như dải cũ.
+ * Phép suy bước ở `lib/tien-trinh.ts`.
  */
-function DaDuyet({ nguoiDuyet }: { nguoiDuyet: HoSo['nguoiDuyet'] }) {
-  const co = BUOC_DUYET.map((b) => ({ ...b, d: nguoiDuyet?.[b.khoa] })).filter(
-    (x): x is typeof x & { d: { ten: string | null; luc: string } } => !!x.d,
-  );
-  if (co.length === 0) return null;
-
+function TienTrinhDuyet({ hoSo }: { hoSo: HoSo }) {
+  const { buoc, dung } = tienTrinh(hoSo.status, hoSo.nguoiDuyet ?? undefined, hoSo.nguoiDeNghi?.ten);
   return (
-    <dl className="da-duyet">
-      {co.map((x) => (
-        <div key={x.khoa}>
-          <dt>{x.nhan}</dt>
-          <dd>
-            {/* Tên tra không ra thì nói THÀNH LỜI. Một ô trống ở đây đọc ra là
-                "chưa ai ký", mà mốc thời gian ngay bên cạnh nói ngược lại. */}
-            <strong>{x.d.ten ?? 'không tra được tên'}</strong>
-            <span className="phu">{ngayGio(x.d.luc)}</span>
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <section className="tien-trinh" aria-labelledby="tieu-de-tien-trinh">
+      <h2 id="tieu-de-tien-trinh">Tiến trình duyệt</h2>
+      <ol className="tien-trinh-buoc">
+        {buoc.map((b) => (
+          <li
+            key={b.khoa}
+            className={`buoc-${b.tinhTrang}`}
+            {...(b.tinhTrang === 'dang' ? { 'aria-current': 'step' as const } : {})}
+          >
+            <span className="buoc-tron" aria-hidden="true" />
+            <span className="buoc-chu">
+              <strong>{b.nhan}</strong>
+              {b.tinhTrang === 'xong' && b.nguoi && (
+                <span className="phu">
+                  {b.nguoi}
+                  {b.luc ? <> · {ngayGio(b.luc)}</> : null}
+                </span>
+              )}
+              {b.tinhTrang === 'dang' && <span className="phu">{b.ghiChu}</span>}
+              <span className="chi-doc-man-hinh">
+                {b.tinhTrang === 'xong' ? ' — đã xong' : b.tinhTrang === 'dang' ? ' — đang ở bước này' : ' — chưa tới'}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {dung && <p className="tien-trinh-dung">Dừng: {nhanTrangThai(hoSo.status)}</p>}
+    </section>
   );
 }
