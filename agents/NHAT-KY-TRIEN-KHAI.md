@@ -21582,3 +21582,36 @@ Ca kiểm: `dang-nhap.test.tsx` (câu mô tả trên nền, sáu vai trò, `aria
 `scrollX` = 0 ở 390, 768 và 1440.
 
 **`tests/web` 1069/1069 + `tests/http/tai-lieu` 4/4 xanh; typecheck xanh.**
+
+## P296 — `0260` Ban lãnh đạo không nhận bất kỳ thông báo nào — từ tình cờ thành luật
+
+Hỏi *"ban lãnh đạo có nhận được thông báo gì không"* → không; khách hàng chốt *"giữ nguyên, đảm bảo ban lãnh đạo
+sẽ không nhận bất kỳ thông báo nào"*. Tới đây điều ấy đúng TÌNH CỜ: người nhận của một hồ sơ lấy từ bốn ô người
+(TDV · TBP · Kế toán · Sale Admin) mà Ban lãnh đạo không đứng tên ô nào.
+
+**Chốt ở identity, ba đường** — `KHONG_NHAN_THONG_BAO = ['BAN_LANH_DAO']` (`internal.controller.ts`) áp ở
+`notify-targets` (theo hồ sơ), `users/mail-targets` (theo id — lá "để biết") và `users/quan-tri`. Identity là chủ của
+vai trò tài khoản, và `notification` chỉ tra người nhận qua đúng ba đường ấy (có ca canh: thêm đường thứ tư là đỏ,
+và mỗi đường phải truyền hằng làm tham số). **Không chặn** hai lá thư của chính tài khoản (kích hoạt, đặt lại mật
+khẩu): đó là đường DUY NHẤT để có mật khẩu.
+
+**TIỀN ĐỀ TÔI ĐẶT SAI, và phá lại bắt được**: bản đầu viết rằng `notify-targets` trả `role` là NHÃN CỦA Ô nên phải
+nối `app_user` để lấy vai trò thật — và ghi lập luận ấy vào cả chú thích lẫn đầu tệp kiểm. Lượt phá *"lọc theo
+`target_role`"* XANH, và đọc `notify_targets` (`0031`) thì nó trả `u.role` — vai trò THẬT từ đầu. Phép nối gỡ, chú
+thích viết lại. Chưa đọc định nghĩa hàm mà đã khẳng định nó trả gì — đúng lớp lỗi `0198` (`grep` thay cho
+`pg_constraint`).
+
+**Lỗ thật duy nhất là lá "để biết"**: nó tra người đã thao tác THEO ID, không qua `pick` (phép chọn theo vai trò bước
+gọi tên), nên bỏ lọc ở đường ấy là ca hết-đường và ca bất biến cùng đỏ. Bỏ lọc ở đường theo hồ sơ thì ca hết-đường
+**vẫn xanh, có lý do**: `pick` chỉ giữ vai trò mà bước gọi tên, và `BAN_LANH_DAO` không bao giờ được gọi — lớp thứ hai
+có sẵn; ca gọi thẳng identity là ca canh đường ấy.
+
+**Ca kiểm** `tests/http/ban-lanh-dao-thong-bao.test.ts` (7): đặt CỐ Ý một tài khoản Ban lãnh đạo vào ô Kế toán (chủ
+bước) và vào danh sách người đã thao tác của một sự kiện `TBP_SIGN` thật qua `notify.handle` → không thư (Mailpit),
+không chuông, TDV vẫn nhận (đối chứng); ba đường identity gọi thẳng; bất biến *"không dòng `ntf.thong_bao` nào thuộc
+tài khoản Ban lãnh đạo"* trên toàn CSDL. Phá lại năm lượt (ba đường · hằng rỗng · bộ lọc đơn giản hoá), cả năm có
+ca đỏ; ghi trên là hai chỗ xanh có lý do.
+
+**Tài liệu**: YCNV mục 2.6 + Phụ lục B; HDSD bảng vai trò + *Ai nhận thư khi hồ sơ đổi trạng thái*.
+
+**3107/3107 xanh.**

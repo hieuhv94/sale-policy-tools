@@ -115,7 +115,7 @@ cái khác nhau.
 | **Trưởng bộ phận (TBP)** | Ký số duyệt · trả lại để chỉnh sửa · từ chối hồ sơ |
 | **Kế toán** | Tiếp nhận lần 1 · **xuất hợp đồng** · tiếp nhận lần 2 · yêu cầu in lại |
 | **Sale Admin** | Bàn giao hồ sơ · quản lý mẫu hợp đồng |
-| **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08` |
+| **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08`. **Không nhận thư hay thông báo nào** `mới 07/11` — muốn biết tình hình thì mở phần mềm |
 | **Quản trị hệ thống** | Danh mục sản phẩm, giá, người dùng. **Không** tham gia duyệt hồ sơ |
 
 > **Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH** `sửa 29/08`. Hồ sơ chỉ vào danh sách của bạn khi
@@ -1460,7 +1460,8 @@ Hệ quả với hồ sơ **Quá hạn duyệt**: mở ra thì **không còn nú
 
 ### Ai nhận thư khi hồ sơ đổi trạng thái
 
-**Hai nhóm, hai lá thư khác nhau.**
+**Hai nhóm, hai lá thư khác nhau.** **Ban lãnh đạo không nằm trong nhóm nào** `mới 07/11` — vai trò này
+không nhận bất kỳ thư hay thông báo nào của phần mềm, kể cả cái chuông.
 
 | Nhóm | Nhận gì | Liên kết trong thư dẫn tới |
 |---|---|---|

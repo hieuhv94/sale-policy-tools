@@ -103,7 +103,19 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P295** (`0259`): ảnh nền đăng nhập mẫu C (`NenDangNhap.tsx`, SVG nội tuyến đọc token) — bản đầu đè chữ
+**ĐANG LÀM DỞ — tính năng BÌNH LUẬN trên hồ sơ CSBH** (chưa có dòng mã sản phẩm nào). Yêu cầu đã duyệt ở
+`agents/comment_system_requirements.md`; kế hoạch + trạng thái + quyết định chốt thêm ở **`agents/KE-HOACH-BINH-LUAN.md`**
+(đọc phần đầu trước). Đang ở **Bước 1: mockup bản 2 chờ duyệt** (https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9,
+nguồn `artifacts/binh-luan-mockup.html`). Chưa duyệt mockup thì không viết mã; duyệt xong thì sửa tài liệu yêu cầu
+theo các quyết định chốt thêm rồi mới vào P296.
+
+Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`
+ở identity, áp cả ba đường tra người nhận (`notify-targets` · `users/mail-targets` · `users/quan-tri`); lỗ thật
+duy nhất là lá "để biết" (tra theo id, không qua `pick`). Thư kích hoạt / đặt lại mật khẩu vẫn gửi. Tiền đề sai
+của bản đầu (*`target_role` là nhãn ô*) — `notify_targets` trả `u.role`, đọc hàm trước khi khẳng định.
+**3107/3107 xanh.**
+
+Trước đó **P295** (`0259`): ảnh nền đăng nhập mẫu C (`NenDangNhap.tsx`, SVG nội tuyến đọc token) — bản đầu đè chữ
 ở 6/7 khổ, chỉ ĐO khung bao mới thấy; rà khổ 768: **kanban làm cả thân trang cuộn ngang** (chữ ẩn `position: absolute`
 thoát khung cuộn không định vị — có cả ở 1440), dải năm chỉ số 4+1, nút Chiết khấu xếp chồng. **`tests/web` 1069/1069.**
 
@@ -2123,3 +2135,4 @@ Hai bản web đã publish — gọi `Artifact` kèm `url` cũ, thiếu `url` s�
 |---|---|
 | `artifacts/ra-soat-csbh.html` | `https://claude.ai/code/artifact/0daad399-bd08-4cc6-a281-27b751124ca0` |
 | `artifacts/kien-truc-csbh.html` | `https://claude.ai/code/artifact/d9e72525-6df5-475d-8b76-52f8a3202aea` |
+| `artifacts/binh-luan-mockup.html` | `https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9` |

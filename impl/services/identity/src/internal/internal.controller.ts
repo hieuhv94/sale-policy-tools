@@ -20,6 +20,23 @@ import { Db } from '../infra/db.js';
 import { AccountCache } from '../infra/account-cache.js';
 import { ServiceOnly } from '@csbh/http-kit';
 
+/**
+ * Vai trò KHÔNG BAO GIỜ nhận thư hay thông báo của phần mềm (`0260`, chốt 06/11: *"đảm bảo ban
+ * lãnh đạo sẽ không nhận bất kỳ thông báo nào"*).
+ *
+ * Đặt ở IDENTITY — chủ của vai trò tài khoản — chứ không ở `notification`: mọi người nhận (theo
+ * hồ sơ, theo id cho lá "để biết", mọi Quản trị) đều đi qua ba đường dưới đây, và cả ba áp hằng
+ * này, nên một đường gửi mới bên `notification` không phải nhớ gì.
+ *
+ * Tới `0260` điều ấy đúng TÌNH CỜ, và lỗ thật duy nhất đo được là lá "để biết": nó tra người đã
+ * thao tác THEO ID, không qua phép chọn theo vai trò của bước (`pick`), nên bất kỳ ai từng chạm vào
+ * hồ sơ đều nhận — kể cả một tài khoản Ban lãnh đạo nếu có ngày nó được cấp một thao tác.
+ *
+ * KHÔNG chặn hai lá thư của chính tài khoản (kích hoạt, đặt lại mật khẩu — `mailer.ts`): đó là
+ * đường DUY NHẤT để người ấy có mật khẩu, không phải một thông báo nghiệp vụ.
+ */
+export const KHONG_NHAN_THONG_BAO: readonly string[] = ['BAN_LANH_DAO'];
+
 @ServiceOnly()
 @Controller('internal')
 export class InternalController {
@@ -60,7 +77,9 @@ export class InternalController {
   async quanTri() {
     const rows = await this.db.q<{ userId: string; role: string; email: string; fullName: string }>(
       `SELECT id AS "userId", role::text AS role, email, full_name AS "fullName"
-         FROM idn.app_user WHERE role = 'QUAN_TRI' AND is_active ORDER BY username`,
+         FROM idn.app_user WHERE role = 'QUAN_TRI' AND is_active
+          AND NOT (role::text = ANY($1::text[])) ORDER BY username`,
+      [KHONG_NHAN_THONG_BAO],
     );
     return { targets: rows };
   }
@@ -85,8 +104,8 @@ export class InternalController {
     }>(
       `SELECT id AS "userId", role::text AS role, email, full_name AS "fullName"
          FROM idn.app_user
-        WHERE id = ANY($1::uuid[]) AND is_active`,
-      [ids as string[]],
+        WHERE id = ANY($1::uuid[]) AND is_active AND NOT (role::text = ANY($2::text[]))`,
+      [ids as string[], KHONG_NHAN_THONG_BAO],
     );
     return { targets: rows };
   }
@@ -178,12 +197,11 @@ export class InternalController {
       target_role: string;
       target_email: string;
       target_name: string;
-    }>(`SELECT * FROM idn.notify_targets($1,$2,$3,$4)`, [
-      tdvUserId,
-      tbp || null,
-      keToan || null,
-      saleAdmin || null,
-    ]);
+    }>(
+      // `target_role` là vai trò THẬT của tài khoản (`u.role` trong `notify_targets`, `0031`).
+      `SELECT * FROM idn.notify_targets($1,$2,$3,$4) WHERE NOT (target_role = ANY($5::text[]))`,
+      [tdvUserId, tbp || null, keToan || null, saleAdmin || null, KHONG_NHAN_THONG_BAO],
+    );
     return {
       tdvUserId,
       targets: rows.map((r) => ({

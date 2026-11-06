@@ -159,6 +159,9 @@ Một người. Toàn quyền đọc **dữ liệu nghiệp vụ** `sửa 21/08`
   > tiếp nhận, ai đã trả lại và vì sao — và họ vẫn mở được mọi hồ sơ. Nhật ký hệ thống chỉ còn của
   > Quản trị hệ thống (mục 2.7).
 - Lọc và xuất Excel theo mọi tiêu chí ở mục 9.2 — xuất ra đúng kết quả bộ lọc đang xem.
+- **KHÔNG nhận bất kỳ thư hay thông báo nào** `mới 07/11` — không thư, không chuông, ở mọi bước và mọi
+  loại thông báo (kể cả loại không gắn với hồ sơ). Hai lá thư của chính tài khoản (kích hoạt, đặt lại
+  mật khẩu) vẫn gửi: đó là đường để có mật khẩu, không phải thông báo nghiệp vụ.
 - Ký bản cứng là thao tác giấy do Sale Admin trình lên — phần mềm không có bước nào cho việc này.
 
 ### 2.7. Quản trị hệ thống
@@ -3008,6 +3011,11 @@ phiên bản (`sửa 05/11` — người không đăng nhập được cần đ�
 mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
 mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**
 cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi.
+
+**BAN LÃNH ĐẠO KHÔNG NHẬN THÔNG BÁO NÀO** `mới 07/11` — hỏi *"ban lãnh đạo có nhận được thông báo gì
+không"*, trả lời *không*, khách hàng chốt *"giữ nguyên, đảm bảo ban lãnh đạo sẽ không nhận bất kỳ thông
+báo nào"*. Trước đó đúng tình cờ (vai trò này không đứng tên ô nào trên hồ sơ); giờ là luật, có chốt
+chặn. Xem mục 2.6.
 
 **TRANG VẬN HÀNH** `mới 05/11 — 06/11` — *"đưa mọi thao tác vận hành từ command line lên giao diện web
 của tài khoản admin, trong một trang riêng biệt gọi là vận hành"*. Mockup duyệt 05/11. Chốt khi hỏi:
