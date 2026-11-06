@@ -21503,3 +21503,36 @@ cột có nút gập cao hơn. **Bẫy của công cụ, không phải của mã
 `agents/`.
 
 **`tests/web` 1060/1060 xanh (60 tệp); `tests/http/tai-lieu` 4/4; typecheck xanh.**
+
+## P293 — `0257` Thiết kế lại giao diện, chặng 6: rà mọi trang bằng ảnh thật
+
+Chặng cuối của lượt thiết kế lại: chụp MỌI trang chính trên chồng demo (Tổng quan của ba vai trò, Khách hàng danh
+sách + chi tiết, Thống kê, Người dùng, Sản phẩm, Chiết khấu, Văn bản mẫu, Nhật ký, Vận hành, Thông báo) rồi sửa chỗ
+thô.
+
+**Nút nguy hiểm ngoài hộp thoại thành VIỀN + chữ đỏ**; chỉ trong hộp thoại — nơi người dùng đang xác nhận đúng việc
+ấy — mới đỏ đặc (`.hop-thoai .nut-canh-bao`). Trước đó bảng Người dùng và bảng Chiết khấu là một cột nút đỏ đặc trên
+mọi dòng, và màu ấy thôi nói được *"bước không lùi được"*. **Kèm một lỗi CÓ SẴN, lộ ra từ ảnh**: nút *Vô hiệu hoá* ở
+Văn bản mẫu mang cả `nut-nhe` lẫn `nut-canh-bao`; `.nut-nhe` đứng sau nên đè nền về trong suốt mà chữ vẫn trắng —
+nút trắng trên nền trắng, chỉ thấy một ô viền rỗng.
+
+**BẪY `*/` LẦN THỨ BA, lần này trong CSS, và không ca nào đỏ**: chú thích tôi viết có cụm *"nút \*Xoá\*/\*Vô hiệu
+hoá\*"* — dấu sao trước dấu gạch chéo ĐÓNG chú thích sớm, phần chữ còn lại thành CSS rác và **nuốt mất luật
+`.nut-canh-bao` ngay sau nó**. Ca kiểm của chính chặng đọc MÃ NGUỒN nên xanh; ảnh chụp cho thấy chữ nút vẫn đen; đo
+`getComputedStyle` ra `rgb(18,26,38)` (màu chữ thường), liệt kê luật khớp bằng `b.matches(r.selectorText)` thì
+`.nut-canh-bao` VẮNG MẶT trong khi tệp dựng ra có nó — tức trình duyệt đã bỏ nó lúc đọc. CLAUDE.md ghi bẫy này cho
+docstring TypeScript (`0205`), ở đó `tsc` còn báo lỗi; **CSS thì không ai báo gì**. Ca kiểm mới quét cả ba tệp CSS:
+gỡ chú thích ĐÚNG CÁCH, gỡ chuỗi trong nháy, phần còn lại không được có chữ tiếng Việt. Phá lại (trả cụm cũ) → đỏ.
+
+Thanh trên ở điện thoại: tên mục bị cắt còn *"Tổng q…"* — thu khoảng cách cụm nút bên phải và cho tên đăng nhập co
+lại trước (5,5rem). Đã chụp lại: *Tổng quan* hiện đủ ở 390px.
+
+**Ghi lại, CHƯA sửa — ngoài phạm vi thiết kế**: khối *Hoạt động hôm nay* (Tổng quan của Quản trị) và cột *Hành động*
+của trang Nhật ký bày **mã máy** (`CREATED`, `SUBMIT`, `TBP_SIGN`, `SLA_OVERDUE`, `LOGIN_OK`…), ngược luật *"Quản trị
+không có chuyên môn IT"*. Giao diện chưa có bảng nhãn nào cho mã nhật ký hệ thống; lập đủ bảng là việc về CÂU CHỮ cho
+mã đến từ mười service, đáng một chặng riêng có ca đối chiếu với mã nguồn máy chủ.
+
+**Cả lượt `0257` (P288–P293) xong.** `make test` đầy đủ CHƯA chạy suốt lượt — chồng demo bật; mọi lượt chạy là
+`tests/web` (+ `tests/http/tai-lieu`) bằng ảnh rời `--network none`. Không đổi một dòng máy chủ nào.
+
+**`tests/web` 1065/1065 + `tests/http/tai-lieu` 4/4 xanh (61 tệp); typecheck xanh.**

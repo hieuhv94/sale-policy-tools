@@ -104,7 +104,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
 Đang **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
-(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P292**: danh sách hồ sơ = KANBAN theo vai trò (`lib/kanban.ts`,
+(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293 — **XONG**. Chặng cuối **P293**: rà mọi trang bằng ảnh thật; nút nguy hiểm ngoài hộp thoại
+thành viền + chữ đỏ; **bẫy `*/` trong CHÚ THÍCH CSS nuốt mất luật ngay sau mà không gì báo** (giờ có ca quét). Còn
+ghi lại: mã máy (`LOGIN_OK`…) ở Nhật ký và *Hoạt động hôm nay*. `make test` đầy đủ chưa chạy suốt lượt (demo bật).
+**`tests/web` 1065/1065.**
+Trước đó **P292**: danh sách hồ sơ = KANBAN theo vai trò (`lib/kanban.ts`,
 `components/KanbanHoSo.tsx`) — mỗi trạng thái một cột theo thứ tự luồng, mức theo ma trận đã duyệt, *Việc của bạn* =
 `CHU_BUOC` + Nháp, cột trống ẩn ở mọi mức; nút Kanban | Bảng. **`tests/web` 1060/1060.**
 Trước đó **P291**: trang hồ sơ hai cột — *Tiến trình duyệt* (`lib/tien-trinh.ts`)

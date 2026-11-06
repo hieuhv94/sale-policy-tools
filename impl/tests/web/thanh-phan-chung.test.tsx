@@ -82,3 +82,39 @@ describe('`0257` không còn KÝ TỰ nào làm icon', () => {
     expect(sai).toEqual([]);
   });
 });
+
+describe('`0257` nút nguy hiểm: viền ngoài hộp thoại, đỏ đặc trong hộp thoại', () => {
+  const CSS = readFileSync('apps/web/src/styles/app.css', 'utf8');
+  const khoi = (sel: string) => {
+    const i = CSS.indexOf(`\n${sel} {`);
+    expect(i, `thiếu khối ${sel}`).toBeGreaterThan(-1);
+    return CSS.slice(i, CSS.indexOf('}', i));
+  };
+  it('ngoài hộp thoại: nền bề mặt, chữ màu lỗi — KHÔNG chữ trắng (nút trắng trên nền trắng của Văn bản mẫu)', () => {
+    const k = khoi('.nut-canh-bao');
+    expect(k).toContain('color: var(--mau-loi)');
+    expect(k).not.toContain('--mau-chu-nguoc');
+  });
+  it('trong hộp thoại: đỏ đặc, chữ trắng — nơi người dùng đang xác nhận đúng việc ấy', () => {
+    const k = khoi('.hop-thoai .nut-canh-bao');
+    expect(k).toContain('background: var(--mau-nut-nguy-hiem)');
+    expect(k).toContain('color: var(--mau-chu-nguoc)');
+  });
+});
+
+describe('`0257` chú thích CSS không bị đóng sớm', () => {
+  /*
+   * Một cụm như "nút *Xoá*" theo sau là "/" thì dấu sao và dấu gạch chéo thành
+   * dấu ĐÓNG chú thích: phần chữ còn lại thành CSS rác và nuốt mất LUẬT NGAY SAU
+   * — trình duyệt bỏ nó lặng lẽ. `0257` dính đúng thế: luật nút nguy hiểm biến
+   * mất mà mọi ca đọc mã nguồn vẫn xanh. CLAUDE.md đã ghi bẫy này cho docstring.
+   * Phép kiểm: gỡ chú thích ĐÚNG CÁCH rồi gỡ chuỗi trong nháy — phần còn lại là
+   * CSS thật, không được còn chữ tiếng Việt nào.
+   */
+  it.each(['app.css', 'tokens.css', 'phong.css'])('%s', (tep) => {
+    const s = readFileSync(`apps/web/src/styles/${tep}`, 'utf8');
+    const conLai = s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/'[^'\n]*'|"[^"\n]*"/g, '');
+    const lot = conLai.split('\n').filter((l) => /[À-ỹ]/u.test(l));
+    expect(lot, `chữ của chú thích lọt ra ngoài — tìm "*/" giữa một chú thích`).toEqual([]);
+  });
+});

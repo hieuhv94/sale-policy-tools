@@ -685,12 +685,29 @@ main:focus { outline: none; }
 .nut-chinh:hover { background: var(--mau-nut-chinh-hover); border-color: var(--mau-nut-chinh-hover); }
 .nut-chinh:disabled:hover { background: var(--mau-nut-chinh); border-color: var(--mau-nut-chinh); }
 
+/* NÚT NGUY HIỂM (`0257`): ngoài hộp thoại là VIỀN + chữ đỏ, chỉ trong hộp thoại
+   — nơi người dùng đang xác nhận đúng việc ấy — mới đỏ đặc. Trước đó mọi nút xoá
+   đều đỏ đặc, nên một bảng có nút Xoá hay Vô hiệu hoá ở mỗi dòng thành một cột đỏ
+   chói, và màu không còn nói được "đây là bước không lùi được" nữa.
+
+   Kèm một lỗi CÓ SẴN: nút *Vô hiệu hoá* ở trang Văn bản mẫu mang cả `nut-nhe` lẫn
+   `nut-canh-bao`; `.nut-nhe` đứng sau nên đè nền về trong suốt mà chữ vẫn trắng —
+   một nút trắng trên nền trắng. Chữ giờ là màu lỗi nên nút ấy đọc được. */
 .nut-canh-bao {
+  background: var(--mau-nen);
+  border-color: var(--mau-vien-dam);
+  color: var(--mau-loi);
+}
+.nut-canh-bao:hover {
+  background: var(--mau-loi-nen);
+  border-color: var(--mau-loi);
+}
+.hop-thoai .nut-canh-bao {
   background: var(--mau-nut-nguy-hiem);
   border-color: var(--mau-nut-nguy-hiem);
   color: var(--mau-chu-nguoc);
 }
-.nut-canh-bao:hover {
+.hop-thoai .nut-canh-bao:hover {
   background: var(--mau-nut-nguy-hiem-hover);
   border-color: var(--mau-nut-nguy-hiem-hover);
 }
@@ -2442,7 +2459,11 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    ========================================================================= */
 @media (max-width: 639px) {
   main { padding: var(--k4) var(--k3) var(--k5); }
-  .thanh-tieu-de { padding: var(--k2) var(--k3); }
+  .thanh-tieu-de { padding: var(--k2) var(--k3); gap: var(--k2); }
+  /* Tên mục trên thanh trên (`0257`) bị cắt còn "Tổng q…" ở 390px vì cụm nút bên
+     phải chiếm chỗ: thu khoảng cách cụm ấy và cho tên đăng nhập co lại trước. */
+  .nguoi-dung { gap: 0; }
+  .the-nguoi-dung .ten { max-width: 5.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Bỏ VIÊN VAI TRÒ, giữ tên đăng nhập (`0063`).
 
