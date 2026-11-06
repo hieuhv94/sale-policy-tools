@@ -622,8 +622,8 @@ sudo chmod 644 /etc/cron.d/csbh
 sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
 ```
 
-Sao lưu hằng đêm · dọn dữ liệu và trích nhật ký kiểm toán hằng tháng · diễn tập
-phục hồi ngày 8 hằng tháng.
+Sao lưu CSDL và kho tệp theo lịch đã cấu hình (cron hỏi mỗi 15 phút) · diễn tập phục hồi
+ngày 8 hằng tháng. Dọn dữ liệu do `sla-worker` tự chạy.
 
 > **Không cài cron là bỏ mất một nửa cam kết phục hồi.** Các lệnh chạy được từ
 > lúc bàn giao, nhưng chúng chỉ chạy khi có người gõ. Một cam kết RPO mà phụ
@@ -642,6 +642,13 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
 in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 
+> **Bản có `0251` (lịch sao lưu cấu hình được)** `mới 06/11`. Migration `0124` tạo schema
+> `ops` với lịch mặc định (CSDL 01:15, kho tệp 02:00, giữ 7 bản). **Phải cài lại cron**:
+> `sudo cp deploy/cron.mau /etc/cron.d/csbh` (rồi sửa đường dẫn như §cron) — tệp cũ gọi
+> `sao-luu` lúc 01:15 cố định, gọi `luu-audit` (đã gỡ, sẽ báo lỗi), và không chụp kho tệp.
+> Chép cả **tệp `csbh` mới** (`--neu-den-han`). Thư mục `logarchive/audit/` của máy cũ để
+> nguyên, không lệnh nào còn ghi vào đó.
+>
 > **Bản có `0250` (bỏ bản nền + WAL)** `mới 06/11`. Phải chép **`deploy/compose.yml`,
 > `deploy/compose.prod.yml`, `deploy/postgres/postgresql.conf` và tệp `csbh` mới** —
 > `nang-cap` chỉ đổi ảnh. Tệp compose mới gỡ volume `pgarchive` khỏi Postgres, nên lượt

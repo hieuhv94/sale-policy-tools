@@ -1,5 +1,6 @@
 /**
- * Bộ hẹn giờ: quét SLA mỗi 5 phút, dọn dữ liệu mỗi ngày.
+ * Bộ hẹn giờ: quét SLA mỗi 5 phút; ở mỗi nhịp ấy cũng hỏi việc dọn dữ liệu đã tới giờ
+ * đã cấu hình chưa (`0251` — trước đó là `setInterval` 24 giờ tính từ lúc khởi động).
  *
  * Tách khỏi `SlaService` để test gọi thẳng `scan()` tại một thời điểm xác định.
  * Test chạy qua bộ hẹn giờ là test phụ thuộc vào việc bộ đếm có kịp nổ hay
@@ -12,7 +13,6 @@ import { SlaService } from './sla.service.js';
 import { Clock } from './clock.js';
 
 const SCAN_EVERY_MS = 5 * 60 * 1000;
-const RETENTION_EVERY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class Scheduler implements OnModuleInit, OnModuleDestroy {
@@ -45,12 +45,6 @@ export class Scheduler implements OnModuleInit, OnModuleDestroy {
       setInterval(() => {
         void this.tick();
       }, SCAN_EVERY_MS),
-      setInterval(() => {
-        void this.sla
-          .runRetention()
-          .then((r) => this.log.log(`dọn dữ liệu: ${JSON.stringify(r)}`))
-          .catch((e: unknown) => this.log.error(`dọn dữ liệu hỏng: ${String(e)}`));
-      }, RETENTION_EVERY_MS),
     );
     for (const t of this.timers) t.unref?.();
   }
@@ -64,6 +58,13 @@ export class Scheduler implements OnModuleInit, OnModuleDestroy {
       await this.relay.pumpOnce();
     } catch (e) {
       this.log.error(`vòng quét hỏng lúc ${this.clock.now().toISOString()}: ${String(e)}`);
+    }
+    // Tách khỏi khối trên: vòng quét SLA hỏng không được làm lỡ việc dọn, và ngược lại.
+    try {
+      const r = await this.sla.donDuLieuTheoLich(this.clock.now());
+      if (r) this.log.log(`dọn dữ liệu: ${JSON.stringify(r)}`);
+    } catch (e) {
+      this.log.error(`dọn dữ liệu hỏng: ${String(e)}`);
     }
   }
 

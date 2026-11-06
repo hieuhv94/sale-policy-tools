@@ -20978,3 +20978,54 @@ cách** lúc đầu (`cp -al` vào thư mục đã có tạo thư mục con, b�
 thì đỏ.
 
 **2770/2770 xanh.**
+
+## P282 — `0251` Lịch tự động cấu hình được; gỡ trích kiểm toán; dọn dữ liệu theo giờ
+
+Chặng B2 của trang Vận hành. Chốt 05/11: Quản trị đặt **giờ chạy và số bản giữ** của từng việc định kỳ;
+**bỏ trích kiểm toán** (`luu-audit`); dọn dữ liệu **chỉ hiện kết quả** và sửa hai lỗ (`doc.outbox` chưa từng
+được dọn; `./csbh don-du-lieu` thiếu `don_thong_bao`).
+
+**Schema `ops`** (migration `0124`): `cau_hinh_viec` (một dòng mỗi việc: tần suất 6 giờ/12 giờ/ngày/tuần, giờ
+VN, thứ, giữ tối đa) + `lan_chay` (mỗi lượt một dòng, tự động hay gõ tay). **MỘT phép tính lịch cho ba người
+hỏi** — cron (qua `./csbh`), `sla-worker`, và trang web sau này — nằm ở `ops.moc_truoc` / `moc_ke_tiep` /
+`den_han`. Luật đến hạn: chưa có lượt THÀNH CÔNG nào từ mốc gần nhất **và** không lượt nào bắt đầu trong 60
+phút qua — vế hai vừa là nhịp thử lại (lượt hỏng thử lại sau một giờ, không dội mỗi 15 phút) vừa là chỗ
+lượt chết giữa chừng (`DANG_CHAY` mãi) hết chặn. Máy tắt qua nhiều mốc: một lượt bù. Chạy TAY trước mốc
+không thay cho lượt theo lịch của mốc ấy.
+
+**Cron vẫn là bộ đếm giờ** — `*/15 … ./csbh sao-luu --neu-den-han` (và `sao-luu-tep`). Không để tác tử lập
+lịch: sao lưu không được phụ thuộc vào tác tử. **CSDL không trả lời** thì vẫn sao lưu trong 15 phút từ giờ
+mặc định (bỏ lượt là cách tệ nhất để phản ứng với một CSDL trục trặc). Hai việc chung khoá `flock` nên không
+chạy chồng. Dọn dữ liệu rời cron sang `sla-worker`: ở MỖI nhịp quét 5 phút hỏi `ops.den_han('DON_DU_LIEU')` —
+`setInterval` 24 giờ cũ trôi giờ theo mỗi lần khởi động lại.
+
+**Ba lỗi bắt được trong lượt làm, hai của chính tôi:**
+1. **`CHECK (giu_toi_da BETWEEN 1 AND 60)` để lọt `NULL`** — `NULL BETWEEN …` cho NULL, CHECK coi NULL là ĐẠT.
+   Bọc `coalesce(…, false)`.
+2. **Ca kiểm ràng buộc xanh vô điều kiện**: `expectSqlErrorInTx` nhận một HÀM, tôi truyền chuỗi SQL — gọi
+   chuỗi như hàm ném `TypeError`, lỗi ấy bị bắt, 13 ca "chặn" xanh. Sửa thì ca ấy lộ ngay lỗi 1.
+3. **Bẫy `set -e` trong điều kiện `if`**: `if "$ham" …; then` tắt `set -e` cho CẢ thân hàm, nên chụp kho tệp
+   hỏng ở `mc` mà bước kê cuối chạy được sẽ ghi THÀNH CÔNG. Chạy trong `( set -e; … )` ngoài ngữ cảnh điều
+   kiện; có ca riêng (`MC_HONG`), phá lại thì đỏ đúng ca ấy.
+
+**SỰ CỐ CỦA CHÍNH TÔI lúc phá lại**: thư mục sao lưu tạm của vòng phá đã mất, nên `cp` sao lưu hỏng và `cp`
+khôi phục hỏng — **năm lượt phá CHỒNG LÊN NHAU trong `scripts/csbh`**, và các ca đỏ từ lượt hai không đo được
+gì. Đảo ngược đủ năm phép thay (đối chiếu từng đoạn), rồi phá lại TỪNG LƯỢT với sao lưu `mkdir -p` trước,
+dừng hẳn nếu `cp` hỏng, và `cmp` xác nhận khôi phục — năm lượt, mỗi lượt đỏ đúng ca của nó.
+
+**Gỡ `luu-audit`**: script, nhánh `./csbh` + ảnh `ops`, đích `Makefile`, mount compose, dòng cron. Tệp đã trích
+trên máy đang chạy giữ nguyên. Ca `0246` khẳng định *"`sao-luu-tep` KHÔNG nằm trong cron"* — chốt ấy đảo ở
+đây, nên ca được THAY chứ không nới.
+
+**Hai ca cũ đỏ ở lượt chạy cả bộ, cả hai đúng**: ca tài liệu đếm migration (74 → 75, bốn chỗ — một chỗ viết
+`**74** migration` nên phép thay chuỗi đầu bỏ sót), và ca `0246` đọc câu cảnh báo bản sao ngoài ở STDERR —
+từ `0251` đầu ra của việc sao lưu gom vào tệp (để ghi đuôi vào `lan_chay`) rồi in ra stdout.
+
+**Dựng thật** (`make demo`, Postgres + `sla-worker` thật): ba câu SQL mà `./csbh` gửi cho đúng dạng nó đọc —
+`co 7`, mã lượt chạy đứng một mình (nhờ `-q`, không lẫn `INSERT 0 1`), rồi `khong` ngay sau một lượt vừa bắt
+đầu. `sla-worker` dưới role `csbh_pol` dọn ở nhịp quét đầu (09:02), ghi `THANH_CONG` kèm số dòng từng loại
+(có `doc_outbox`), dòng log có cả trong tệp log của `0249`; **hơn sáu phút sau, qua thêm một nhịp, vẫn một
+lượt**. Chưa chạy `./csbh sao-luu --neu-den-han` trên chồng production thật — cần ảnh `ops` mới mang migration
+`0124`; đường shell được phủ bằng `docker` giả (21 ca) cộng ba câu SQL đo ở trên.
+
+**2825/2825 xanh.**

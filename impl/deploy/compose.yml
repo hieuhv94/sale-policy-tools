@@ -178,7 +178,6 @@ services:
       - ../scripts/reset-db.sh:/reset-db.sh:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
-      - ../scripts/luu-audit-thang.sh:/luu-audit-thang.sh:ro
       - ../../workspace/backup-mirror:/mirror
       - pgbackup:/backup
       # Kho lưu trữ log NẰM NGOÀI `workspace/` (`0092`): `make clean` xoá sạch

@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 74 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 75 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -103,7 +103,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P281** (`0250`, B1): **bỏ bản nền + WAL** (RPO = một chu kỳ sao lưu, `archive_mode = off`,
+Chặng gần nhất **P282** (`0251`, B2): **lịch tự động cấu hình được** — schema `ops` (`cau_hinh_viec` + `lan_chay`), MỘT
+phép tính lịch `ops.den_han`/`moc_truoc`/`moc_ke_tiep` cho cron, `sla-worker` và trang web. Cron hỏi mỗi 15 phút
+`./csbh sao-luu[-tep] --neu-den-han` (khoá `flock` chung; CSDL không trả lời thì vẫn chạy trong 15 phút từ giờ mặc
+định). Dọn dữ liệu rời cron sang `sla-worker` (hỏi ở mỗi nhịp quét), dọn thêm `doc.outbox`. **`luu-audit` gỡ hẳn.**
+Bẫy đã gặp: `CHECK … BETWEEN` để lọt NULL; `if "$ham"` tắt `set -e` cho cả thân hàm. **2825/2825 xanh.**
+
+Trước đó **P281** (`0250`, B1): **bỏ bản nền + WAL** (RPO = một chu kỳ sao lưu, `archive_mode = off`,
 `basebackup.sh` + volume `pgarchive` gỡ); `backup.sh` **giữ tối đa N bản** (`GIU_TOI_DA`, đếm số bản, chỉ dọn sau khi
 bản mới đọc lại được); kho tệp thành **bản chụp liên kết cứng** `pgbackup/kho-tep/<mốc>/tep/<bucket>` (`GIU_TOI_DA_TEP`).
 **Đoạn `CHUP_KHO_TEP` chạy TRONG ảnh MinIO — không có `grep/sed/awk/find`, `mc mirror --remove` từ gốc kho hỏng ở

@@ -58,8 +58,8 @@ csbh — vận hành Chính sách bán hàng
     sao-luu          pg_dump + bản nền. Chạy hằng đêm qua cron.
     dien-tap         DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng dữ liệu thật.
     phuc-hoi <tệp>   Phục hồi ĐÈ lên dữ liệu đang chạy. Hỏi lại trước khi làm.
-    don-du-lieu      Dọn dữ liệu quá hạn lưu trữ. Chạy hằng tháng qua cron.
-    luu-audit        Trích nhật ký kiểm toán một tháng ra kho lưu trữ.
+    don-du-lieu      Dọn dữ liệu hết hạn ngay. sla-worker tự chạy hằng ngày theo giờ
+                     đã cấu hình — lệnh này chỉ để chạy tay.
     sao-luu-tep      Chụp KHO TỆP (bản scan, bản mềm, giấy tờ, mẫu) thành một bản
                      theo mốc, ở bản sao lưu và bản sao ngoài; giữ tối đa
                      GIU_TOI_DA_TEP bản (mặc định 7). Tệp không đổi không tốn thêm chỗ.
@@ -90,6 +90,102 @@ HET
 }
 
 ops() { $DC run --rm -T ops "$@"; }
+
+# --- Việc theo lịch (`0251`) ---------------------------------------------------
+#
+# Lịch (giờ chạy, tần suất, số bản giữ) nằm ở `ops.cau_hinh_viec`, Quản trị đặt trên
+# trang Vận hành. Cron gọi `./csbh sao-luu --neu-den-han` mỗi 15 phút; câu hỏi "đến hạn
+# chưa" trả lời bằng `ops.den_han` — MỘT hàm cho cron, `sla-worker` và trang web.
+#
+# Mỗi lượt (theo lịch hay gõ tay) ghi một dòng `ops.lan_chay`: trang Vận hành đọc nó
+# cho "lần gần nhất", `den_han` đọc nó cho "đã chạy cho mốc này chưa".
+#
+# CSDL KHÔNG TRẢ LỜI thì vẫn sao lưu theo lịch MẶC ĐỊNH — bỏ lượt là cách tệ nhất để
+# phản ứng với một CSDL đang trục trặc. Lịch mặc định nằm ở lời gọi (`chay_theo_lich
+# … 0115 …`), cùng con số migration `0124` nạp vào bảng.
+
+# Một câu SQL qua ảnh ops. Hỏng thì in rỗng — người gọi tự quyết làm gì.
+q_ops() { $DC run --rm -T ops psql -v ON_ERROR_STOP=1 -qtA -c "$1" 2>/dev/null || true; }
+
+# "co <giu>" · "khong <giu>" · rỗng khi không đọc được.
+doc_lich() {
+  q_ops "SELECT CASE WHEN ops.den_han('$1', now()) THEN 'co' ELSE 'khong' END || ' ' || coalesce(giu_toi_da::text, '-')
+           FROM ops.cau_hinh_viec WHERE viec = '$1'"
+}
+
+# Phút trong ngày (giờ VN) của một chuỗi HHMM. `expr` chứ không `$(( ))`: "08" trong
+# `$(( ))` là số BÁT PHÂN hỏng.
+phut_cua() { expr "$(echo "$1" | cut -c1-2)" \* 60 + "$(echo "$1" | cut -c3-4)"; }
+
+# chay_theo_lich VIEC GIU_MAC_DINH GIO_MAC_DINH(HHMM) [--neu-den-han] HAM
+chay_theo_lich() {
+  viec=$1; giu=$2; gio_md=$3; co_lich=0; ham=$5
+  case "${4:-}" in
+    --neu-den-han) co_lich=1 ;;
+    '') ;;
+    *) echo "  Không hiểu '$4'. Dùng: ./csbh $( [ "$viec" = SAO_LUU_CSDL ] && echo sao-luu || echo sao-luu-tep ) [--neu-den-han]" >&2; return 2 ;;
+  esac
+
+  # Hai việc sao lưu không chạy chồng nhau: cùng đọc/ghi thư mục sao lưu, cùng tranh
+  # đĩa. Khoá tệp tự nhả khi tiến trình chết — không có khoá mồ côi.
+  if command -v flock > /dev/null 2>&1; then
+    exec 9> "$PWD/.khoa-sao-luu"
+    flock -n 9 || { echo "==> $viec: một lượt sao lưu khác đang chạy — bỏ qua lượt này"; return 0; }
+  fi
+
+  lich="$(doc_lich "$viec")"
+  if [ -n "$lich" ]; then
+    den="${lich%% *}"; g="${lich#* }"
+    [ "$g" = "-" ] || giu="$g"
+  else
+    echo "  CẢNH BÁO — không đọc được lịch từ CSDL; dùng mặc định: giữ $giu bản, chạy lúc $gio_md." >&2
+    den=khong
+    bay_gio="$(phut_cua "${CSBH_GIO_VN:-$(TZ=Asia/Ho_Chi_Minh date +%H%M)}")"   # CSBH_GIO_VN: chỉ bộ kiểm đặt
+    moc="$(phut_cua "$gio_md")"
+    [ "$bay_gio" -ge "$moc" ] && [ "$bay_gio" -lt "$((moc + 15))" ] && den=co
+  fi
+  [ "$co_lich" = 1 ] && [ "$den" != co ] && return 0
+
+  tu_dong=false; [ "$co_lich" = 1 ] && tu_dong=true
+  id="$(q_ops "INSERT INTO ops.lan_chay (viec, tu_dong) VALUES ('$viec', $tu_dong) RETURNING id")"
+  ra="$(mktemp)"
+  # KHÔNG `if "$ham" …; then`: trong điều kiện của `if`, `set -e` bị TẮT cho cả thân
+  # hàm, nên một lượt chụp hỏng giữa chừng mà bước kiểm cuối vẫn chạy được sẽ ghi
+  # THÀNH CÔNG. Subshell bật lại `set -e`, ngoài mọi ngữ cảnh điều kiện.
+  set +e
+  ( set -e; "$ham" "$giu" ) > "$ra" 2>&1
+  ma=$?
+  set -e
+  if [ "$ma" = 0 ]; then ket=THANH_CONG; else ket=LOI; fi
+  cat "$ra"
+  if [ -n "$id" ]; then
+    # Đầu ra có thể mang dấu nháy — dollar-quoting thay vì tự thoát ký tự.
+    q_ops "UPDATE ops.lan_chay SET ket_thuc = now(), ket_qua = '$ket',
+             chi_tiet = \$csbh_ra\$$(tail -n 40 "$ra")\$csbh_ra\$ WHERE id = $id" > /dev/null
+  fi
+  rm -f "$ra"
+  return $ma
+}
+
+sao_luu_csdl() { $DC run --rm -T -e GIU_TOI_DA="$1" ops backup; }
+
+# `0250` — BẢN CHỤP theo mốc, giữ tối đa N bản chụp.
+sao_luu_kho_tep() {
+  giu="$1"
+  luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
+  moc="${CSBH_MOC:-$(date -u +%Y%m%dT%H%M%SZ)}"
+  echo "==> chụp kho tệp vào bản sao lưu ($moc, giữ tối đa $giu bản)"
+  mc_sh "GOC=/backup/kho-tep CU=/backup/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${luu}:/backup"
+  guong="$(duong_may CSBH_BACKUP_MIRROR ../backup-mirror)"
+  if [ -d "$guong" ]; then
+    echo "==> chụp sang bản sao ngoài: $guong"
+    mc_sh "GOC=/mirror/kho-tep CU=/mirror/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${guong}:/mirror"
+  else
+    echo "  KHÔNG có thư mục bản sao ngoài ($guong) — kho tệp chỉ nằm trên máy này." >&2
+  fi
+  echo "==> kiểm: mọi tệp CSDL trỏ tới đã có trong bản chụp vừa tạo"
+  ops chuyen-may ban-ke "/backup/kho-tep/$moc"
+}
 
 # --- Kho tệp và chuyển máy (`0246`) ------------------------------------------
 
@@ -476,7 +572,7 @@ HET
 HET
     ;;
 
-  sao-luu)      ops backup ;;
+  sao-luu)      chay_theo_lich SAO_LUU_CSDL 7 0115 "${2:-}" sao_luu_csdl ;;
   dien-tap)     ops restore-drill ;;
   phuc-hoi)
     tep="${2:-}"
@@ -503,24 +599,7 @@ HET
     [ "$xn" = "PHUC-HOI" ] || { echo "  Đã huỷ."; exit 1; }
     $DC run --rm -T -e RESTORE_DB=csbh ops restore "$tep"
     ;;
-  sao-luu-tep)
-    # `0250` — BẢN CHỤP theo mốc, giữ tối đa N (`GIU_TOI_DA_TEP`, mặc định 7).
-    luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
-    moc="${CSBH_MOC:-$(date -u +%Y%m%dT%H%M%SZ)}"
-    giu="${GIU_TOI_DA_TEP:-7}"
-    case "$giu" in ''|*[!0-9]*|0) echo "  GIU_TOI_DA_TEP phải là số nguyên dương, đang là '$giu'." >&2; exit 2 ;; esac
-    echo "==> chụp kho tệp vào bản sao lưu ($moc, giữ tối đa $giu bản)"
-    mc_sh "GOC=/backup/kho-tep CU=/backup/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${luu}:/backup"
-    guong="$(duong_may CSBH_BACKUP_MIRROR ../backup-mirror)"
-    if [ -d "$guong" ]; then
-      echo "==> chụp sang bản sao ngoài: $guong"
-      mc_sh "GOC=/mirror/kho-tep CU=/mirror/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${guong}:/mirror"
-    else
-      echo "  KHÔNG có thư mục bản sao ngoài ($guong) — kho tệp chỉ nằm trên máy này." >&2
-    fi
-    echo "==> kiểm: mọi tệp CSDL trỏ tới đã có trong bản chụp vừa tạo"
-    ops chuyen-may ban-ke "/backup/kho-tep/$moc"
-    ;;
+  sao-luu-tep)  chay_theo_lich SAO_LUU_KHO_TEP 7 0200 "${2:-}" sao_luu_kho_tep ;;
   phuc-hoi-tep)
     # `./csbh phuc-hoi-tep [mốc]` — mặc định bản chụp MỚI NHẤT (`0250`).
     luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
@@ -763,7 +842,6 @@ HET
 HET
     ;;
   don-du-lieu)  ops retention ;;
-  luu-audit)    shift; ops luu-audit "$@" ;;
 
   mo-tai-khoan)
     printf 'Tên đăng nhập: '; read -r u

@@ -204,7 +204,9 @@ describe('`0246` sao-luu-tep', () => {
     expect(r0.ma, r0.loi).toBe(0);
     expect(r0.goi).toContain('-v csbh-prod_pgbackup:/backup');
     expect(r0.goi).not.toContain('/mirror/tep');
-    expect(r0.loi).toContain('KHÔNG có thư mục bản sao ngoài');
+    // `0251` — đầu ra của việc sao lưu gom vào một tệp (để ghi đuôi vào `ops.lan_chay`) rồi
+    // in ra stdout; câu cảnh báo giờ nằm ở đó chứ không ở stderr.
+    expect(`${r0.ra}${r0.loi}`).toContain('KHÔNG có thư mục bản sao ngoài');
 
     const guong = mkdtempSync(join(tmpdir(), 'guong-'));
     mkdirSync(guong, { recursive: true });
@@ -214,7 +216,9 @@ describe('`0246` sao-luu-tep', () => {
     expect(r.goi).not.toContain('mc mirror --overwrite --quiet l /backup');
   });
 
-  it('KHÔNG nằm trong lịch cron (chốt 05/11: lệnh có sẵn, chưa chạy định kỳ)', () => {
-    expect(readFileSync('deploy/cron/csbh.cron', 'utf8')).not.toContain('sao-luu-tep');
+  it('`0251` ĐẢO chốt 05/11 cũ ("chưa chạy định kỳ"): kho tệp có lịch riêng, cron hỏi mỗi 15 phút', () => {
+    // Khách hàng chốt 05/11 khi duyệt trang Vận hành: bản sao kho tệp cũng có giờ chạy và
+    // số bản giữ cấu hình được — nên nó PHẢI có trong cron, theo lịch.
+    expect(readFileSync('deploy/cron/csbh.cron', 'utf8')).toMatch(/^\*\/15 .*\.\/csbh sao-luu-tep --neu-den-han/m);
   });
 });

@@ -203,7 +203,7 @@ Bắt đầu ở **tai-lieu/04-TRIEN-KHAI.md**. Nó dẫn từ máy chủ trắn
 | \`csbh\` | Lệnh vận hành hằng ngày: \`./csbh help\` |
 | \`.env.mau\` | Bản khai môi trường. Chép thành \`.env\` rồi điền. |
 | \`deploy/\` | Hai tệp compose và cấu hình Postgres. Không sửa. |
-| \`deploy/cron.mau\` | Lịch sao lưu và dọn dữ liệu. |
+| \`deploy/cron.mau\` | Đánh thức việc sao lưu theo lịch (hỏi mỗi 15 phút) và diễn tập phục hồi. |
 | \`mau-van-ban/\` | Ba mẫu .docx để Quản trị tải lên nếu muốn. |
 | \`tai-lieu/\` | Triển khai · Vận hành · Hướng dẫn sử dụng · Cam kết phục hồi. |
 

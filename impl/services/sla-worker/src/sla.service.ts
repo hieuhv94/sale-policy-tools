@@ -414,14 +414,53 @@ export class SlaService {
     const r = await this.db.one<{ run_retention: Record<string, unknown> }>(
       `SELECT sys.run_retention()`,
     );
-    const them = await this.db.one<{ idn_outbox: string; thong_bao: string }>(
-      `SELECT sys.don_idn_outbox() AS idn_outbox, sys.don_thong_bao() AS thong_bao`,
+    const them = await this.db.one<{ idn_outbox: string; thong_bao: string; doc_outbox: string }>(
+      `SELECT sys.don_idn_outbox() AS idn_outbox, sys.don_thong_bao() AS thong_bao,
+              sys.don_doc_outbox() AS doc_outbox`,
     );
     return {
       ...(r?.run_retention ?? {}),
       idn_outbox: Number(them?.idn_outbox ?? 0),
       thong_bao: Number(them?.thong_bao ?? 0),
+      // `0251` — bảng outbox duy nhất chưa từng được dọn.
+      doc_outbox: Number(them?.doc_outbox ?? 0),
     };
+  }
+
+  /**
+   * Dọn dữ liệu THEO GIỜ ĐÃ CẤU HÌNH (`0251`), gọi ở mỗi nhịp quét.
+   *
+   * Tới `0250` việc dọn chạy bằng `setInterval` 24 giờ tính từ lúc tiến trình khởi
+   * động — giờ chạy trôi theo mỗi lần nâng cấp, và không ai đặt được nó. Giờ nó hỏi
+   * CHÍNH hàm `ops.den_han` mà cron hỏi cho sao lưu, và ghi một dòng `ops.lan_chay`
+   * mà trang Vận hành đọc cho "lần gần nhất · đã xoá bao nhiêu".
+   *
+   * Trả `null` khi chưa đến hạn. Lỗi thì ghi `LOI` kèm câu lỗi rồi ném tiếp.
+   */
+  async donDuLieuTheoLich(luc: Date): Promise<Record<string, unknown> | null> {
+    const h = await this.db.one<{ den: boolean }>(
+      `SELECT ops.den_han('DON_DU_LIEU', $1::timestamptz) AS den`,
+      [luc.toISOString()],
+    );
+    if (!h?.den) return null;
+    const lan = await this.db.one<{ id: string }>(
+      `INSERT INTO ops.lan_chay (viec, bat_dau, tu_dong) VALUES ('DON_DU_LIEU', $1::timestamptz, true) RETURNING id`,
+      [luc.toISOString()],
+    );
+    try {
+      const r = await this.runRetention();
+      await this.db.q(
+        `UPDATE ops.lan_chay SET ket_thuc = now(), ket_qua = 'THANH_CONG', chi_tiet = $2 WHERE id = $1`,
+        [lan!.id, JSON.stringify(r)],
+      );
+      return r;
+    } catch (e) {
+      await this.db.q(
+        `UPDATE ops.lan_chay SET ket_thuc = now(), ket_qua = 'LOI', chi_tiet = $2 WHERE id = $1`,
+        [lan!.id, String(e)],
+      );
+      throw e;
+    }
   }
 
   async close(): Promise<void> {

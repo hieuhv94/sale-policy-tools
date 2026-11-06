@@ -922,6 +922,80 @@ describe('OPS-04 sla-worker gọi được sys.run_retention()', () => {
 });
 
 /**
+ * `0251` — dọn dữ liệu chạy THEO GIỜ ĐÃ CẤU HÌNH (`ops.cau_hinh_viec`), không còn
+ * `setInterval` 24 giờ tính từ lúc khởi động. Chạy dưới role csbh_pol thật.
+ */
+describe('`0251` sla-worker dọn dữ liệu theo lịch', () => {
+  const datLai = () =>
+    withAdminDb(async (c) => {
+      await c.query(`DELETE FROM ops.lan_chay WHERE viec = 'DON_DU_LIEU'`);
+      await c.query(`UPDATE ops.cau_hinh_viec SET gio_chay = '03:00' WHERE viec = 'DON_DU_LIEU'`);
+    });
+  const lanChay = () =>
+    withAdminDb(async (c) =>
+      (
+        await c.query<{ ket_qua: string; tu_dong: boolean; chi_tiet: string }>(
+          `SELECT ket_qua, tu_dong, chi_tiet FROM ops.lan_chay WHERE viec = 'DON_DU_LIEU' ORDER BY id`,
+        )
+      ).rows,
+    );
+  beforeEach(datLai);
+  afterAll(datLai);
+
+  it('đến hạn → dọn, ghi MỘT lượt THÀNH CÔNG kèm số dòng đã xoá (cả doc.outbox)', async () => {
+    const r = await sla.donDuLieuTheoLich(new Date('2026-11-06T03:05:00+07:00'));
+    expect(r).not.toBeNull();
+    expect(r).toHaveProperty('doc_outbox');
+    const ds = await lanChay();
+    expect(ds).toHaveLength(1);
+    expect(ds[0]!.ket_qua).toBe('THANH_CONG');
+    expect(ds[0]!.tu_dong).toBe(true);
+    expect(JSON.parse(ds[0]!.chi_tiet)).toHaveProperty('thong_bao');
+  }, 60_000);
+
+  it('vừa dọn xong → nhịp kế tiếp KHÔNG dọn lại; mốc ngày sau → dọn', async () => {
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T03:05:00+07:00'))).not.toBeNull();
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T03:10:00+07:00'))).toBeNull();
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T23:55:00+07:00'))).toBeNull();
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-07T03:00:00+07:00'))).not.toBeNull();
+    expect(await lanChay()).toHaveLength(2);
+  }, 60_000);
+
+  it('Quản trị dời giờ sang 22:00 → 03:05 sáng hôm sau đã dọn thì 22:00 tối nay mới dọn lại', async () => {
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T03:05:00+07:00'))).not.toBeNull();
+    await withAdminDb((c) => c.query(`UPDATE ops.cau_hinh_viec SET gio_chay = '22:00' WHERE viec = 'DON_DU_LIEU'`));
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T21:59:00+07:00'))).toBeNull();
+    expect(await sla.donDuLieuTheoLich(new Date('2026-11-06T22:00:00+07:00'))).not.toBeNull();
+  }, 60_000);
+});
+
+describe('`0251` doc.outbox được dọn', () => {
+  it('xoá sự kiện ĐÃ phát quá 30 ngày, GIỮ sự kiện chưa phát và sự kiện còn mới', async () => {
+    await withAdminDb(async (c) => {
+      const { rows } = await c.query<{ id: string; tag: string }>(`
+        INSERT INTO doc.outbox (routing_key, payload, published_at) VALUES
+          ('zztest.0251', '{"t":"cu"}', now() - interval '40 days'),
+          ('zztest.0251', '{"t":"moi"}', now() - interval '2 days'),
+          ('zztest.0251', '{"t":"chua"}', NULL)
+        RETURNING id, payload->>'t' AS tag`);
+      try {
+        await c.query('SET ROLE csbh_pol');
+        await c.query('SELECT sys.don_doc_outbox()');
+        await c.query('RESET ROLE');
+        const con = await c.query<{ tag: string }>(
+          `SELECT payload->>'t' AS tag FROM doc.outbox WHERE id = ANY($1) ORDER BY 1`,
+          [rows.map((r) => r.id)],
+        );
+        expect(con.rows.map((r) => r.tag)).toEqual(['chua', 'moi']);
+      } finally {
+        await c.query('RESET ROLE');
+        await c.query(`DELETE FROM doc.outbox WHERE routing_key = 'zztest.0251'`);
+      }
+    });
+  });
+});
+
+/**
  * `0192` — `OWNER_ROLE` dời sang `@csbh/domain-policy` thành `CHU_BUOC`.
  *
  * Bảng chung dày hơn bản cũ của sla-worker đúng một dòng: `YEU_CAU_CHINH_SUA →

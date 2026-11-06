@@ -4,11 +4,14 @@
 # Sửa `/opt/csbh` thành đường dẫn thật của bộ cài, và `csbh` thành tài khoản
 # chạy docker trên máy chủ.
 #
-# VÌ SAO PHẢI CÓ TỆP NÀY. `./csbh sao-luu` và `./csbh don-du-lieu` chạy được từ
-# lúc bàn giao, nhưng chúng chỉ chạy khi có người gõ. Một cam kết RPO 5 phút mà
-# bản sao lưu logic phụ thuộc vào việc ai đó nhớ gõ lệnh là một cam kết không
-# có thật — xem tai-lieu/RPO-RTO.md.
+# VÌ SAO PHẢI CÓ TỆP NÀY. Lịch sao lưu (giờ chạy, tần suất, số bản giữ) do Quản
+# trị đặt trên trang Vận hành và nằm trong CSDL (`0251`), nhưng thứ ĐÁNH THỨC việc
+# sao lưu vẫn là cron: mỗi 15 phút nó hỏi `./csbh … --neu-den-han`, và lệnh ấy chỉ
+# chạy khi đã tới giờ. Không cài tệp này thì không lượt sao lưu tự động nào xảy ra —
+# cam kết "mất tối đa một chu kỳ sao lưu" thành không có thật (xem RPO-RTO.md).
 #
+# Dọn dữ liệu hết hạn KHÔNG còn ở đây: `sla-worker` tự chạy theo giờ đã cấu hình.
+
 # KẾT QUẢ GHI RA LOG, không gửi thư. Cron gửi thư khi lệnh in ra bất cứ thứ gì,
 # và một lệnh sao lưu chạy đúng vẫn in ra vài dòng — nên hộp thư quản trị sẽ
 # ngập, rồi người ta lọc chúng đi, rồi lượt hỏng thật cũng bị lọc theo.
@@ -17,14 +20,10 @@
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Sao lưu hằng đêm, 01:15. Giờ máy chủ đã đặt về múi giờ Việt Nam.
-15 1 * * *   csbh  cd /opt/csbh && ./csbh sao-luu     >> /var/log/csbh-sao-luu.log 2>&1
-
-# Dọn dữ liệu quá hạn: ngày 1 hằng tháng, 02:30. Sau bản sao lưu đêm ấy.
-30 2 1 * *   csbh  cd /opt/csbh && ./csbh don-du-lieu >> /var/log/csbh-van-hanh.log 2>&1
-
-# Trích nhật ký kiểm toán tháng vừa qua: ngày 1, 03:00.
-0  3 1 * *   csbh  cd /opt/csbh && ./csbh luu-audit   >> /var/log/csbh-van-hanh.log 2>&1
+# Sao lưu CSDL và kho tệp THEO LỊCH ĐÃ CẤU HÌNH — hỏi mỗi 15 phút, chạy khi tới
+# giờ. Hai lệnh dùng chung một khoá tệp nên không bao giờ chạy chồng nhau.
+*/15 * * * *   csbh  cd /opt/csbh && ./csbh sao-luu --neu-den-han     >> /var/log/csbh-sao-luu.log 2>&1
+*/15 * * * *   csbh  cd /opt/csbh && ./csbh sao-luu-tep --neu-den-han >> /var/log/csbh-sao-luu.log 2>&1
 
 # DIỄN TẬP phục hồi hằng tháng, ngày 8, 03:30 — vào CSDL nháp, không đụng dữ
 # liệu thật. RTO 60 phút là con số ĐO ĐƯỢC; không diễn tập thì nó thành ước lượng.

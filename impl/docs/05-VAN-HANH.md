@@ -45,10 +45,27 @@ sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
 
 | Việc | Khi nào | Vì sao |
 |---|---|---|
-| `sao-luu` | hằng đêm 01:15 | bản sao lưu CSDL, giữ tối đa N bản |
-| `don-du-lieu` | ngày 1 hằng tháng | xoá dữ liệu quá hạn lưu trữ, dọn outbox đã gửi |
-| `luu-audit` | ngày 1 hằng tháng | trích nhật ký kiểm toán tháng cũ ra kho |
+| `sao-luu --neu-den-han` | cron hỏi mỗi 15 phút; chạy **theo lịch đã cấu hình** (mặc định 01:15 hằng ngày) | bản sao lưu CSDL, giữ tối đa N bản |
+| `sao-luu-tep --neu-den-han` | như trên (mặc định 02:00 hằng ngày) | bản chụp kho tệp, giữ tối đa N bản |
 | `dien-tap` | ngày 8 hằng tháng | phục hồi thử vào CSDL nháp |
+
+**Lịch nằm trong CSDL** (`ops.cau_hinh_viec`, `sửa 06/11 — 0251`), Quản trị đặt trên trang
+Vận hành: tần suất (6 giờ · 12 giờ · ngày · tuần), giờ chạy, số bản giữ. Cron chỉ là bộ
+đếm giờ — `--neu-den-han` hỏi CSDL "đã tới mốc chưa" và chạy đúng một lượt cho mỗi mốc.
+Lượt hỏng được thử lại sau một giờ. Máy tắt qua nhiều mốc thì khởi động lại chạy MỘT
+lượt bù. **CSDL không trả lời** thì vẫn sao lưu theo lịch mặc định trong 15 phút từ giờ
+mặc định. Hai việc dùng chung khoá tệp `.khoa-sao-luu` nên không chạy chồng nhau — cần
+lệnh `flock` (gói `util-linux`, có sẵn trên mọi bản Linux phổ biến).
+
+Mỗi lượt (tự động hay gõ tay) ghi một dòng `ops.lan_chay`:
+
+```sh
+./csbh psql -c "SELECT viec, bat_dau, ket_qua, tu_dong FROM ops.lan_chay ORDER BY id DESC LIMIT 10"
+```
+
+**Dọn dữ liệu hết hạn** không còn trong cron: `sla-worker` tự chạy ở giờ đã cấu hình
+(mặc định 03:00). `./csbh don-du-lieu` vẫn có để chạy tay. **Trích nhật ký kiểm toán**
+(`luu-audit`) đã gỡ (chốt 05/11) — nhật ký nằm nguyên trong CSDL và đi theo bản sao lưu.
 
 > **Không cài cron là bỏ mất một nửa cam kết phục hồi.** Các lệnh chạy được từ
 > lúc bàn giao, nhưng chúng chỉ chạy khi có người gõ. Một cam kết RPO mà phụ

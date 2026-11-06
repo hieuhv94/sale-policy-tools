@@ -39,7 +39,6 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
   lam-sach           XOÁ HẲN CSDL rồi dựng lại TRỐNG. Chỉ cho bản CHẠY THỬ.
                      Phải đặt XAC_NHAN_XOA_SACH=XOA-SACH.
   retention          Dọn dữ liệu quá hạn lưu trữ và outbox đã gửi.
-  luu-audit          Trích nhật ký kiểm toán của một tháng ra kho lưu trữ.
   chuyen-may <việc>  Phần chạy trong ảnh của chuyển máy và sao lưu kho tệp
                      (`0246`): ban-ke · so-sanh · cho-xa · xuat-csdl · dong-goi ·
                      mo-goi · bi-mat-dong · bi-mat-mo. Gọi qua ./csbh, không gõ tay.
@@ -103,9 +102,10 @@ case "${1:-help}" in
     ;;
   retention)
     psql -v ON_ERROR_STOP=1 -q -c "SELECT sys.run_retention()"
-    exec psql -v ON_ERROR_STOP=1 -q -c "SELECT sys.don_idn_outbox()"
+    # Đủ BA hàm con mà sla-worker gọi — tới `0251` lệnh tay thiếu `don_thong_bao` và
+    # chưa ai dọn `doc.outbox`.
+    exec psql -v ON_ERROR_STOP=1 -q -c "SELECT sys.don_idn_outbox(), sys.don_thong_bao(), sys.don_doc_outbox()"
     ;;
-  luu-audit)       shift; exec /bin/sh /app/scripts/luu-audit-thang.sh "$@" ;;
   chuyen-may)      shift; exec /bin/sh /app/scripts/chuyen-may.sh "$@" ;;
   psql)            shift; exec psql "$@" ;;
   gen-secrets)     shift; exec /bin/sh /app/scripts/gen-secrets.sh "${1:-/run/secrets}" ;;
