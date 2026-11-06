@@ -270,8 +270,8 @@ describe('`0041` `duongSauDangNhap`', () => {
   });
 });
 
-describe('nửa giới thiệu của màn hình đăng nhập (`0257`, câu chữ chốt 06/11)', () => {
-  it('một câu mô tả + năm chức năng nổi bật; không còn ba bước luồng duyệt', () => {
+describe('nửa giới thiệu của màn hình đăng nhập (`0259`, mẫu nền C chốt 06/11)', () => {
+  it('câu mô tả đặt trên ảnh nền; danh sách chức năng và ba bước luồng duyệt đã gỡ', () => {
     chanMang('TDV');
     mo('/');
     const gt = document.querySelector('.dang-nhap-gioi-thieu') as HTMLElement;
@@ -279,11 +279,14 @@ describe('nửa giới thiệu của màn hình đăng nhập (`0257`, câu ch�
     expect(gt.querySelector('.gioi-thieu-chinh')?.textContent).toBe(
       'Phần mềm số hóa quy trình xử lý chính sách bán hàng',
     );
-    const tinhNang = [...gt.querySelectorAll('.gioi-thieu-tinh-nang > li')].map((li) => li.textContent);
-    expect(tinhNang).toHaveLength(5);
-    expect(tinhNang[0]).toContain('tự tính tỷ lệ chiết khấu');
-    // Danh sách chức năng không phải một trình tự — không đánh số.
-    expect(gt.querySelector('ol')).toBeNull();
-    expect(gt.textContent).not.toContain('Sale Admin bàn giao, Kế toán duyệt bản cứng');
+    // Ảnh nền là hình trang trí: trình đọc màn hình bỏ qua, không bắt được tiêu điểm.
+    const nen = gt.querySelector('svg.nen-dang-nhap') as SVGElement;
+    expect(nen).not.toBeNull();
+    expect(nen.getAttribute('aria-hidden')).toBe('true');
+    // Chỉ chứa CỤM MẠNG — khung vuông quanh nó, cỡ và vị trí do CSS quyết.
+    expect(nen.getAttribute('viewBox')).toBe('268 308 604 604');
+    // Sáu vai trò quanh một hồ sơ, đúng mẫu C.
+    expect(nen.querySelectorAll('g > circle[r="22"], g > circle[r="28"]')).toHaveLength(6);
+    expect(gt.querySelector('ul, ol')).toBeNull();
   });
 });

@@ -21550,3 +21550,35 @@ Ca kiểm ở `tests/web/dang-nhap.test.tsx`: đúng câu mô tả, đủ năm m
 cũ. Phá lại (đổi câu mô tả) → đỏ. Đã xem thật màn hình đăng nhập 1440 sáng và tối.
 
 **`tests/web` 1066/1066 xanh; typecheck xanh.**
+
+## P295 — `0259` Ảnh nền đăng nhập (mẫu C) và rà khổ máy tính bảng 768px
+
+**Ảnh nền nửa trái màn hình đăng nhập**: khách hàng xem bốn mẫu (https://claude.ai/artifact/PbxHKyYtGF8rfS8xYq4dHi)
+và chọn **C — Mạng vai trò** (sáu vai trò quanh một hồ sơ chung, một vai trò đang giữ hồ sơ nổi màu). Danh sách chức
+năng của `0258` gỡ theo yêu cầu. `NenDangNhap.tsx` là SVG NỘI TUYẾN, màu qua lớp `.nen-*` đọc token — một tệp `.svg`
+gọi bằng `background-image` không đọc được biến CSS nên không đổi theo giao diện tối.
+
+**Bản đầu ĐÈ CHỮ ở 6/7 khổ, và chỉ phép ĐO mới thấy**: kéo giãn cả khung hình (`viewBox` 756×820, `slice`) theo
+nửa trái thì cụm mạng phình theo bề rộng. Đo khung bao của logo + câu mô tả so với từng nút của cụm
+(`getBoundingClientRect`, khoảng hở 8px) ở 1024×768 · 1280×800 · 1366×768 · 1440×900 · 1920×1080 · 2560×1440 ·
+1024×1366: lượt đầu 1/1/1/2/1/0/2 chỗ chồng. Sửa tận gốc chứ không xê dịch toạ độ: SVG chỉ chứa CỤM MẠNG (`viewBox`
+vuông quanh nó), CSS neo nó ở góc dưới phải với cỡ có TRẦN `min(78%, 46rem)`; lưới chấm là nền CSS mờ dần về phía
+chữ; chữ đứng ở phần TRÊN. Lượt hai: **0 chỗ chồng ở cả bảy khổ**, sáng và tối.
+
+**Rà khổ 768px — phần yếu nhất của lượt trước.** 18 trang/vai trò, mỗi trang đo TỰ ĐỘNG thân trang có cuộn ngang
+không. Ba lỗi thật:
+- **Trang Hồ sơ dạng kanban làm CẢ THÂN TRANG cuộn ngang** — 1546px trên khung 768, `scrollX` đi tới 600; và ĐÚNG
+  LỖI ẤY có ở 1440 (1806px) mà lượt QA bằng ảnh của P292/P293 không thấy (ảnh chụp không lộ ra trang cuộn ngang).
+  Khung `.kb` cuộn đúng (`scrollWidth` 1780 / `clientWidth` 736); thủ phạm là chữ ẩn cho trình đọc màn hình trong
+  nút gập cột (`.chi-doc-man-hinh`, `position: absolute`): phần tử tuyệt đối lấy khối chứa là phần tử ĐỊNH VỊ gần
+  nhất, mà `.kb` không định vị — nên khối chứa là cả trang và khung cuộn không cắt nó. Một dòng `position: relative`.
+- **Dải năm ô chỉ số** (Tổng quan TDV và Quản trị) xếp 4 + 1 — `auto-fit` 170px cho 4 cột ở 768. Dải đúng năm ô xếp
+  năm cột từ 640px (`:has(> :nth-child(5):last-child)`); dải số ô khác giữ phép chia cũ.
+- **Nút Sửa/Xoá ở bảng Chiết khấu xếp chồng dọc** và nút dưới bị cắt: ô chỉ mang lớp hiện-khi-rê-chuột, thiếu
+  `nowrap`, và `.nhom-nut-gon` cho xuống dòng.
+
+Ca kiểm: `dang-nhap.test.tsx` (câu mô tả trên nền, sáu vai trò, `aria-hidden`, không còn danh sách) ·
+`thanh-phan-chung.test.tsx` thêm ba ca 768. Phá lại: gỡ `position: relative` khỏi `.kb` → đỏ. Đo lại sau khi sửa:
+`scrollX` = 0 ở 390, 768 và 1440.
+
+**`tests/web` 1069/1069 + `tests/http/tai-lieu` 4/4 xanh; typecheck xanh.**

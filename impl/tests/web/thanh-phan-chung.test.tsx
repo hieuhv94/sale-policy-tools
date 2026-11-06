@@ -118,3 +118,17 @@ describe('`0257` chú thích CSS không bị đóng sớm', () => {
     expect(lot, `chữ của chú thích lọt ra ngoài — tìm "*/" giữa một chú thích`).toEqual([]);
   });
 });
+
+describe('`0259` khổ máy tính bảng (768px)', () => {
+  const CSS = readFileSync('apps/web/src/styles/app.css', 'utf8');
+  it('khung kanban là khối chứa — chữ ẩn tuyệt đối trong nút gập không làm CẢ TRANG cuộn ngang', () => {
+    const i = CSS.indexOf('\n.kb {');
+    expect(CSS.slice(i, CSS.indexOf('}', i))).toMatch(/position: relative;/);
+  });
+  it('dải đúng năm ô chỉ số xếp năm cột từ 640px — không để một ô lẻ', () => {
+    expect(CSS).toMatch(/\.luoi-chi-so:has\(> :nth-child\(5\):last-child\) \{ grid-template-columns: repeat\(5, minmax\(0, 1fr\)\); \}/);
+  });
+  it('nút thao tác của dòng bảng danh mục không xuống dòng', () => {
+    expect(CSS).toContain('.o-thao-tac-re-chuot .nhom-nut-gon { flex-wrap: nowrap; }');
+  });
+});

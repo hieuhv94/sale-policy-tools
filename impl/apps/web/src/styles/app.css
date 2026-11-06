@@ -1344,6 +1344,12 @@ button.the-lien {
   gap: var(--k3);
   margin-bottom: var(--k5);
 }
+/* Dải ĐÚNG NĂM ô (Tổng quan của Trình dược viên và của Quản trị): `auto-fit` 170px
+   cho 4 cột ở 768px nên ô thứ năm đứng LẺ một mình ở hàng dưới (đo `0259`). Từ
+   640px xếp đủ năm cột; dải có số ô khác giữ phép chia cũ. */
+@media (min-width: 640px) {
+  .luoi-chi-so:has(> :nth-child(5):last-child) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 .chi-so {
   position: relative;
   display: flex;
@@ -2323,9 +2329,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
     justify-self: stretch;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--k5);
-    padding: var(--k6) clamp(var(--k6), 6vw, 6rem);
+    /* Chữ ở phần TRÊN, cụm mạng ở góc dưới phải (`0259`) — hai thứ không tranh chỗ. */
+    padding: clamp(4rem, 16vh, 10rem) clamp(var(--k6), 6vw, 6rem) var(--k6);
     background: var(--mau-nen);
     border-right: 1px solid var(--mau-vien);
   }
@@ -2340,31 +2347,37 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   border-radius: var(--bo-goc-to);
   background: var(--mau-nen-logo);
 }
-.gioi-thieu-tinh-nang {
-  display: flex;
-  flex-direction: column;
-  gap: var(--k3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-width: 40ch;
-  color: var(--mau-chu-phu);
-  font-size: var(--chu-nho);
-  line-height: 1.45;
-}
-/* Dấu tích vẽ bằng viền (không ký tự, không emoji) — cùng màu thương hiệu. */
-.gioi-thieu-tinh-nang li { position: relative; padding-left: 1.75rem; }
-.gioi-thieu-tinh-nang li::before {
+/* ẢNH NỀN nửa trái (`0259`, `NenDangNhap.tsx`): nằm dưới, nội dung nổi lên trên. */
+.dang-nhap-gioi-thieu { position: relative; overflow: hidden; }
+.dang-nhap-gioi-thieu > :not(.nen-dang-nhap) { position: relative; }
+/* Lưới chấm phủ cả khối, MỜ DẦN về phía chữ (mặt nạ từ phải sang trái). */
+.dang-nhap-gioi-thieu::before {
   content: '';
   position: absolute;
-  left: 0.3rem;
-  top: 0.2em;
-  width: 0.4rem;
-  height: 0.75rem;
-  border: solid var(--mau-thuong-hieu);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  inset: 0;
+  background-image: radial-gradient(var(--mau-vien-dam) 1.2px, transparent 1.5px);
+  background-size: 22px 22px;
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(to left, black 15%, transparent 70%);
+  mask-image: linear-gradient(to left, black 15%, transparent 70%);
+  pointer-events: none;
 }
+/* Cụm mạng: khối vuông neo góc dưới phải, cỡ có TRẦN — không giãn theo khung. */
+.nen-dang-nhap {
+  position: absolute;
+  right: -12%;
+  bottom: -14%;
+  width: min(78%, 46rem);
+  height: auto;
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.nen-be { fill: var(--mau-nen); }
+.nen-dam { fill: var(--mau-thuong-hieu); }
+.nen-vua { fill: var(--mau-vien-dam); }
+.nen-net-dam { stroke: var(--mau-thuong-hieu); }
+.nen-net-vua { stroke: var(--mau-vien-dam); }
+.nen-net-nhat { stroke: var(--mau-thuong-hieu-nhat); }
 .gioi-thieu-chinh {
   margin: 0;
   max-width: 34ch;
@@ -3285,6 +3298,11 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 tr:hover > .o-thao-tac-re-chuot,
 tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
+/* Hai nút của một dòng (Sửa · Xoá) KHÔNG xuống dòng (`0259`): ở 768px bảng Chiết
+   khấu xếp chúng chồng dọc — mỗi dòng cao gấp đôi và nút dưới bị cắt ở mép phải.
+   Bảng đã cuộn ngang trong khung riêng, nên cột thao tác cứ giữ đủ bề rộng của nó. */
+.o-thao-tac-re-chuot { white-space: nowrap; }
+.o-thao-tac-re-chuot .nhom-nut-gon { flex-wrap: nowrap; }
 
 @media (hover: none) {
   .o-thao-tac-re-chuot { opacity: 1; }
@@ -4135,6 +4153,11 @@ svg.bd-nho { width: 62px; margin: 0; }
 .kb-an { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-nhat); }
 .kb-mac-dinh { min-height: 0; padding: var(--k1) var(--k3); font-size: var(--chu-nho); }
 .kb {
+  /* `relative` là BẮT BUỘC, không trang trí: chữ ẩn cho trình đọc màn hình trong nút
+     gập cột (`.chi-doc-man-hinh`, `position: absolute`) lấy khối chứa là phần tử
+     định vị gần nhất — thiếu dòng này thì đó là cả trang, khung cuộn không cắt được
+     nó, và CẢ THÂN TRANG cuộn ngang (đo ở 768px: rộng 1546px, `scrollX` đi tới 600). */
+  position: relative;
   display: flex;
   gap: var(--k3);
   align-items: flex-start;

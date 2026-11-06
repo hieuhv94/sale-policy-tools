@@ -11,6 +11,7 @@ import { NutGiaoDien } from '../components/NutGiaoDien.js';
 import { ChanTrang } from '../components/ChanTrang.js';
 import { TEN_CONG_TY } from '../lib/cong-ty.js';
 import logo from '../logo.png';
+import { NenDangNhap } from '../components/NenDangNhap.js';
 
 export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
   const { dangNhap, dangNhapGoogle } = usePhien();
@@ -181,20 +182,13 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
       */}
       {!lopPhu && (
         <aside className="dang-nhap-gioi-thieu" aria-label="Giới thiệu">
+          <NenDangNhap />
           <img src={logo} alt="Nutricare — For Your Return" className="logo-gioi-thieu" />
           {/*
-            Câu mô tả + CHỨC NĂNG NỔI BẬT, khách hàng chốt 06/11 — thay câu giới thiệu
-            và ba bước luồng duyệt. Danh sách KHÔNG đánh số: đây không phải trình tự.
-            Chỉ nêu thứ phần mềm làm thật; thêm một dòng ở đây là hứa với người dùng.
+            Câu mô tả khách hàng chốt 06/11, đặt trên ẢNH NỀN mẫu C (`0259`). Danh sách
+            chức năng nổi bật của `0258` gỡ theo yêu cầu: nền đã kể câu chuyện ấy bằng hình.
           */}
           <p className="gioi-thieu-chinh">Phần mềm số hóa quy trình xử lý chính sách bán hàng</p>
-          <ul className="gioi-thieu-tinh-nang">
-            <li>Lập hồ sơ cho từng khách hàng, tự tính tỷ lệ chiết khấu và đối chiếu quy định</li>
-            <li>Luồng duyệt nhiều bước, chọn người xử lý và theo dõi hạn từng bước</li>
-            <li>Thông báo qua email và trên phần mềm khi có việc cần làm</li>
-            <li>Lưu bản mềm, bản scan đã ký và hồ sơ pháp lý của khách hàng</li>
-            <li>Bảng việc theo vai trò, thống kê và xuất Excel</li>
-          </ul>
         </aside>
       )}
 
