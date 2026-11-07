@@ -114,6 +114,12 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
+Chặng gần nhất **P302** (`0266`, CHỈ CSS): **màn hình cảm ứng** — khối `@media (pointer: coarse)` ở CUỐI `app.css`:
+ô nhập `1rem` (Safari iPhone tự phóng to trang khi chạm ô dưới 16px), vùng chạm `--vung-cham` — nút có chỗ thì phóng
+to thật, dấu/chữ giữa dòng thì chỉ nới vùng nhận chạm bằng lớp `::after` trong suốt (trong ô bảng CHẶN ở lề ô, kẻo
+`.khung-cuon` mọc thanh cuộn lẻ). Thêm một nút biểu tượng nhỏ hơn 44px thì phải phóng lại nó trong khối ấy —
+`tests/web/cam-ung.test.ts` có ca chốt. **`tests/web` 1148/1148.**
+
 Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`
 ở identity, áp cả ba đường tra người nhận (`notify-targets` · `users/mail-targets` · `users/quan-tri`); lỗ thật
 duy nhất là lá "để biết" (tra theo id, không qua `pick`). Thư kích hoạt / đặt lại mật khẩu vẫn gửi. Tiền đề sai

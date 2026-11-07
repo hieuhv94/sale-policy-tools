@@ -21914,3 +21914,67 @@ dày; thanh tải tệp chạy liên tục thay vì phần trăm (`fetch` không
 **Tính năng bình luận xong (`0261`–`0265`).**
 
 **3290/3290 xanh.**
+
+## P302 — `0266` Màn hình cảm ứng: ô nhập 16px, vùng chạm 44px
+
+Người dùng hỏi giao diện đã tối ưu cho điện thoại chưa; lượt đo trả lời *"không vỡ bố cục, nhưng có hai lỗ"*, và
+chặng này sửa hai lỗ ấy. **Chỉ CSS**, một khối `@media (pointer: coarse)` ở cuối `app.css` — máy tính dùng chuột giữ
+nguyên cỡ chữ và mật độ đã duyệt ở `0257`. Không đụng máy chủ, không đụng hạ tầng.
+
+**Đo trước khi sửa, trên chồng demo thật**: Chrome giả lập iPhone 390×844 + cảm ứng, 28 màn hình và hộp thoại của bốn vai
+trò, đọc khung bao từng phần tử bấm được. Không trang nào cuộn ngang cả trang. Hai lỗ:
+
+1. **Mọi ô nhập 14px** (`.o-nhap` là `font: inherit` từ thân trang `--chu-thuong`). Safari trên iPhone PHÓNG TO cả trang
+   mỗi khi chạm vào một ô có chữ dưới 16px rồi để nguyên mức ấy — người dùng phải tự véo thu lại sau mỗi ô. Không thấy
+   được trên Chrome máy tính, kể cả khi giả lập điện thoại: chỉ đọc được bằng phép đo `font-size` của ô.
+2. **Vùng chạm dưới 44px** ở: nút gập cột kanban 28px · dấu `?`/tam giác trong bảng sản phẩm **11px** · nút đính kèm và
+   *Gửi* của ô bình luận 34px · nút cảm xúc 26px · *Trả lời*/*Thao tác khác* 40px · *Quên mật khẩu?* 20px · mã hồ sơ
+   dạng liên kết trong bảng 18px · nút tài khoản, dải cột gập, dòng thanh ở Tổng quan 42px.
+
+**Hai cách nới, theo CHỖ ĐỨNG của phần tử, không theo loại**:
+- Nút có chỗ (nút biểu tượng, nút của khung soạn bình luận, bảng chọn cảm xúc) → **phóng to thật** bằng `--vung-cham`.
+- Dấu và chữ nằm GIỮA DÒNG (dấu cạnh con số, mã trong bảng, nút chữ của bình luận, chip cảm xúc) → phóng to thật là xô
+  lệch cả bảng tiền, nên chỉ **nới vùng nhận chạm** bằng một lớp `::after` trong suốt, `position: absolute`, lề âm
+  `min(0px, (100% − --vung-cham) / 2)` — chiều nào đã đủ lớn thì không nới. Phần trăm của `top/bottom` tính theo CHIỀU
+  CAO, của `left/right` theo BỀ RỘNG của chính phần tử, nên một biến `--noi` dùng chung được cho cả bốn cạnh (biến
+  CSS là thay chữ, `100%` được hiểu lại ở từng thuộc tính).
+
+**Trong ô bảng phần nới bị CHẶN ở lề ô** (`max(-var(--k3), …)`). Lớp `::after` của liên kết ở hàng cuối thò ra ngoài
+bảng thì `.khung-cuon` (`overflow-x: auto`, kéo theo cuộn dọc) mọc một thanh cuộn lẻ vài điểm ảnh. Cái giá đã đo: mã
+hồ sơ trong bảng đạt **42px** (= cả chiều cao hàng), dấu `?` trong ô bảng ở khổ 768 đạt **35×35** (từ 11×11) —
+không lên 44 được nếu không làm hàng cao ra.
+
+**Ô nhập: `:is(input:not(…), select, textarea) { font-size: 1rem }`**. `:is()` mang độ đặc hiệu của vế NẶNG nhất
+(`input:not([type=…])` = 0,1,1) cho cả ba, nên thắng `.o-nhap` (0,1,0) và hoà `.bl-soan textarea` (0,1,1) — đứng cuối
+tệp để thắng phần hoà. `1rem` chứ không `16px` (FE-11). Loại trừ checkbox/radio/range/file/color. Một hệ quả đã thấy:
+ô chọn *Loại khách hàng* dài, ở 16px chữ cuối bị cắt trong ô (`select` tự cắt; danh sách mở ra vẫn đủ chữ).
+
+**Sửa ở nguồn một luật cũ**: khối `@media (hover: none)` của bình luận (`0264`) khai nút *Trả lời*/*Thao tác* bằng số
+cứng `40px` và lề phải `88px` — đổi thành `--vung-cham` và `calc(2 × --vung-cham + 2px)`, không đè thêm luật thứ hai.
+
+**Đo lại sau sửa** (cùng kịch bản, thêm trang hồ sơ có 35 bình luận): 390px — ô dưới 16px **0** (trừ ô chọn tệp ẩn
+1×1); vùng chạm dưới 44 chỉ còn liên kết trong ô bảng (42, giới hạn trên) và liên kết GIỮA ĐOẠN VĂN của bình luận (chữ
+trong câu — WCAG 2.5.8 miễn). 768px cảm ứng — khung cuộn không mọc thanh cuộn dọc lẻ nào (đo `scrollHeight` mọi khung
+`overflow: auto`; con số duy nhất là thân hộp thoại lập khách hàng, vốn cuộn). Ảnh soát: khung bình luận, hộp thoại
+lập khách hàng, kanban không xô lệch.
+
+**Ca kiểm** `tests/web/cam-ung.test.ts` (26 ca, đọc CSS — jsdom không tính cascade theo media query): luật cỡ chữ phủ đủ
+ba thẻ và đứng sau mọi luật đặt chữ cho ô nhập · không luật nào SAU nó đặt lại · từng bộ chọn phóng to thật / nới vùng
+· phần chặn trong ô bảng · luật `hover: none` dùng `--vung-cham`. Ca chốt cho nút MỚI: mọi luật ngoài khối cảm ứng thu
+một nút biểu tượng xuống dưới 44px (px hoặc rem) thì chính bộ chọn ấy phải được phóng lại ở khối cảm ứng hoặc khối
+`hover: none`.
+
+**Phá lại sáu lượt, sáu đỏ đúng ca**: bỏ `font-size: 1rem` · trả `hover: none` về 40px (2 ca, gồm ca chốt nút mới) ·
+gỡ `.bl-cx-bang button` khỏi danh sách phóng to (2 ca) · gỡ `::after` của `.dau-hoi` · bỏ phần chặn trong ô bảng ·
+thêm một luật `.o-nhap` đặt lại cỡ chữ ở cuối tệp. **Lượt sáu dựng sai lần đầu** — chèn một `@media (pointer: coarse)
+{}` rỗng phía trên nên ca kiểm đọc nhầm khối rỗng và đỏ 24 ca: đỏ đúng mà không chứng minh gì; làm lại bằng cách thêm
+luật vào cuối tệp thì đỏ đúng một ca.
+
+**Ngoài chặng, đã gặp**: sau khi máy khởi động lại, chồng demo chỉ còn hạ tầng và CSDL trống; `make demo-mau` lượt đầu
+ném lỗi ở `dayToi` (*"chờ 60 giây mà dấu vết lệch vẫn chưa đủ"*), chạy lại `make demo-data` thì xong nhưng *hồ sơ cần cập
+nhật* ra **0**. Chưa điều tra. Chưa làm: chữ nhãn biểu đồ Thống kê 10,5–11px và nhãn kỳ cuối bị cắt (điểm 4 của lượt
+đo, người dùng chưa chọn); kanban trên điện thoại vẫn là một dải vuốt ngang (điểm 2).
+
+`make test` đầy đủ không chạy (demo bật; chặng chỉ đụng CSS). Typecheck xanh; `tests/web` + `tests/http/tai-lieu`:
+
+**1148/1148 xanh.**

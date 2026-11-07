@@ -4424,8 +4424,8 @@ svg.bd-nho { width: 62px; margin: 0; }
 .bl-thao-tac .nut-bieu-tuong { width: 30px; height: 30px; border-color: transparent; background: transparent; }
 @media (hover: none) {
   .bl-thao-tac { opacity: 1; }
-  .bl-thao-tac .nut-bieu-tuong { width: 40px; height: 40px; }
-  .bl-dong-dau { padding-right: 88px; }
+  .bl-thao-tac .nut-bieu-tuong { width: var(--vung-cham); height: var(--vung-cham); }
+  .bl-dong-dau { padding-right: calc(2 * var(--vung-cham) + 2px); }
 }
 .bl-menu { top: 34px; }
 .bl-menu .menu-so-muc svg { flex: none; }
@@ -4685,5 +4685,89 @@ svg.bd-nho { width: 62px; margin: 0; }
     padding: var(--k2) var(--k3) var(--k3);
     border-top: 1px solid var(--mau-vien);
     background: var(--mau-nen);
+  }
+}
+
+/* --- Màn hình cảm ứng: ô nhập 16px, vùng chạm 44px (`0266`) ------------------
+ * Chỉ áp khi con trỏ CHÍNH là ngón tay (`pointer: coarse`) — máy tính dùng chuột
+ * giữ nguyên cỡ chữ và mật độ đã duyệt ở `0257`.
+ *
+ * 1. Ô NHẬP 16px. Safari trên iPhone tự PHÓNG TO cả trang mỗi khi chạm vào một
+ *    ô có chữ dưới 16px rồi để nguyên mức phóng ấy — người dùng phải tự véo thu
+ *    lại sau mỗi ô. Viết `1rem` chứ không viết số điểm ảnh (FE-11). Vế `:is()`
+ *    mang độ đặc hiệu của vế nặng nhất, nên luật này thắng `.o-nhap` (đặt
+ *    `font: inherit`) và `.bl-soan textarea` mà không cần `!important`; nó đứng
+ *    ở CUỐI tệp để thắng luật cùng độ đặc hiệu.
+ *
+ * 2. VÙNG CHẠM bằng `--vung-cham`, hai cách tuỳ chỗ đứng:
+ *    - nút biểu tượng và nút của khung soạn bình luận: phóng to THẬT, chúng có
+ *      chỗ;
+ *    - dấu và chữ bấm được nằm GIỮA DÒNG chữ (dấu hỏi và dấu tam giác cạnh con
+ *      số, mã trong bảng, nút chữ của bình luận): phóng to thật là xô lệch cả
+ *      bảng tiền, nên chỉ NỚI VÙNG NHẬN CHẠM bằng một lớp trong suốt — hình vẽ
+ *      đứng yên. Nới bằng `min(0px, …)`, nên chiều nào đã đủ lớn thì không nới.
+ *      Trong ô bảng phần nới bị chặn ở đúng lề ô: lấn ra ngoài là khung cuộn
+ *      của bảng mọc thêm một thanh cuộn lẻ vài điểm ảnh.
+ */
+@media (pointer: coarse) {
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select, textarea) {
+    font-size: 1rem;
+  }
+
+  .kb-nut-gap,
+  .bl-soan-chan .nut-bieu-tuong,
+  .bl-soan-ngu-canh .nut-bieu-tuong,
+  .bl-tep-cho .nut-bieu-tuong,
+  .bl-cx-bang button {
+    width: var(--vung-cham);
+    height: var(--vung-cham);
+  }
+  .bl-soan-chan .nut,
+  .xep-hang-dong,
+  .logo-lien {
+    min-height: var(--vung-cham);
+  }
+  .the-nguoi-dung {
+    min-height: var(--vung-cham);
+  }
+  /* Dải cột gập: viền 1px mỗi bên ăn vào bề rộng của nút bên trong. */
+  .kb-gap {
+    flex-basis: calc(var(--vung-cham) + 2px);
+  }
+
+  .dau-hoi,
+  .dau-doi,
+  .lien-phu,
+  .khoi-bl .nut-chu,
+  .cach-tinh > summary,
+  .bl-cx,
+  a.thanh-nhan,
+  .dau-trang > a[href],
+  :is(td, dd) a[href] {
+    position: relative;
+  }
+  .dau-hoi::after,
+  .dau-doi::after,
+  .lien-phu::after,
+  .khoi-bl .nut-chu::after,
+  .cach-tinh > summary::after,
+  .bl-cx::after,
+  a.thanh-nhan::after,
+  .dau-trang > a[href]::after,
+  :is(td, dd) a[href]::after {
+    --noi: calc((100% - var(--vung-cham)) / 2);
+    content: '';
+    position: absolute;
+    top: min(0px, var(--noi));
+    bottom: min(0px, var(--noi));
+    left: min(0px, var(--noi));
+    right: min(0px, var(--noi));
+  }
+  td :is(.dau-hoi, .dau-doi, .lien-phu, a[href])::after {
+    --chan: calc(-1 * var(--k3));
+    top: max(var(--chan), min(0px, var(--noi)));
+    bottom: max(var(--chan), min(0px, var(--noi)));
+    left: max(var(--chan), min(0px, var(--noi)));
+    right: max(var(--chan), min(0px, var(--noi)));
   }
 }
