@@ -1158,6 +1158,9 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
       'Hồ sơ pháp lý của khách hàng',
       'Bản mềm',
       'File SCAN bản cứng',
+      // `0264` — *Bình luận* ngay trên *Lịch sử* (mockup duyệt 07/11). Hai khối tệp
+      // vẫn liền nhau và vẫn ở trên mọi thứ không phải tệp.
+      'Bình luận',
       // *Lịch sử* vẫn CUỐI CÙNG (`0061`) — yêu cầu `0170` nói *"xuống cuối
       // nhưng trước mục lịch sử"*, nên hai vế ấy phải cùng đúng.
       'Lịch sử',
@@ -1211,6 +1214,9 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
       'Bản mềm',
       'File SCAN bản cứng',
       'Bản mềm và bản cứng của phiên bản trước',
+      // `0264` — *Bình luận* chen vào giữa khối bản trước và *Lịch sử* (mockup: ngay
+      // trên *Lịch sử*). Khối bản trước vẫn là khối TỆP cuối cùng.
+      'Bình luận',
       'Lịch sử',
     ]);
 

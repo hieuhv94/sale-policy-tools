@@ -28,6 +28,27 @@ const Ctx = createContext<Duong>({
   di: () => {},
 });
 
+/**
+ * Chặn rời màn hình khi còn chữ đang soạn (`0264`, yêu cầu 3.6 — bình luận không lưu
+ * nháp, nên rời trang là mất). Tải lại hay đóng tab thì `beforeunload` của trình duyệt
+ * hỏi; chỗ này lo phần trình duyệt không thấy: chuyển màn hình TRONG ứng dụng.
+ *
+ * Một tập hàm ở cấp mô-đun chứ không qua Context: nơi đăng ký (ô soạn bình luận) và
+ * nơi hỏi (`di`) ở hai đầu cây, và câu hỏi chỉ cần đúng lúc bấm.
+ *
+ * Nút Quay lại của trình duyệt (`popstate`) KHÔNG chặn được: lịch sử đã lùi trước khi
+ * trang biết. Đã nêu ở nhật ký.
+ */
+const chanRoi = new Set<() => boolean>();
+export const CAU_ROI_TRANG = 'Bình luận bạn đang soạn chưa gửi và sẽ mất nếu rời trang. Vẫn rời trang?';
+export function dangKyChanRoi(dangSoan: () => boolean): () => void {
+  chanRoi.add(dangSoan);
+  return () => {
+    chanRoi.delete(dangSoan);
+  };
+}
+const nenHoiTruocKhiRoi = (): boolean => [...chanRoi].some((f) => f());
+
 export function BoDinhTuyen({ children }: { children: ReactNode }) {
   const [duong, datDuong] = useState(() => window.location.pathname || '/');
   // Giữ dạng chuỗi trong state chứ không giữ thẳng `URLSearchParams`: đối tượng
@@ -63,6 +84,7 @@ export function BoDinhTuyen({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (nenHoiTruocKhiRoi() && !window.confirm(CAU_ROI_TRANG)) return;
     window.history.pushState(null, '', d);
     datDuong(dan);
     datChuoiTruyVan(search);

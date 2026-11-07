@@ -26,6 +26,7 @@ import {
   thoiGianTuongDoi,
   truMot,
   useChuaDoc,
+  ngheTabKhac,
   useDemThongBao,
   type HopThongBao,
   type ThongBao,
@@ -51,10 +52,13 @@ function Dong({ tb, chon }: { tb: ThongBao; chon: (tb: ThongBao) => void }) {
               xem `lopDong`. Tiêu đề đã tự nói ra bậc bằng chữ. */}
           <span className="tb-tieu-de">{tb.tieuDe}</span>
           {tb.moTa && <span className="tb-mo-ta">{tb.moTa}</span>}
+          {/* Trích đoạn bình luận (`0262`): in nghiêng để tách khỏi dòng mã hồ sơ — chốt mockup. */}
+          {tb.trichDoan && <span className="tb-trich">“{tb.trichDoan}”</span>}
           {/* Giờ tuyệt đối trong `title`: câu tương đối dễ đọc nhưng không đối
               chiếu được với nhật ký hồ sơ. */}
           <span className="tb-luc" title={ngayGio(tb.xayRaLuc)}>
             {thoiGianTuongDoi(tb.xayRaLuc)}
+            {tb.matQuyen && ' · bạn không còn quyền xem hồ sơ này'}
           </span>
         </span>
       </Lien>
@@ -72,6 +76,7 @@ export function ChuongThongBao() {
   const chuaDoc = useChuaDoc();
 
   useDemThongBao(true);
+  useEffect(ngheTabKhac, []);
 
   // Chuyển màn hình thì đóng — kể cả khi chính cú bấm vào một dòng gây ra nó.
   useEffect(() => datMo(false), [duong]);

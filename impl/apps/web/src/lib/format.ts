@@ -245,3 +245,18 @@ export const NHAN_VAI_TRO: Record<string, string> = {
   BAN_LANH_DAO: 'Ban lãnh đạo',
   QUAN_TRI: 'Quản trị hệ thống',
 };
+
+/**
+ * Chữ cái đầu của tên, tối đa hai chữ — cho ảnh đại diện (thanh trên cùng, bình luận).
+ *
+ * Lấy từ CUỐI tên: người Việt gọi nhau bằng tên, và "Nguyễn Văn Hùng" viết tắt
+ * thành "NV" thì không ai nhận ra mình. Dời khỏi `BoCuc.tsx` ở `0264` khi bình luận
+ * cần cùng phép ấy — hai bản là hai cách viết tắt một cái tên.
+ */
+export function chuDau(ten: string | undefined): string {
+  const phan = (ten ?? '').trim().split(/\s+/).filter(Boolean);
+  if (phan.length === 0) return '?';
+  const cuoi = phan[phan.length - 1]!;
+  if (phan.length === 1) return cuoi.slice(0, 2).toUpperCase();
+  return (phan[phan.length - 2]![0]! + cuoi[0]!).toUpperCase();
+}

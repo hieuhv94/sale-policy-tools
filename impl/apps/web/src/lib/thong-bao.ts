@@ -21,6 +21,12 @@ export type ThongBao = {
   customerId: string | null;
   xayRaLuc: string;
   daDocLuc: string | null;
+  /** `0262` — dòng thông báo bình luận. Vắng ở máy chủ cũ, nên tuỳ chọn. */
+  binhLuanId?: string | null;
+  /** Câu trích của bình luận; `null` khi người đọc mất quyền xem hồ sơ. */
+  trichDoan?: string | null;
+  /** Người đọc không còn mở được hồ sơ: máy chủ đã giấu mã, tên khách, trích đoạn. */
+  matQuyen?: boolean;
 };
 
 export type HopThongBao = {
@@ -199,12 +205,44 @@ export function thoiGianTuongDoi(iso: string | null | undefined, bayGio = Date.n
 let chuaDoc: DemChuaDoc = { viec: 0, tin: 0 };
 const nguoiNghe = new Set<(d: DemChuaDoc) => void>();
 
-export function datChuaDoc(d: DemChuaDoc): void {
+export function datChuaDoc(d: DemChuaDoc, phat = true): void {
   const v: DemChuaDoc = { viec: nguyenDuong(d.viec), tin: nguyenDuong(d.tin) };
   if (v.viec === chuaDoc.viec && v.tin === chuaDoc.tin) return;
   chuaDoc = v;
   for (const f of [...nguoiNghe]) f(v);
+  if (phat) phatSangTabKhac(v);
 }
+
+/*
+ * ĐỒNG BỘ GIỮA CÁC TAB (`0264`, yêu cầu 6.3): đọc bình luận ở tab này thì chuông của
+ * tab kia tắt ngay, không chờ nhịp hỏi 30 giây. `BroadcastChannel` chỉ chuyển trong
+ * cùng một trình duyệt, cùng một nguồn; tab nhận đặt con số mà KHÔNG phát lại (`phat`
+ * = false), nếu không hai tab đẩy qua đẩy lại.
+ *
+ * Trình duyệt không có `BroadcastChannel` thì thôi: nhịp hỏi 30 giây vẫn chữa.
+ */
+const KENH_CHUONG = 'csbh:chuong';
+let kenh: BroadcastChannel | null = null;
+function layKenh(): BroadcastChannel | null {
+  if (kenh || typeof BroadcastChannel === 'undefined') return kenh;
+  kenh = new BroadcastChannel(KENH_CHUONG);
+  kenh.onmessage = (e: MessageEvent) => {
+    const d = e.data as Partial<DemChuaDoc> | null;
+    if (d && typeof d.viec === 'number' && typeof d.tin === 'number') datChuaDoc({ viec: d.viec, tin: d.tin }, false);
+  };
+  return kenh;
+}
+function phatSangTabKhac(v: DemChuaDoc): void {
+  try {
+    layKenh()?.postMessage(v);
+  } catch {
+    // Kênh đã đóng (tab đang tắt) — không có ai để báo.
+  }
+}
+/** Mở kênh nghe sớm — gọi ở cái chuông, để tab chưa từng đổi con số vẫn nhận tin. */
+export const ngheTabKhac = (): void => {
+  layKenh();
+};
 
 /** Chỉ để ca kiểm bắt đầu từ một trạng thái sạch. */
 export const datLaiChuaDoc = (): void => datChuaDoc({ viec: 0, tin: 0 });
@@ -285,6 +323,16 @@ const doiVe = (r: DemVe): DemChuaDoc => ({ viec: r.soViecChuaDoc, tin: r.soTinCh
 /** Đánh dấu một dòng đã đọc, rồi đồng bộ huy hiệu bằng con số máy chủ trả về. */
 export async function danhDauDaDoc(id: string): Promise<void> {
   datChuaDoc(doiVe(await dang<DemVe>(`/notifications/${id}/da-doc`)));
+}
+
+/**
+ * Bình luận đã hiện trên màn hình → thông báo của nó thành đã đọc (`0262`, yêu cầu 6.3).
+ * Máy chủ chỉ chạm dòng của CHÍNH người gọi; gọi với bình luận không có thông báo nào
+ * là vô hại, nên giao diện không phải biết bình luận nào có thông báo.
+ */
+export async function danhDauDaDocBinhLuan(binhLuanIds: string[]): Promise<void> {
+  if (binhLuanIds.length === 0) return;
+  datChuaDoc(doiVe(await dang<DemVe>('/notifications/da-doc-binh-luan', { binhLuanIds })));
 }
 
 export async function danhDauDaDocHet(): Promise<number> {

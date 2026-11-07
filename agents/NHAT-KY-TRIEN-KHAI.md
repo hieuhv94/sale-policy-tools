@@ -21797,3 +21797,72 @@ Lượt chạy cả bộ đầu: **1 đỏ** — DOC-28 ghim tập giá trị c�
 phải nói nó dùng cho việc gì"*); đỏ đúng việc của nó, thêm `binh_luan` kèm lý do.
 
 **3240/3240 xanh.**
+
+## P300 — `0264` Bình luận, chặng 4/5: giao diện
+
+Khối **Bình luận** trên trang hồ sơ, ngay trên *Lịch sử*, theo mockup bản 2 đã duyệt 07/11. Bốn tệp ở
+`components/binh-luan/` (`KhoiBinhLuan` · `DongBinhLuan` · `OSoanBinhLuan` · biểu tượng) và phần thuần ở
+`lib/binh-luan.ts`. CSS chép từ mockup, mọi lớp mang tiền tố `bl-` (mockup dùng `.bl`, `.menu`, `.nhac`, `.khoa` —
+tên trần sẽ va lớp có sẵn), dùng lại `.anh-dai-dien` · `.nut*` · `.menu-so*` · `HopThoaiXacNhan` · `XemTep`. Không thêm
+phụ thuộc nào. `chuDau` (chữ tắt ảnh đại diện) dời từ `BoCuc.tsx` sang `lib/format.ts` — hai bản là hai cách viết tắt
+một cái tên.
+
+**`hopNhat` là chỗ dễ sai im lặng nhất**, nên là hàm thuần có ca riêng. Ba câu hỏi cho mỗi mục thay đổi: đã có trên màn
+hình → thay tại chỗ, giữ phản hồi đã tải (máy chủ trả gốc không kèm phản hồi); gốc chưa có → mới hơn gốc đầu thì là
+bình luận MỚI, cũ hơn thì là bình luận ở trang chưa tải vừa bị sửa — bỏ qua chứ không chen lên đầu luồng; phản hồi chưa
+có → mới hơn phản hồi cuối thì nối cuối (chốt mockup: phản hồi mới không bị thu gọn), cũ hơn thì nằm trong phần *Xem N
+phản hồi trước* chưa mở. Áp cùng một lô hai lần không đổi gì — lượt hỏi trùng mốc là chuyện thường (`0261` lấy mốc
+TRƯỚC danh sách).
+
+**Nhắc tên trong một `<textarea>` trơn**: người gõ thấy `@Trần Thị Bích`, máy chủ nhận `@{uuid}`. Ô nhớ danh sách tên
+ĐÃ CHỌN; lúc gửi chỉ đúng các chuỗi ấy đổi thành dấu nhắc, tên dài trước (`@Trần Thị Bích Ngọc` không bị `@Trần Thị Bích`
+cắt), một lượt thay nên không thay chồng. Gõ tay `@Bích` mà không chọn là chữ trơn — đúng, máy chủ không đoán được người
+gõ định nhắc ai. Xoá lùi ngay sau một tên xoá CẢ tên. Hai người trùng tên: người chọn trước thắng — giới hạn đã biết.
+Mở bình luận cũ để sửa thì dấu nhắc đổi ngược thành tên HIỆN TẠI, và vòng đi-về khớp từng ký tự (có ca).
+
+**Gửi**: `maGui` giữ nguyên qua mọi lượt thử lại, chỉ đổi sau lượt THÀNH CÔNG — mất phản hồi rồi bấm *Thử lại* thì máy
+chủ trả đúng bình luận đã có (`0261`). Khoá gửi là một `ref` chứ không phải state: hai phím Enter liền nhau tới trước
+khi React kịp vẽ lại nút xám. Lỗi của Ô (`o-nhap`) và lỗi mạng/5xx nằm dưới ô, chữ và tệp giữ nguyên; lỗi khác đi
+`bao()`. Enter gửi, Shift+Enter xuống dòng, trên thiết bị `pointer: coarse` Enter là xuống dòng; đang gõ bộ gõ tiếng Việt
+(`isComposing`) thì Enter không gửi.
+
+**Tự cập nhật**: hỏi `thay-doi` mỗi `GIOI_HAN_BINH_LUAN.nhipHoiTrangMs`, dừng khi tab ẩn, hỏi ngay khi quay lại; lỗi
+mạng IM (lượt sau hỏi từ đúng mốc cũ), 403/404 → *mất quyền* và thôi hỏi. Bình luận mới tới khi đang ở cuối khối thì
+tô nổi tại chỗ; đang cuộn lên thì chỉ hiện nút *N bình luận mới* (một `IntersectionObserver` trên mốc cuối khối).
+
+**Tự đọc thông báo**: bình luận không phải của mình lọt vào khung nhìn (≥ 50%) → gom 800ms rồi `POST
+/notifications/da-doc-binh-luan`; con số trả về đặt thẳng vào chuông, và **`BroadcastChannel('csbh:chuong')`** báo các
+tab khác — tab nhận đặt số mà không phát lại. Trình duyệt không có `IntersectionObserver` thì coi mọi bình luận đã bày là
+đã thấy. Chuông và trang `/thong-bao` bày trích đoạn (in nghiêng) và câu *"bạn không còn quyền xem hồ sơ này"*.
+
+**Liên kết `#binh-luan-<id>`**: sau lượt tải đầu, và ở mỗi `hashchange` (bấm chuông khi đang đứng trên chính hồ sơ ấy —
+`di()` bắn sự kiện từ `0255`), khối tải thêm trang cũ tới khi gặp, rồi mở phản hồi cũ của từng luồng (gốc mới trước),
+trần 60 lượt; gặp thì cuộn giữa màn hình, đưa tiêu điểm, tô nổi.
+
+**Không lưu nháp nhưng hỏi trước khi mất chữ**: `beforeunload` khi ô còn chữ hoặc tệp; chuyển màn hình TRONG ứng dụng
+thì `di()` hỏi `window.confirm` qua một tập chốt cấp mô-đun ở `router.tsx` (`dangKyChanRoi`). **Giới hạn đã biết**: nút
+Quay lại của trình duyệt (`popstate`) không chặn được — lịch sử đã lùi trước khi trang biết.
+
+**Tệp**: kiểm đuôi và cỡ TRƯỚC khi tải (tệp 40MB không phải chờ tải xong mới bị từ chối), tải lên `document` với
+`purpose=BINH_LUAN`, ảnh có ô xem nhỏ (`blob:` qua liên kết hai bước), bấm mở `XemTep`. `fetch` không có sự kiện tiến
+trình, nên thanh tải là thanh chạy KHÔNG xác định (mockup vẽ phần trăm) — đã nêu, đổi sang `XMLHttpRequest` là việc
+riêng nếu cần.
+
+**Lộ ra lúc chạy cả bộ**: ca kiểm cũ của trang hồ sơ giả lập `fetch` trả HỒ SƠ cho mọi đường, nên `/binh-luan` nhận sai
+hình dạng, `ds.reduce` ném lúc dựng và React tháo CẢ trang — 40 ca đỏ ở chỗ chẳng liên quan. Đúng mong manh `0162` đã
+ghi; khối giờ kiểm hình dạng mọi phản hồi (`dungHinh`) và sai thì báo *không tải được* tại chỗ. Ba ca cũ sửa theo luật
+mới: thứ tự `<h2>` của trang có thêm *Bình luận* trước *Lịch sử* (hai ca), `NUOT_CO_LY_DO` thêm hai tệp (đánh dấu đã đọc
+· ảnh thu nhỏ), và hàm `tt.xoa()` đổi tên `hoiXoa` vì ca `xac-nhan` bắt `\bxoa\(` — đúng việc của nó, lượt xoá thật nằm
+sau `HopThoaiXacNhan`. Hai cỡ chữ `px` đổi sang `rem` (FE-11).
+
+**Phá lại hai mươi lượt**, mười chín đỏ ở đúng ca. Hai lượt xanh ở lần đầu: (a) *`beforeunload` bỏ `preventDefault`* —
+xanh CÓ LÝ DO: theo chuẩn DOM, gán `returnValue = ''` tự nó đã huỷ sự kiện; hai dòng ấy là hai cách cho hai đời trình
+duyệt, giữ cả hai. (b) *bỏ lượt mở neo lúc tải* — xanh vì CA KIỂM HỤT: gán `location.hash` trong jsdom bắn `hashchange`
+TRỄ, rơi vào lúc khối đã dựng, nên ca đi qua đường nghe sự kiện; và dòng dọn `location.hash = ''` của ca TRƯỚC cũng bắn
+trễ vào ca sau. Đổi cả ba chỗ sang `history.replaceState` (không bắn sự kiện), thêm ca riêng cho đường `hashchange`; phá
+lại lần hai: đỏ.
+
+**Chưa làm ở chặng này**: QA bằng ảnh thật ba khổ sáng/tối, dữ liệu mẫu cho demo, đo tải nhịp hỏi trên chồng thật —
+chặng `0265`.
+
+**3289/3289 xanh.**

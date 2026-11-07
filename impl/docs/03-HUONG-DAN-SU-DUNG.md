@@ -1547,6 +1547,58 @@ Thư của đường thứ nhất chỉ luôn **phiên bản thay thế** ở cu
 dòng đó — ở đấy không có bản nào thay thế cả, và gợi ý ngược lại là bắt người đọc đi tìm một hồ sơ
 không tồn tại.
 
+### Bình luận trên hồ sơ `mới 07/11`
+
+Khối **Bình luận** nằm ngay trên *Lịch sử*. Ai mở được hồ sơ thì đọc và viết được bình luận — TDV,
+Trưởng bộ phận, Kế toán (từ khi Trưởng bộ phận đã ký), Sale Admin và Ban lãnh đạo. Quản trị hệ thống
+không thấy khối này. Mỗi phiên bản có luồng bình luận riêng: lập phiên bản mới thì luồng mới trống,
+luồng của bản cũ vẫn đọc được ở bản cũ.
+
+**Viết.** Gõ vào ô ở cuối khối rồi nhấn **Enter** (hoặc bấm **Gửi**); **Shift + Enter** để xuống
+dòng. Trên điện thoại, Enter là xuống dòng — bấm nút **Gửi**. Bình luận là chữ thường: không in đậm,
+không định dạng; địa chỉ web bắt đầu bằng `http://` hoặc `https://` tự thành liên kết, bấm vào mở ở
+tab mới. Tối đa 5.000 ký tự.
+
+**Nhắc tên.** Gõ **@** rồi vài chữ của tên hoặc email: danh sách người có thể nhắc hiện ra — chỉ
+những người **đứng tên trên hồ sơ này** (TDV, Trưởng bộ phận, Kế toán khi đã tới lượt, Sale Admin),
+trừ chính bạn. Dùng ↑ ↓ để chọn, **Enter** để chèn, **Esc** để đóng. Người được nhắc nhận một thông
+báo trên chuông. Ban lãnh đạo không có trong danh sách và không nhận thông báo bình luận. Một bình
+luận nhắc tối đa 20 người.
+
+**Trả lời.** Rê chuột vào một bình luận (trên điện thoại các nút luôn hiện) và bấm biểu tượng
+**Trả lời**: ô trả lời mở ngay cuối luồng ấy. Chỉ trả lời được bình luận gốc, không trả lời được một
+phản hồi. Luồng dài chỉ hiện **3 phản hồi mới nhất**; bấm *Xem N phản hồi trước* để mở thêm từng đợt
+20, mở hết thì có *Thu gọn*. Người viết bình luận gốc nhận thông báo khi có phản hồi mới.
+
+**Sửa và xoá.** Bấm **⋯** (*Thao tác khác*) trên bình luận **của chính bạn**: *Sửa* mở ô sửa tại chỗ,
+lưu xong bình luận mang nhãn *Đã sửa*; *Xoá bình luận* hỏi lại trước, rồi mọi người thấy *"Bình luận
+này đã bị xoá"* thay cho nội dung — các phản hồi vẫn giữ, tệp đính kèm bị xoá khỏi hệ thống, không
+khôi phục được. Không ai sửa hay xoá được bình luận của người khác. Mục *Sao chép liên kết* trong cùng
+menu cho một đường dẫn mở thẳng tới bình luận ấy.
+
+**Cảm xúc.** Bấm biểu tượng mặt cười dưới bình luận để thả một trong sáu cảm xúc 👍 ❤️ 🎉 👀 🚀 😄;
+bấm lại ô cảm xúc của mình để gỡ. Rê chuột vào một ô để xem ai đã thả.
+
+**Tệp đính kèm.** Bấm biểu tượng **kẹp giấy** hoặc kéo tệp thả vào ô soạn. Nhận ảnh JPG, PNG, WebP,
+tệp PDF, Word (`.docx`) và Excel (`.xlsx`); tối đa **5 tệp**, mỗi tệp **10MB**. Đang tải lên thì nút
+Gửi xám; tải hỏng thì bấm *Thử lại* hoặc gỡ tệp. Ảnh hiện ô xem nhỏ, bấm vào để xem lớn; tệp khác bấm
+vào để xem hoặc tải về. Muốn gỡ một tệp đã gửi thì *Sửa* bình luận và bấm ✕ trên tệp ấy.
+
+> Tệp đã tải lên mà **không gửi trong 24 giờ** bị hệ thống dọn đi — để tệp trong ô qua ngày rồi mới
+> gửi thì phải tải lên lại.
+
+**Tự cập nhật.** Bình luận mới của người khác tự hiện ra, chậm nhất khoảng **15 giây**, không cần tải
+lại trang (dòng *Tự cập nhật · … trước* ở đầu khối cho biết lần gần nhất). Nếu bạn đang cuộn lên đọc
+bình luận cũ, phần mềm không tự cuộn mà hiện nút **N bình luận mới** — bấm để xuống.
+
+**Không lưu nháp.** Chữ đang gõ dở **không được lưu**: tải lại trang là mất. Trình duyệt hỏi lại trước
+khi bạn rời trang hoặc tải lại khi ô còn chữ, và phần mềm hỏi lại trước khi chuyển sang màn hình khác.
+
+**Thông báo bình luận** chỉ có trên **chuông**, không gửi thư. Bấm vào thông báo là mở thẳng hồ sơ và
+cuộn tới đúng bình luận. Bình luận hiện trên màn hình của bạn thì thông báo của nó **tự thành đã đọc**.
+Nếu bạn không còn quyền xem hồ sơ (đổi người duyệt, đổi TDV phụ trách), thông báo chỉ còn tiêu đề và
+khối bình luận báo *"Bạn không còn quyền xem hồ sơ này"*.
+
 ### Lịch sử hồ sơ
 
 **Mục cuối cùng** của màn hình hồ sơ, gập sẵn — bấm vào thanh *Lịch sử* thì sổ ra; mũi tên ở **mép

@@ -12,6 +12,7 @@ import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong, xemBanMemDuoc } from '../l
 import { ngay, ngayGio, nhanHanhDong, nhanTrangThai, tien } from '../lib/format.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
+import { KhoiBinhLuan } from '../components/binh-luan/KhoiBinhLuan.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { TepBanTruoc, type BanTruocDto } from '../components/TepBanTruoc.js';
@@ -1087,6 +1088,13 @@ export function ChiTietHoSo({ id }: { id: string }) {
         xem `TepBanTruoc`.
       */}
       {hoSo.banTruoc && <TepBanTruoc banTruoc={hoSo.banTruoc} />}
+
+      {/*
+        BÌNH LUẬN (`0264`) — ngay trên *Lịch sử*, theo mockup đã duyệt 07/11. Mọi vai trò
+        mở được trang này đều thấy khối: quyền của bình luận LÀ phạm vi hồ sơ (yêu cầu
+        2.2), nên không có cờ quyền riêng nào để hỏi ở đây.
+      */}
+      <KhoiBinhLuan key={hoSo.id} hoSoId={hoSo.id} />
 
       <LichSuGap hoSoId={hoSo.id} />
 

@@ -95,7 +95,7 @@ export function ThongBao() {
           moTa={
             chiChuaDoc
               ? 'Không còn thông báo nào chưa đọc.'
-              : 'Khi có hồ sơ chuyển bước hoặc khách hàng được bàn giao cho bạn, thông báo sẽ hiện ở đây.'
+              : 'Khi có hồ sơ chuyển bước, có người nhắc đến bạn trong bình luận, hoặc khách hàng được bàn giao cho bạn, thông báo sẽ hiện ở đây.'
           }
         />
       ) : (
@@ -108,8 +108,10 @@ export function ThongBao() {
                   {/* Bậc ở LỚP của cả dòng (`0192`) — xem `lopDong`. */}
                   <span className="tb-tieu-de">{tb.tieuDe}</span>
                   {tb.moTa && <span className="tb-mo-ta">{tb.moTa}</span>}
+                  {tb.trichDoan && <span className="tb-trich">“{tb.trichDoan}”</span>}
                   <span className="tb-luc" title={ngayGio(tb.xayRaLuc)}>
                     {thoiGianTuongDoi(tb.xayRaLuc)}
+                    {tb.matQuyen && ' · bạn không còn quyền xem hồ sơ này'}
                   </span>
                 </span>
               </Lien>

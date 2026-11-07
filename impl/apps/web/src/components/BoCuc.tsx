@@ -13,7 +13,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { usePhien, type NguoiDung } from '../lib/auth.js';
 import { dieuHuongCho } from '../lib/can.js';
-import { NHAN_VAI_TRO } from '../lib/format.js';
+import { chuDau, NHAN_VAI_TRO } from '../lib/format.js';
 import { ChanTrang } from './ChanTrang.js';
 import { Lien, useDuong } from '../lib/router.js';
 import logo from '../logo-bieu-tuong.png';
@@ -28,20 +28,6 @@ import {
 import { useThanhBenGon } from '../lib/thanh-ben.js';
 import { ChuongThongBao } from './ChuongThongBao.js';
 import { NutGiaoDien } from './NutGiaoDien.js';
-
-/**
- * Chữ cái đầu của tên, tối đa hai chữ.
- *
- * Lấy từ CUỐI tên: người Việt gọi nhau bằng tên, và "Nguyễn Văn Hùng" viết tắt
- * thành "NV" thì không ai nhận ra mình.
- */
-function chuDau(ten: string | undefined): string {
-  const phan = (ten ?? '').trim().split(/\s+/).filter(Boolean);
-  if (phan.length === 0) return '?';
-  const cuoi = phan[phan.length - 1]!;
-  if (phan.length === 1) return cuoi.slice(0, 2).toUpperCase();
-  return (phan[phan.length - 2]![0]! + cuoi[0]!).toUpperCase();
-}
 
 /**
  * Thẻ tên ở thanh trên cùng, bấm vào thì SỔ XUỐNG (`0062`).

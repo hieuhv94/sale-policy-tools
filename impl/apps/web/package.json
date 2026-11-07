@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     "./format": "./src/lib/format.ts",
+    "./binh-luan": "./src/lib/binh-luan.ts",
+    "./khoi-binh-luan": "./src/components/binh-luan/KhoiBinhLuan.tsx",
     "./can": "./src/lib/can.ts",
     "./bat-buoc": "./src/lib/bat-buoc.ts",
     "./api": "./src/lib/api.ts",

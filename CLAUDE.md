@@ -109,7 +109,8 @@ dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có ph�
 `artifacts/binh-luan-mockup.html`) và tài liệu yêu cầu đã chép đủ quyết định. Chặng P297–P301 (`0261`–`0265`);
 **P297 XONG** (lược đồ + API ở `policy`), **P298 XONG** (thông báo chuông — ngoại lệ có chủ ý của `0096`, không thư;
 kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm — mục đích `BINH_LUAN`, quyền đọc tệp hỏi
-`policy`, 404 không 403, dọn ở *Dọn dữ liệu* bằng con trỏ), 3240/3240 xanh. Kế tiếp P300 giao diện.
+`policy`, 404 không 403, dọn ở *Dọn dữ liệu* bằng con trỏ), **P300 XONG** (giao diện `components/binh-luan/`, phần thuần
+`lib/binh-luan.ts`; `di()` hỏi lại khi rời trang còn chữ — `dangKyChanRoi`), 3289/3289 xanh. Kế tiếp P301 demo + QA ảnh thật.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
 Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`
