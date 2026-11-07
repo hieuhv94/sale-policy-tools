@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 78 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 79 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -105,9 +105,10 @@ dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có ph�
 
 **ĐANG LÀM DỞ — tính năng BÌNH LUẬN trên hồ sơ CSBH** (chưa có dòng mã sản phẩm nào). Yêu cầu đã duyệt ở
 `agents/comment_system_requirements.md`; kế hoạch + trạng thái + quyết định chốt thêm ở **`agents/KE-HOACH-BINH-LUAN.md`**
-(đọc phần đầu trước). Đang ở **Bước 1: mockup bản 2 chờ duyệt** (https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9,
-nguồn `artifacts/binh-luan-mockup.html`). Chưa duyệt mockup thì không viết mã; duyệt xong thì sửa tài liệu yêu cầu
-theo các quyết định chốt thêm rồi mới vào P296.
+(đọc phần đầu trước). **Mockup bản 2 ĐÃ DUYỆT 07/11** (https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9, nguồn
+`artifacts/binh-luan-mockup.html`) và tài liệu yêu cầu đã chép đủ quyết định. Chặng P297–P301 (`0261`–`0265`);
+**P297 XONG** (lược đồ + API ở `policy`, 3185/3185 xanh), kế tiếp P298 thông báo.
+**Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
 Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`
 ở identity, áp cả ba đường tra người nhận (`notify-targets` · `users/mail-targets` · `users/quan-tri`); lỗ thật

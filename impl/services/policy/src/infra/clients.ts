@@ -115,6 +115,35 @@ export class Clients {
     }
   }
 
+  /**
+   * Những ai trong `ids` NHẬN ĐƯỢC thông báo — tài khoản đang hoạt động, không
+   * thuộc `KHONG_NHAN_THONG_BAO` (Ban lãnh đạo, `0260`).
+   *
+   * Bình luận (`0261`) dùng chính đường này cho danh sách nhắc tên: *"nhắc được
+   * ai"* và *"ai nhận được thông báo nhắc tên"* là MỘT câu hỏi, và luật ấy chốt
+   * ở identity. Lọc lại ở đây là dựng bản chép thứ hai của `KHONG_NHAN_THONG_BAO`.
+   *
+   * Ném khi hỏng, không nuốt: danh sách rỗng giả sẽ đọc ra là *"không ai để
+   * nhắc"*, và lượt gửi bình luận có nhắc tên sẽ bị từ chối với một câu sai.
+   */
+  async nguoiNhanDuoc(
+    ids: string[],
+  ): Promise<{ userId: string; role: string; email: string; fullName: string }[]> {
+    const list = [...new Set(ids.filter(Boolean))];
+    if (list.length === 0) return [];
+    const res = await fetch(`${identityUrl()}/internal/users/mail-targets`, {
+      method: 'POST',
+      headers: { ...svc(), 'content-type': 'application/json' },
+      body: JSON.stringify({ userIds: list }),
+    });
+    if (!res.ok) throw new Error(`identity trả ${res.status} khi tra người nhắc được`);
+    return (
+      (await res.json()) as {
+        targets: { userId: string; role: string; email: string; fullName: string }[];
+      }
+    ).targets;
+  }
+
   async checkUsers(
     ids: string[],
   ): Promise<Record<string, { role: string; isActive: boolean; fullName: string }>> {

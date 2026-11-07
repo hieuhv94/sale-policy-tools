@@ -1201,6 +1201,23 @@ const KHONG_PHAI_GHI_NGHIEP_VU: Record<string, string> = {
   'POST /reports/filters/:screen/clear': 'xoá bộ lọc đã lưu của RIÊNG người dùng',
 };
 
+/**
+ * Đường ghi MỞ CHO BAN LÃNH ĐẠO, có chủ ý (`0261`, chốt 06/11/2026): Ban lãnh đạo
+ * được BÌNH LUẬN trên mọi hồ sơ — viết, sửa và xoá bình luận của CHÍNH MÌNH, thả
+ * cảm xúc. Không đường nào trong đây chạm tới dữ liệu nghiệp vụ của hồ sơ: luật
+ * "Ban lãnh đạo chỉ đọc" vẫn đúng với mọi thứ in ra tờ giấy khách hàng ký.
+ *
+ * Danh sách này chỉ được CO LẠI hoặc thêm đường BÌNH LUẬN — có ca canh cả hai
+ * chiều ngay bên dưới.
+ */
+const MIEN_BAN_LANH_DAO: Record<string, string> = {
+  'POST /policies/:id/binh-luan': 'viết bình luận / trả lời',
+  'PATCH /policies/:id/binh-luan/:bid': 'sửa bình luận của chính mình',
+  'DELETE /policies/:id/binh-luan/:bid': 'xoá bình luận của chính mình',
+  'PUT /policies/:id/binh-luan/:bid/cam-xuc/:loai': 'thả cảm xúc',
+  'DELETE /policies/:id/binh-luan/:bid/cam-xuc/:loai': 'gỡ cảm xúc của chính mình',
+};
+
 const timControllers = (d: string): string[] =>
   readdirSync(d, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory()
@@ -1302,9 +1319,25 @@ describe('SEC-13 Ban lãnh đạo và mọi đường ghi', () => {
     ).toEqual([]);
   });
 
-  it('KHÔNG đường ghi nào cho Ban lãnh đạo vào, kể cả gián tiếp', () => {
-    const hong = quetDuongGhi().filter((d) => d.vaiTro?.includes('BAN_LANH_DAO'));
+  it('KHÔNG đường ghi nào cho Ban lãnh đạo vào, kể cả gián tiếp — trừ miễn trừ bình luận', () => {
+    const hong = quetDuongGhi()
+      .filter((d) => d.vaiTro?.includes('BAN_LANH_DAO'))
+      .filter((d) => MIEN_BAN_LANH_DAO[`${d.method} ${d.path}`] === undefined);
     expect(hong.map((d) => `${d.method} ${d.path}`)).toEqual([]);
+  });
+
+  it('miễn trừ Ban lãnh đạo khớp ĐÚNG các đường bình luận đang mở cho họ (`0261`)', () => {
+    // Chiều xuôi: mọi đường khai trong miễn trừ có thật VÀ thật sự mở cho BLĐ — một
+    // dòng thừa ở đây là một lối đi đã khoá mà tờ danh sách vẫn nói là mở.
+    const mo = quetDuongGhi()
+      .filter((d) => d.vaiTro?.includes('BAN_LANH_DAO'))
+      .map((d) => `${d.method} ${d.path}`)
+      .sort();
+    expect(mo).toEqual(Object.keys(MIEN_BAN_LANH_DAO).sort());
+    // Chiều ngược: miễn trừ chỉ được mang đường BÌNH LUẬN.
+    for (const k of Object.keys(MIEN_BAN_LANH_DAO)) {
+      expect(k, k).toMatch(/^[A-Z]+ \/policies\/:id\/binh-luan(\/|$)/);
+    }
   });
 
   it('gọi THẬT từng đường ghi bằng bld01 thì 403, không đường nào lọt', async () => {
@@ -1320,7 +1353,9 @@ describe('SEC-13 Ban lãnh đạo và mọi đường ghi', () => {
         !d.noiBo &&
         !d.congKhai &&
         DANG_CHAY.some((s) => d.tep.startsWith(s)) &&
-        KHONG_PHAI_GHI_NGHIEP_VU[`${d.method} ${d.path}`] === undefined,
+        KHONG_PHAI_GHI_NGHIEP_VU[`${d.method} ${d.path}`] === undefined &&
+        // Đường bình luận mở cho BLĐ có chủ ý — `binh-luan.test.ts` gọi thật chúng.
+        MIEN_BAN_LANH_DAO[`${d.method} ${d.path}`] === undefined,
     );
     expect(ds.length).toBeGreaterThan(20);
 

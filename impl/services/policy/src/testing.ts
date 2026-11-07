@@ -31,3 +31,5 @@ export { chuanHoaMa, CAU_LOI_MA, DAI_TOI_DA_MA } from './policies/ma-ho-so.js';
 // `0220` — tập "hồ sơ đang xử lý" và tên chỉ mục canh nó, để bộ kiểm đối chiếu
 // được vị từ của chỉ mục (liệt kê thành chữ trong migration) với hằng này.
 export { CHUA_DUYET_XONG, UQ_DANG_DO } from './policies/policies.service.js';
+// `0261` — bình luận: service để ca kiểm gọi thẳng (đua hai lượt ghi), controller để SEC-13 đối chiếu.
+export { BinhLuanService } from './binh-luan/binh-luan.service.js';

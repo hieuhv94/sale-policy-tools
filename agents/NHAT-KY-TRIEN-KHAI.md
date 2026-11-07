@@ -21615,3 +21615,73 @@ ca đỏ; ghi trên là hai chỗ xanh có lý do.
 **Tài liệu**: YCNV mục 2.6 + Phụ lục B; HDSD bảng vai trò + *Ai nhận thư khi hồ sơ đổi trạng thái*.
 
 **3107/3107 xanh.**
+
+## P297 — `0261` Bình luận trên hồ sơ, chặng 1/5: lược đồ + API ở `policy`
+
+Tính năng bình luận (yêu cầu `agents/comment_system_requirements.md`, kế hoạch `agents/KE-HOACH-BINH-LUAN.md`,
+mockup duyệt 07/11). Chặng này dựng phần máy chủ cốt lõi; thông báo (`0262`), tệp (`0263`), giao diện (`0264`) và
+demo/QA (`0265`) là bốn chặng sau. **Chưa có màn hình nào** — HDSD đồng bộ ở chặng giao diện, khi người dùng có thứ
+để dùng.
+
+**Ở `policy`, không service thứ 12**: quyền đọc/viết bình luận LÀ phạm vi hồ sơ (`assertPolicyInScope`, kể cả luật
+`da_qua_tbp`), và luật ấy đã ở đây; tách ra là hỏi chéo ở mọi lượt hỏi thay đổi mười lăm giây một lần, cộng ba danh
+sách gõ tay của `0252`. Ba bảng `pol.binh_luan` · `pol.binh_luan_cam_xuc` (migration `0128_binh_luan.sql`).
+
+**Nhắc tên nằm TRONG CHỮ, dạng `@{uuid}`** — không gửi kèm danh sách vị trí như đặc tả gợi ý. Hai thứ đi song song
+thì trôi: trình duyệt đếm UTF-16, máy chủ đếm code point, một emoji là lệch cả dải. Đọc danh sách người được nhắc RA
+TỪ chữ thì không có gì để lệch, và đổi tên chỉ đổi phần hiển thị (tên tra lúc đọc). Phần thuần —
+`chuanNoiDung` (NFC, `\r\n`), `demKyTu` (code point, dấu nhắc tính một), `kiemNoiDung`, `tachDoan` (liên kết CHỈ
+`http(s)://`), `trichDoan` — ở `@csbh/domain-policy/binh-luan.ts`, cùng lý do `tinh-nang.ts`: giao diện và máy chủ đọc
+cùng một trần.
+
+**Mốc tự cập nhật `stt_doi` + khoá theo hồ sơ.** Đường *"đổi gì sau mốc X"* dùng một số lấy từ sequence ở mọi lượt
+ghi (trigger `BEFORE INSERT OR UPDATE` — quên một câu UPDATE là thay đổi ấy không bao giờ tới người đang xem). Sequence
+một mình bỏ sót được: số 10 và 11 của hai transaction, 11 commit trước, lượt hỏi đặt mốc 11, 10 về sau không ai hỏi
+tới. Nên mọi lượt ghi của một hồ sơ đi qua `pg_advisory_xact_lock(hashtextextended(policy_id))` TRƯỚC khi lấy số:
+trong một hồ sơ thứ tự số = thứ tự commit. Đường trang lấy mốc TRƯỚC danh sách (lấy sau thì một dòng commit giữa hai
+câu nằm dưới mốc mà không có trong danh sách). Reply mới và cảm xúc đổi **chạm** dòng gốc (`SET id = id`) để nó lên
+đường hỏi với số mới; cảm xúc không đổi gì thì không chạm. `stt_doi` lúc tạo đặt ở trigger chứ không `DEFAULT
+currval(...)`: Postgres không hứa thứ tự tính mặc định giữa hai cột.
+
+**Ban lãnh đạo** bình luận được (06/11) nhưng không nhắc tên được và không nhận thông báo (07/11, giữ `0260`). Danh
+sách nhắc tên hỏi identity qua CHÍNH `users/mail-targets` — *"nhắc được ai"* và *"ai nhận được thông báo"* là một câu,
+luật `KHONG_NHAN_THONG_BAO` đã chốt ở đó; lọc lại ở `policy` là bản chép thứ hai. Sửa một bình luận cũ thì người đã
+nhắc từ trước được GIỮ dù nay hết hợp lệ — chỉ người MỚI thêm phải hợp lệ; thiếu vế ấy, bình luận thôi sửa được chỉ vì
+hồ sơ đổi Kế toán. **SEC-13** có danh sách `MIEN_BAN_LANH_DAO` (năm đường bình luận) kèm ca đối chiếu HAI chiều: mọi
+đường mở cho BLĐ phải nằm trong danh sách, và danh sách chỉ được mang đường `/policies/:id/binh-luan…`.
+
+**BẪY suýt dính — `@Roles(...MOT_HANG)` qua mặt SEC-13**: phép quét đọc vai trò từ CHUỖI trong ngoặc; viết qua một
+hằng thì nó thấy danh sách rỗng, và đúng ngoại lệ cần được nhìn thấy nhất lọt im lặng. Vai trò khai bằng chữ ở từng
+đường. Họ hàng: **`code: loi` qua một biến** — `tests/web/loi.test.tsx` chỉ thấy `code: '…'` viết bằng chữ, nên ba mã
+đầu tiên vô hình với nó và ca đòi *"mã trong `BANG_LOI` phải còn ở máy chủ"* đỏ. Viết mã bằng chữ ở từng nhánh.
+
+**Sự kiện đi khoá `binh_luan.*`, không `policy.*`**: mọi `policy.*` có `policyId` làm `reporting` tính lại hồ sơ. Audit
+nghe `#` nên vẫn ghi *ai, lúc nào* (`entity: binh_luan`, `targetLabel` = mã hồ sơ); nội dung đi trong `noiDungBinhLuan`
+cho `notification` dựng trích đoạn, và audit chỉ lưu `before`/`after`/`reason` nên không lưu nó. Sự kiện xoá không mang
+nội dung. `notification` CHƯA nghe `binh_luan.#` — chặng `0262`.
+
+**Gửi trùng**: `ma_gui uuid UNIQUE` do client sinh; gửi lại cùng mã trả đúng bình luận đã có; cùng mã ở hồ sơ khác hay
+của người khác → `BINH_LUAN_TRUNG_MA`, không lộ bình luận kia. Gateway: xô `binhLuan` 30/phút (gửi + sửa) và
+`timNguoiNhac` 60/phút; `ruleFor` xuất ra để ca kiểm hỏi thẳng.
+
+**Ca kiểm**: `packages/domain-policy/src/binh-luan.test.ts` (phần thuần) và `tests/http/binh-luan.test.ts` (Postgres
+thật, bốn service): nội dung · phạm vi ở MỌI đường với từng vai trò ngoài phạm vi · Kế toán trước/sau TBP ký · BLĐ ·
+Quản trị · mất phạm vi giữa chừng · id chéo hồ sơ · mọi trạng thái · reply một cấp (cả ở CSDL) · sửa/xoá/tác giả ·
+nội dung đã xoá không rời máy chủ · gửi trùng (tuần tự và song song) · cảm xúc · phân trang 45 gốc / 25 reply · hỏi
+thay đổi từng loại · 30 lượt ghi song song hỏi xen kẽ · nhắc tên (danh sách, lọc NFD, không hợp lệ, quá 20, đổi tên,
+giữ người cũ khi sửa) · Nháp xoá kéo bình luận đi · phiên bản mới trống · `internal.controller` không mang bình luận
+· giới hạn tần suất.
+
+**Phá lại mười một lượt, mười một có ca đỏ** (bỏ chốt phạm vi → 5 đỏ; KT nhắc được trước khi ký → 2; bỏ khoá → 1;
+bỏ tra mã gửi → 3; bỏ chạm gốc → 1; bỏ kiểm người nhắc → 2; bỏ kiểm tác giả → 1; lộ nội dung đã xoá → 2; bỏ vế giữ
+người cũ → 1; chạm khi cảm xúc không đổi → 1; gỡ BLĐ khỏi một đường → 2, trong đó SEC-13). **Một chỗ phải nói thật**:
+lượt *bỏ khoá theo hồ sơ* đỏ ở ca gửi trùng song song, còn ca *30 lượt song song không bỏ sót* VẪN XANH — khe đua
+giữa lấy số và commit hẹp tới mức một lượt chạy không lộ ra. Chốt chống bỏ sót khi hỏi thay đổi đang được canh gián
+tiếp; chưa có ca nào bắt trúng chính nó. **Bịt bằng một ca XÁC ĐỊNH**: một kết nối giữ khoá của hồ sơ cùng một dòng
+CHƯA commit (đúng một lượt ghi đang dở), lượt ghi thứ hai qua service phải đợi; bỏ khoá thì lượt thứ hai commit trước,
+lượt hỏi đặt mốc vượt qua dòng kia và nó mất hẳn. Phá lại lượt *bỏ khoá* lần hai: ca này đỏ.
+
+**Tài liệu**: YCNV mục 2.6 (ngoại lệ bình luận của Ban lãnh đạo) + mục 9.4 mới + Phụ lục B; số migration ở `CLAUDE.md`,
+`KIEN-TRUC` (hai chỗ — một chỗ in đậm `**78**` mà phép thay đầu không khớp) và `02-CHAY-DEMO`. HDSD để chặng giao diện.
+
+**3185/3185 xanh.**

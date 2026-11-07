@@ -14,6 +14,8 @@ import { NgungHopTacController } from './ngung-hop-tac.controller.js';
 import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
 import { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';
+import { BinhLuanController } from './binh-luan/binh-luan.controller.js';
+import { BinhLuanService } from './binh-luan/binh-luan.service.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -49,6 +51,7 @@ class HealthController {
     PolicyInternalController,
     BanGiaoController,
     NgungHopTacController,
+    BinhLuanController,
   ],
   providers: [
     Db,
@@ -59,6 +62,7 @@ class HealthController {
     SlaConfigService,
     PolicyOutbox,
     CatalogImpactConsumer,
+    BinhLuanService,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

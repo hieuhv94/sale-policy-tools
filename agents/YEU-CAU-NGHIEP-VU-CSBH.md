@@ -163,6 +163,10 @@ Một người. Toàn quyền đọc **dữ liệu nghiệp vụ** `sửa 21/08`
   loại thông báo (kể cả loại không gắn với hồ sơ). Hai lá thư của chính tài khoản (kích hoạt, đặt lại
   mật khẩu) vẫn gửi: đó là đường để có mật khẩu, không phải thông báo nghiệp vụ.
 - Ký bản cứng là thao tác giấy do Sale Admin trình lên — phần mềm không có bước nào cho việc này.
+- **Ngoại lệ có chủ ý: BÌNH LUẬN** `mới 07/11` — Ban lãnh đạo viết, trả lời, sửa và xoá bình luận của
+  chính mình, thả cảm xúc trên mọi hồ sơ (mục 9.4). Bình luận không chạm dữ liệu nào in ra tờ giấy
+  khách hàng ký, nên câu *"không có thao tác nào trên hồ sơ"* vẫn đúng với hồ sơ. Vế *không nhận
+  thông báo* vẫn giữ: Ban lãnh đạo **không được nhắc tên** và không nhận thông báo bình luận nào.
 
 ### 2.7. Quản trị hệ thống
 
@@ -1283,6 +1287,32 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 > `sửa 16/08` đó là cách lọc theo địa bàn DUY NHẤT còn lại, vì trường Tỉnh/thành đã bỏ.
 
 ---
+
+### 9.4. Bình luận trên hồ sơ `mới 07/11`
+
+Đặc tả đầy đủ: `agents/comment_system_requirements.md`; mockup đã duyệt 07/11. Những luật định hình
+dữ liệu và quyền:
+
+- **Chỉ trên hồ sơ CSBH**, mỗi phiên bản một luồng riêng — lập phiên bản mới thì luồng mới **trống**.
+  Bình luận được ở **mọi trạng thái**, kể cả đã kết thúc. Bản Nháp bị xoá hẳn thì bình luận mất theo.
+- **Quyền = phạm vi hồ sơ**: ai mở được hồ sơ thì đọc, viết, trả lời, thả cảm xúc. Kế toán chỉ thấy
+  luồng khi đã tới lượt (sau khi TBP ký) và lúc ấy thấy **toàn bộ** trao đổi trước đó. Mất phạm vi
+  (đổi người duyệt, đổi TDV) là thôi thấy ngay. **Quản trị hệ thống không thấy.** **Ban lãnh đạo
+  bình luận được** (mục 2.6).
+- **Chữ thuần**: xuống dòng, nhắc tên `@`, địa chỉ `http(s)://` tự thành liên kết; không định dạng,
+  không chèn HTML. Tối đa 5.000 ký tự, 20 người được nhắc.
+- **Reply một cấp.** Gốc đã xoá thì không trả lời được nữa; reply cũ giữ nguyên.
+- **Chỉ tác giả sửa và xoá**, không ai xoá hộ, không khôi phục. Xoá là **xoá mềm**: dòng giữ chỗ với
+  câu *"Bình luận này đã bị xoá"*, nội dung gốc không ai xem lại được trên giao diện. Sửa chỉ hiện
+  nhãn *Đã sửa*, không lưu lịch sử nội dung.
+- **Nhắc tên chỉ được người đứng tên trên hồ sơ** — TDV, TBP, Kế toán (khi đã tới lượt), Sale Admin —
+  trừ chính mình, tài khoản đang hoạt động. **Không bao giờ Ban lãnh đạo** (theo luật 2.6).
+- **Cảm xúc**: sáu loại cố định, mỗi người một lần mỗi loại trên một bình luận.
+- **Không lưu nháp**: tải lại trang thì chữ đang gõ mất (trình duyệt hỏi lại trước khi rời trang).
+- **Tự cập nhật ≤ 30 giây**, không cần tải lại trang.
+- **Thông báo chỉ trên chuông, không gửi thư** — ngoại lệ có chủ ý của mục 9.1b; tính là **việc**.
+  *(Chặng `0262`.)* Tệp đính kèm *(chặng `0263`)*.
+- Nhật ký ghi *ai, lúc nào* tạo, sửa, xoá bình luận — **không ghi nội dung**.
 
 ## 10. Nhật ký, phiên bản và bảo mật
 
@@ -3016,6 +3046,15 @@ cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của m�
 không"*, trả lời *không*, khách hàng chốt *"giữ nguyên, đảm bảo ban lãnh đạo sẽ không nhận bất kỳ thông
 báo nào"*. Trước đó đúng tình cờ (vai trò này không đứng tên ô nào trên hồ sơ); giờ là luật, có chốt
 chặn. Xem mục 2.6.
+
+**BÌNH LUẬN TRÊN HỒ SƠ** `mới 06/11 — 07/11` — *"trao đổi liên tục"* ngay trên hồ sơ. Chốt khi rà
+đặc tả: chỉ hồ sơ CSBH · chậm nhất **30 giây** là đủ (hỏi định kỳ, không đẩy) · không kiểm duyệt, chỉ
+tác giả xoá · không cần hỏi người chưa tới lượt, nên quyền = phạm vi hồ sơ · thông báo **chỉ chuông,
+tính là việc**, câu *"… đã nhắc đến bạn trong một bình luận"* / *"… đã phản hồi một bình luận của bạn"*,
+tự đọc khi bình luận hiện trên màn hình · chữ thuần + nhắc tên + liên kết bấm được · có tệp đính kèm,
+xoá bình luận thì dọn tệp · lý do trả về để riêng · phiên bản mới luồng trống · chỉ nhãn *Đã sửa* ·
+giao một lần. **Ban lãnh đạo bình luận được** (06/11) nhưng **không được nhắc tên, không nhận thông
+báo** (07/11 — giữ luật *"không nhận bất kỳ thông báo nào"*). Mockup duyệt 07/11. Xem mục 9.4.
 
 **TRANG VẬN HÀNH** `mới 05/11 — 06/11` — *"đưa mọi thao tác vận hành từ command line lên giao diện web
 của tài khoản admin, trong một trang riêng biệt gọi là vận hành"*. Mockup duyệt 05/11. Chốt khi hỏi:

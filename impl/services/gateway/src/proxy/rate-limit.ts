@@ -47,6 +47,21 @@ export const RULES = {
     limit: Number(process.env.RATE_EXPORT_LIMIT ?? 10),
     windowSec: Number(process.env.RATE_EXPORT_WINDOW_SEC ?? 300),
   } satisfies Rule,
+  /**
+   * Gửi và sửa bình luận (`0261`, yêu cầu §7.11). Ba mươi một phút là trao đổi
+   * dồn dập vẫn thoải mái; một vòng lặp gửi rác thì không.
+   */
+  binhLuan: {
+    name: 'binh-luan',
+    limit: Number(process.env.RATE_BINH_LUAN_LIMIT ?? 30),
+    windowSec: Number(process.env.RATE_BINH_LUAN_WINDOW_SEC ?? 60),
+  } satisfies Rule,
+  /** Tìm người để nhắc tên — gõ từng phím có chờ 250ms nên sáu mươi là dư. */
+  timNguoiNhac: {
+    name: 'tim-nguoi-nhac',
+    limit: Number(process.env.RATE_TIM_NHAC_LIMIT ?? 60),
+    windowSec: Number(process.env.RATE_TIM_NHAC_WINDOW_SEC ?? 60),
+  } satisfies Rule,
 };
 
 export type Verdict = { allowed: boolean; remaining: number; retryAfterSec: number; rule: Rule };

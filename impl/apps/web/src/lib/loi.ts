@@ -393,6 +393,39 @@ export const BANG_LOI: Record<string, Muc> = {
     cau: 'Chỉ trình dược viên đang phụ trách hồ sơ này mới sửa hoặc xoá được.',
   },
   NOT_OWNING_TDV: { dang: 'hop-thoai', tuMayChu: true },
+
+  // --- Bình luận trên hồ sơ (`0261`) -----------------------------------------
+  // Lỗi của Ô SOẠN nằm ngay dưới ô (`o-nhap`, ô `noiDung`), và chữ đang gõ giữ
+  // nguyên (yêu cầu 3.6). Lỗi của một THAO TÁC trên bình luận có sẵn (cảm xúc,
+  // xoá) ra thanh nổi — nó không thuộc về ô nào.
+  BINH_LUAN_RONG: { dang: 'o-nhap', truong: 'noiDung', cau: 'Bình luận không được để trống.' },
+  BINH_LUAN_QUA_DAI: { dang: 'o-nhap', truong: 'noiDung', tuMayChu: true },
+  QUA_NHIEU_NHAC_TEN: { dang: 'o-nhap', truong: 'noiDung', tuMayChu: true },
+  NHAC_TEN_KHONG_HOP_LE: {
+    dang: 'o-nhap',
+    truong: 'noiDung',
+    cau: 'Có người bạn nhắc tên không còn ở trên hồ sơ này. Xoá tên người đó rồi gửi lại.',
+  },
+  PHAN_HOI_LONG_NHAU: { dang: 'o-nhap', truong: 'noiDung', tuMayChu: true },
+  BINH_LUAN_GOC_DA_XOA: {
+    dang: 'o-nhap',
+    truong: 'noiDung',
+    cau: 'Bình luận bạn đang trả lời vừa bị xoá. Nội dung bạn gõ vẫn còn — chép lại nếu cần, rồi huỷ.',
+  },
+  BINH_LUAN_DA_XOA: {
+    dang: 'thanh-noi',
+    cau: 'Bình luận này đã bị xoá nên không sửa hay thả cảm xúc được nữa.',
+  },
+  BINH_LUAN_KHONG_TIM_THAY: {
+    dang: 'thanh-noi',
+    cau: 'Không tìm thấy bình luận này trên hồ sơ. Tải lại trang để xem bản mới nhất.',
+  },
+  KHONG_PHAI_TAC_GIA: { dang: 'thanh-noi', cau: 'Chỉ người viết bình luận mới sửa hoặc xoá được.' },
+  CAM_XUC_KHONG_HOP_LE: { dang: 'thanh-noi', cau: 'Cảm xúc này không có trong bộ cảm xúc.' },
+  BINH_LUAN_TRUNG_MA: {
+    dang: 'thanh-noi',
+    cau: 'Không gửi được bình luận. Tải lại trang rồi gửi lại.',
+  },
   ONLY_EDITABLE_DELETABLE: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_LOCKED: {
     dang: 'hop-thoai',

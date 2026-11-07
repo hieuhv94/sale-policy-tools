@@ -17,3 +17,5 @@ export { UPSTREAMS, resolveUpstream } from './proxy/routes.js';
 export { allowedOrigins } from './infra/cors.js';
 export { DeniedPublisher } from './proxy/denied.publisher.js';
 export { Readiness } from './infra/readiness.js';
+// `0261` — bảng "đường nào đếm vào xô nào", để ca kiểm hỏi thẳng mà không phải gõ 31 lượt gửi.
+export { ruleFor } from './proxy/proxy.middleware.js';
