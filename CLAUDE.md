@@ -103,14 +103,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-**ĐANG LÀM DỞ — tính năng BÌNH LUẬN trên hồ sơ CSBH** (chưa có dòng mã sản phẩm nào). Yêu cầu đã duyệt ở
+**XONG — tính năng BÌNH LUẬN trên hồ sơ CSBH** (P297–P301, `0261`–`0265`). Yêu cầu đã duyệt ở
 `agents/comment_system_requirements.md`; kế hoạch + trạng thái + quyết định chốt thêm ở **`agents/KE-HOACH-BINH-LUAN.md`**
 (đọc phần đầu trước). **Mockup bản 2 ĐÃ DUYỆT 07/11** (https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9, nguồn
 `artifacts/binh-luan-mockup.html`) và tài liệu yêu cầu đã chép đủ quyết định. Chặng P297–P301 (`0261`–`0265`);
 **P297 XONG** (lược đồ + API ở `policy`), **P298 XONG** (thông báo chuông — ngoại lệ có chủ ý của `0096`, không thư;
 kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm — mục đích `BINH_LUAN`, quyền đọc tệp hỏi
 `policy`, 404 không 403, dọn ở *Dọn dữ liệu* bằng con trỏ), **P300 XONG** (giao diện `components/binh-luan/`, phần thuần
-`lib/binh-luan.ts`; `di()` hỏi lại khi rời trang còn chữ — `dangKyChanRoi`), 3289/3289 xanh. Kế tiếp P301 demo + QA ảnh thật.
+`lib/binh-luan.ts`; `di()` hỏi lại khi rời trang còn chữ — `dangKyChanRoi`), 3289/3289 xanh. **P301 XONG** (bình luận mẫu ở `make demo-mau`; QA 36 ảnh thật qua
+Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
 Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`

@@ -32,6 +32,8 @@
  */
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { crc32, deflateSync } from 'node:zlib';
 import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
 import { MAU_MAC_DINH } from '../services/document/src/contracts/bootstrap-mau.js';
 
@@ -1670,6 +1672,7 @@ async function main(): Promise<void> {
     'PATCH',
   );
 
+  const bl = await binhLuanMau();
   const lech = await choDauVet();
   const tb = await donThongBao();
 
@@ -1680,8 +1683,199 @@ async function main(): Promise<void> {
       // KHÔNG còn đếm mẫu (`0165`): bộ nạp thôi tạo mẫu nào, nên một con số ở đây
       // sẽ nói về thứ nó không làm.
       `${SO_THU_HONG} thư hỏng, ` +
-      `${lech} hồ sơ cần cập nhật, ${tb.tong} thông báo (${tb.chuaDoc} chưa đọc)`,
+      `${lech} hồ sơ cần cập nhật, ${tb.tong} thông báo (${tb.chuaDoc} chưa đọc), ` +
+      `${bl} bình luận mẫu`,
   );
+}
+
+// --- Bình luận mẫu (`0265`) -----------------------------------------------------
+
+/** Ảnh PNG thật, vẽ bằng tay: một "bảng tính" xám nhạt có khối xanh — đủ để ô xem nhỏ trông như ảnh chụp. */
+function anhMau(rong = 264, cao = 184): Buffer {
+  const dong: Buffer[] = [];
+  for (let y = 0; y < cao; y++) {
+    const d = Buffer.alloc(1 + rong * 3);
+    for (let x = 0; x < rong; x++) {
+      let [r, g, b] = [244, 246, 249];
+      if (y > 20 && y < 34 && x > 20 && x < rong - 20) [r, g, b] = [154, 168, 187];
+      else if ((y - 48) % 22 < 9 && y > 48 && y < 140 && x > 20 && x < rong - 40) [r, g, b] = [205, 213, 225];
+      else if (y > 148 && y < 172 && x > 20 && x < 110) [r, g, b] = [11, 77, 163];
+      d[1 + x * 3] = r;
+      d[2 + x * 3] = g;
+      d[3 + x * 3] = b;
+    }
+    dong.push(d);
+  }
+  const khuc = (loai: string, du: Buffer) => {
+    const l = Buffer.alloc(4);
+    l.writeUInt32BE(du.length);
+    const t = Buffer.concat([Buffer.from(loai, 'latin1'), du]);
+    const c = Buffer.alloc(4);
+    c.writeUInt32BE(crc32(t));
+    return Buffer.concat([l, t, c]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(rong, 0);
+  ihdr.writeUInt32BE(cao, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    khuc('IHDR', ihdr),
+    khuc('IDAT', deflateSync(Buffer.concat(dong))),
+    khuc('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** PDF một trang tối thiểu nhưng HỢP LỆ — trình xem mở được, không phải chỉ qua được phép kiểm byte đầu. */
+function pdfMau(dongChu: string): Buffer {
+  const noi = `BT /F1 14 Tf 72 760 Td (${dongChu}) Tj ET`;
+  const vat = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${noi.length} >>\nstream\n${noi}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let ra = '%PDF-1.4\n';
+  const vt: number[] = [];
+  vat.forEach((v, i) => {
+    vt.push(ra.length);
+    ra += `${i + 1} 0 obj\n${v}\nendobj\n`;
+  });
+  const xref = ra.length;
+  ra += `xref\n0 ${vat.length + 1}\n0000000000 65535 f \n`;
+  for (const o of vt) ra += `${String(o).padStart(10, '0')} 00000 n \n`;
+  ra += `trailer\n<< /Size ${vat.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(ra, 'latin1');
+}
+
+/**
+ * Bình luận mẫu (`0265`) — đủ để người xem demo thấy mọi dạng của khối: nhắc tên, liên
+ * kết, phản hồi, cảm xúc, tệp (ảnh + PDF), một bình luận đã xoá còn phản hồi, một bình
+ * luận đã sửa, và một luồng DÀI (27 phản hồi) cho nút *Xem N phản hồi trước*.
+ *
+ * Đi ĐƯỜNG API THẬT (tạo, trả lời, sửa, xoá, thả cảm xúc, tải tệp) — chính đường người
+ * dùng đi, nên thông báo chuông của người được nhắc cũng sinh ra thật. Chỉ MỐC THỜI GIAN
+ * vặn bằng SQL (không API nào đặt được giờ tạo), có `bo-nap-demo.test.ts` canh tên cột.
+ *
+ * Hồ sơ chọn: một hồ sơ của tdv01 ĐÃ QUA TBP (Kế toán thấy và nhắc được) còn trong luồng,
+ * mới nhất — để "Hôm qua", "2 giờ trước" khớp với tiến trình duyệt của nó.
+ */
+async function binhLuanMau(): Promise<number> {
+  for (const u of ['bld01']) if (!tok[u]) await dangNhap(u);
+  const db = moKetNoi();
+  await db.connect();
+  try {
+    const hs = (
+      await db.query<{ id: string; code: string }>(
+        `SELECT id, code FROM pol.policy
+          WHERE status IN ('CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2') AND da_qua_tbp
+            AND tdv_user_id = $1 AND tbp_user_id = $2 AND ke_toan_user_id = $3
+          ORDER BY created_at DESC LIMIT 1`,
+        [idNguoiDung['tdv01'], idNguoiDung['tbp01'], idNguoiDung['kt01']],
+      )
+    ).rows[0];
+    if (!hs) throw new Error('bình luận mẫu: không tìm thấy hồ sơ nào của tdv01 đã qua TBP');
+    const p = hs.id;
+    const n = (u: string) => `@{${idNguoiDung[u]!}}`;
+    const tep = async (ai: string, ten: string, buf: Buffer, loai: string) => {
+      const f = new FormData();
+      f.append('file', new Blob([buf], { type: loai }), ten);
+      return (
+        await guiTep<{ id: string }>(
+          `/files?ownerKind=POLICY&ownerId=${p}&purpose=BINH_LUAN&fileName=${encodeURIComponent(ten)}`,
+          ai,
+          f,
+        )
+      ).id;
+    };
+    type Ve = { binhLuan: { id: string } };
+    const viet = async (ai: string, noiDung: string, them: { parentId?: string; tep?: string[] } = {}) =>
+      (await goi<Ve>(`/policies/${p}/binh-luan`, ai, { maGui: randomUUID(), noiDung, ...them })).binhLuan.id;
+    const tha = (ai: string, bl: string, loai: string) => goi(`/policies/${p}/binh-luan/${bl}/cam-xuc/${loai}`, ai, {}, 'PUT');
+    // [id, mốc lùi tính bằng phút]
+    const moc: [string, number][] = [];
+
+    const a = await viet(
+      'tdv01',
+      'Em đã gửi duyệt hồ sơ. Dòng Sữa Nutricare Gold 900g tỷ lệ CK vượt QĐCK do khách cam kết sản lượng 600 thùng/quý. Biên bản cam kết em đính kèm bên dưới.',
+      { tep: [await tep('tdv01', 'Bien-ban-cam-ket-san-luong-Q4.pdf', pdfMau('Bien ban cam ket san luong Q4'), 'application/pdf')] },
+    );
+    moc.push([a, 26 * 60]);
+    await tha('tbp01', a, 'XEM');
+    await tha('kt01', a, 'XEM');
+
+    const b = await viet(
+      'tbp01',
+      `${n('kt01')} anh xem giúp dòng Gold 900g trước khi tiếp nhận nhé. Chị đã ký vì có cam kết sản lượng, nhưng mức này là cao nhất khu vực.`,
+    );
+    moc.push([b, 22 * 60]);
+    await goi(`/policies/${p}/binh-luan/${b}`, 'tbp01', {
+      noiDung: `${n('kt01')} anh xem giúp dòng Gold 900g trước khi tiếp nhận nhé. Chị đã ký vì có cam kết sản lượng, nhưng mức chiết khấu này là cao nhất khu vực.`,
+    }, 'PATCH');
+    await tha('tdv01', b, 'THICH');
+    const b1 = await viet(
+      'kt01',
+      'Em đã đối chiếu: giá thu về khớp bảng giá. Cần bổ sung bảng công nợ 3 tháng gần nhất của khách: https://nutricare.sharepoint.com/sites/ketoan/cong-no',
+      { parentId: b },
+    );
+    moc.push([b1, 3 * 60]);
+    const b2 = await viet('tdv01', 'Em gửi ảnh chụp bảng công nợ từ phần mềm kế toán ạ.', {
+      parentId: b,
+      tep: [await tep('tdv01', 'cong-no-3-thang.png', anhMau(), 'image/png')],
+    });
+    moc.push([b2, 2 * 60]);
+    await tha('kt01', b2, 'THICH');
+    await tha('tbp01', b2, 'THICH');
+
+    const c = await viet('bld01', 'Mức này cần trình lại, anh sẽ trao đổi riêng.');
+    moc.push([c, 90]);
+    const c1 = await viet('tbp01', 'Dạ em nhận, sẽ trao đổi lại với khách về sản lượng cam kết quý sau.', { parentId: c });
+    moc.push([c1, 70]);
+    await goi(`/policies/${p}/binh-luan/${c}`, 'bld01', undefined, 'DELETE');
+
+    const d = await viet('tbp01', 'Mở luồng riêng để thống nhất sản lượng cam kết của khách trước khi Kế toán tiếp nhận.');
+    moc.push([d, 20 * 60]);
+    const cau = [
+      'Em gửi bảng sản lượng 3 tháng gần nhất.',
+      'Tháng 9 thiếu số liệu kho Hà Đông, em kiểm lại giúp anh.',
+      'Chị thấy tháng 10 tăng mạnh, có phải do khuyến mãi không?',
+      'Dạ đúng, tháng 10 có chương trình mua 10 tặng 1.',
+      'Em ghi nhận để tính vào bản cứng.',
+      'Vậy tỷ lệ thực tế sau khuyến mãi là bao nhiêu?',
+      'Khoảng 13,1% nếu tính cả hàng tặng ạ.',
+      'Mức này chấp nhận được.',
+      'Em cập nhật lại ghi chú dòng Gold 900g nhé.',
+    ];
+    const ai = ['tdv01', 'kt01', 'tbp01'];
+    for (let i = 0; i < 27; i++) {
+      const r = await viet(ai[i % 3]!, cau[i % cau.length]!, { parentId: d });
+      moc.push([r, 20 * 60 - (i + 1) * 40]);
+    }
+
+    const e = await viet('kt01', `Đã đủ chứng từ. ${n('tdv01')} em tiếp nhận L1 trong chiều nay.`);
+    moc.push([e, 12]);
+    await tha('tdv01', e, 'MUNG');
+    await tha('tbp01', e, 'THICH');
+    await tha('bld01', e, 'THICH');
+
+    /*
+     * Vặn mốc: tạo theo thứ tự rồi lùi từng cái. `stt` (thứ tự hiển thị) đã đúng từ lúc
+     * tạo; chỉ giờ hiển thị đổi. `sua_luc` của bình luận đã sửa lùi theo cho khỏi đứng
+     * TRƯỚC giờ tạo.
+     */
+    for (const [id, phut] of moc) {
+      await db.query(
+        `UPDATE pol.binh_luan SET tao_luc = now() - make_interval(mins => $2),
+                sua_luc = CASE WHEN sua_luc IS NULL THEN NULL ELSE now() - make_interval(mins => $2 - 15) END
+          WHERE id = $1`,
+        [id, phut],
+      );
+    }
+    return moc.length;
+  } finally {
+    await db.end();
+  }
 }
 
 /**

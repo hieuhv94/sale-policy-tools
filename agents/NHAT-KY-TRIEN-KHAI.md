@@ -21866,3 +21866,51 @@ lại lần hai: đỏ.
 chặng `0265`.
 
 **3289/3289 xanh.**
+
+## P301 — `0265` Bình luận, chặng 5/5: dữ liệu mẫu, QA bằng ảnh thật, đo tải
+
+**Bình luận mẫu** (`binhLuanMau` ở `seed-demo.ts`): 35 bình luận trên một hồ sơ của tdv01 đã qua TBP (Kế toán thấy và
+nhắc được), đi **đường API thật** — tạo, trả lời, sửa, xoá, thả cảm xúc, tải tệp — nên thông báo chuông của người được
+nhắc sinh ra thật. Đủ mọi dạng của khối: nhắc tên, liên kết, PDF và ảnh (PNG thật vẽ bằng `zlib`, PDF một trang hợp lệ —
+không phải chỉ qua được phép kiểm byte đầu), một bình luận đã sửa, một bình luận của Ban lãnh đạo đã xoá còn phản hồi,
+một luồng 27 phản hồi. Chỉ MỐC THỜI GIAN vặn bằng SQL.
+
+**Lỗi của chính bước nạp, và ca kiểm vá chỗ hở**: câu chọn hồ sơ viết `ORDER BY updated_at` — `pol.policy` không có
+cột ấy — và `make demo-mau` chết ở cuối, sau ~6 phút. `bo-nap-demo.test.ts` chỉ quét câu GHI (`UPDATE … SET`), nên một
+câu ĐỌC sai cột lọt qua dù nó giết bộ nạp y như vậy. Thêm vế quét `ORDER BY` của câu đọc MỘT bảng (không `JOIN` — câu
+nhiều bảng thì không biết cột thuộc bảng nào, đoán là thêm báo nhầm). Phá lại (trả `updated_at`): đỏ, nêu đúng dòng.
+
+**QA bằng ảnh thật** trên chồng demo (`make demo` + `make demo-mau`): Chrome không giao diện lái qua CDP (Python +
+`websocket-client`), đăng nhập bằng `/api/auth/login` rồi đặt phiên vào `localStorage`, 36 ảnh = 3 khổ (1440×900 ·
+768×1024 · 390×844, hai khổ sau giả lập cảm ứng) × sáng/tối × 6 cảnh: luồng · luồng mở thêm phản hồi · gợi ý nhắc tên ·
+menu thao tác · hộp xác nhận xoá · chuông của kt01 (người được nhắc). Ảnh ở `workspace/p301-anh/` (ngoài git). Đối
+chiếu mockup bản 2: khớp bố cục, thứ bậc, màu, nhắc tên, tệp, phản hồi thụt có đường nối, luồng dài *Xem 20 phản hồi
+trước (còn 24)*, ô soạn dính đáy ở 390, trích đoạn in nghiêng trong chuông.
+
+Ba số đo, không phải nhìn bằng mắt:
+
+- **Không khổ nào cuộn ngang**: `scrollWidth − clientWidth` = 0 ở cả trang lẫn khối, cả 36 ảnh (bài học P295 — ảnh
+  chụp không lộ ra trang cuộn ngang).
+- **Hộp *rời trang?* của trình duyệt chạy thật**: kịch bản treo ở lượt đầu đúng vì nó — ô soạn còn chữ `@K` của cảnh gợi
+  ý, lượt chuyển trang bị chặn. Cho CDP tự chấp nhận rồi đếm: 6 lần, đúng số lượt rời trang khi ô còn chữ.
+- **Ẩn/hiện nút thao tác theo rê chuột**: Chrome không giao diện báo `hover: none` cả ở 1440 và không giả lập được
+  `hover` (`Emulation.setEmulatedMedia` bỏ qua), nên ảnh nào cũng có nút hiện sẵn. Đo bằng cách tạm gỡ khối
+  `@media (hover: none)` của bình luận khỏi CSSOM ngay trong trang: không rê → `opacity` 0, rê → 1, chuột ở ngoài nhưng
+  tiêu điểm bàn phím trong bình luận → 1. Lượt đo đầu ra 1 ở cả ba vì Chrome không giao diện **đứng hình hiệu ứng
+  chuyển** (`transition`) — tắt hiệu ứng thì ra đúng; không phải lỗi của trang.
+
+Ảnh khối ở 390 chụp "vượt khung nhìn" cho thấy ô soạn đè lên bình luận đầu — hệ quả của `position: sticky` khi chụp cả
+khối một lần; cuộn thật thì ô nằm ở đáy màn hình và nội dung trượt dưới nó, đúng chốt mockup.
+
+**Đo tải nhịp hỏi** (gateway thật, hồ sơ 35 bình luận): `thay-doi` khi không có gì đổi trả **48 byte, trung bình 2,9ms,
+chậm nhất 3,4ms** qua 60 lượt liền, không lượt nào bị chặn tần suất (luật `binhLuan` chỉ áp lượt GHI). Trang đầu 5,3KB,
+6,7ms. Một trang mở hỏi 4 lượt/phút → 50 người cùng mở ≈ 3,3 lượt/giây.
+
+**Tự chấm theo thang 100 của tài liệu thiết kế** (chấm trên ảnh thật, thận trọng): thứ bậc 13/15 · chữ 13/15 · bố cục
+17/20 · màu 14/15 · khoảng cách 9/10 · tương tác 8/10 · đáp ứng khổ 9/10 (đo được không tràn) · trợ năng 4/5 (chưa đọc
+bằng trình đọc màn hình thật) — **87**. Chỗ trừ: hàng nút cảm xúc rỗng (mặt cười) lặp ở mọi bình luận làm luồng dài hơi
+dày; thanh tải tệp chạy liên tục thay vì phần trăm (`fetch` không báo tiến trình — P300).
+
+**Tính năng bình luận xong (`0261`–`0265`).**
+
+**3290/3290 xanh.**

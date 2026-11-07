@@ -70,6 +70,27 @@ function cotTrongUpdate(ma: string): { bang: string; cot: string }[] {
   return ra;
 }
 
+/**
+ * `0265` — cột trong `ORDER BY` của câu đọc MỘT bảng (không `JOIN`).
+ *
+ * Bình luận mẫu của `0265` chọn hồ sơ bằng `ORDER BY updated_at` — cột không có trên
+ * `pol.policy` — và lỗi chỉ lộ ra ở `make demo-mau` thật, vì vế trên chỉ quét câu GHI.
+ * Một câu đọc sai cột cũng giết bộ nạp y như một câu ghi sai. Hẹp có chủ ý: câu nhiều
+ * bảng thì tên cột có thể thuộc bảng nào cũng được, và đoán là thêm báo nhầm.
+ */
+function cotTrongOrderBy(ma: string): { bang: string; cot: string }[] {
+  const ra: { bang: string; cot: string }[] = [];
+  for (const cau of ma.matchAll(/`([^`]*)`/g)) {
+    const sql = cau[1]!;
+    if (/\bJOIN\b/i.test(sql)) continue;
+    const tu = [...sql.matchAll(/\bFROM\s+(\w+)\.(\w+)/g)];
+    if (tu.length !== 1) continue;
+    const ob = /ORDER BY\s+([a-z_][a-z0-9_]*)/.exec(sql);
+    if (ob) ra.push({ bang: `${tu[0]![1]}.${tu[0]![2]}`, cot: ob[1]! });
+  }
+  return ra;
+}
+
 describe('`0180` bộ nạp demo và lược đồ nói cùng một thứ tiếng', () => {
   it('mọi cột mà bộ nạp GHI vào đều có thật trong CSDL', async () => {
     const co = await db.query<{ table_schema: string; table_name: string; column_name: string }>(
@@ -98,6 +119,23 @@ describe('`0180` bộ nạp demo và lược đồ nói cùng một thứ tiến
      */
     expect(daQuet, 'không rút được cột nào — phép quét hỏng, không phải bộ nạp sạch')
       .toBeGreaterThan(5);
+    expect(sai, `\ncột không có trong lược đồ:\n${sai.join('\n')}\n`).toEqual([]);
+  });
+
+  it('`0265` cột trong `ORDER BY` của câu đọc một bảng cũng phải có thật', async () => {
+    const co = await db.query<{ table_schema: string; table_name: string; column_name: string }>(
+      `SELECT table_schema, table_name, column_name FROM information_schema.columns`,
+    );
+    const that = new Set(co.rows.map((r) => `${r.table_schema}.${r.table_name}.${r.column_name}`));
+    const sai: string[] = [];
+    let daQuet = 0;
+    for (const tep of NGUON) {
+      for (const { bang, cot } of cotTrongOrderBy(readFileSync(tep, 'utf8'))) {
+        daQuet += 1;
+        if (!that.has(`${bang}.${cot}`)) sai.push(`${tep}: ${bang} ORDER BY ${cot}`);
+      }
+    }
+    expect(daQuet, 'không rút được câu nào — phép quét hỏng').toBeGreaterThan(0);
     expect(sai, `\ncột không có trong lược đồ:\n${sai.join('\n')}\n`).toEqual([]);
   });
 

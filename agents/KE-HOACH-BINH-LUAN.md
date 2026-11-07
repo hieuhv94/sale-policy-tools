@@ -6,7 +6,7 @@
 > **P298 (`0262`) XONG 07/11** — thông báo chuông, kiểm quyền lúc đọc, tự đọc theo bình luận, 3207/3207 xanh.
 > **P299 (`0263`) XONG 07/11** — tệp đính kèm: mục đích `BINH_LUAN`, quyền đọc hỏi `policy`, dọn ở *Dọn dữ liệu*.
 > **P300 (`0264`) XONG 07/11** — giao diện theo mockup bản 2; QA ảnh thật để P301.
-> **Kế tiếp: P301 (`0265`) demo, tài liệu, QA hình ảnh.**
+> **P301 (`0265`) XONG 07/11** — bình luận mẫu ở `make demo-mau`, QA 36 ảnh thật, đo tải. **TÍNH NĂNG XONG.**
 > Lệch so với kế hoạch: nhắc tên lưu TRONG CHỮ dạng `@{uuid}` (không có bảng `binh_luan_nhac`, không gửi vị trí);
 > tệp đính kèm chưa có ở P297 (để P299 như kế hoạch). Xem nhật ký P297.
 >
