@@ -15,6 +15,7 @@ import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
 import { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';
 import { BinhLuanController } from './binh-luan/binh-luan.controller.js';
+import { BinhLuanNoiBoController } from './binh-luan/binh-luan-noi-bo.controller.js';
 import { BinhLuanService } from './binh-luan/binh-luan.service.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
@@ -52,6 +53,7 @@ class HealthController {
     BanGiaoController,
     NgungHopTacController,
     BinhLuanController,
+    BinhLuanNoiBoController,
   ],
   providers: [
     Db,

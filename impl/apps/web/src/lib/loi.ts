@@ -426,6 +426,15 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'thanh-noi',
     cau: 'Không gửi được bình luận. Tải lại trang rồi gửi lại.',
   },
+  // `0263` — tệp đính kèm. Hai lỗi của lượt GỬI ở dưới ô soạn, chữ và tệp giữ nguyên.
+  QUA_NHIEU_TEP: { dang: 'o-nhap', truong: 'noiDung', tuMayChu: true },
+  TEP_KHONG_HOP_LE: {
+    dang: 'o-nhap',
+    truong: 'noiDung',
+    cau: 'Có tệp không gắn được vào bình luận — có thể tệp đã để quá một ngày. Gỡ tệp ấy, tải lên lại rồi gửi.',
+  },
+  // Không màn hình nào gọi đường xoá rời cho tệp bình luận; mã chỉ chặn lượt gọi tay.
+  TEP_BINH_LUAN_XOA_QUA_BINH_LUAN: { dang: 'im' },
   ONLY_EDITABLE_DELETABLE: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_LOCKED: {
     dang: 'hop-thoai',

@@ -25,7 +25,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { randomUUID } from 'node:crypto';
-import { REDIS_URL } from '@csbh/http-kit';
+import { mintServiceToken, REDIS_URL } from '@csbh/http-kit';
 import { Db, Clients } from '@csbh/policy/infra';
 import {
   CHU_BUOC,
@@ -418,7 +418,7 @@ export class SlaService {
       `SELECT sys.don_idn_outbox() AS idn_outbox, sys.don_thong_bao() AS thong_bao,
               sys.don_doc_outbox() AS doc_outbox, sys.don_ops_outbox() AS ops_outbox`,
     );
-    return {
+    const kq = {
       ...(r?.run_retention ?? {}),
       idn_outbox: Number(them?.idn_outbox ?? 0),
       thong_bao: Number(them?.thong_bao ?? 0),
@@ -426,6 +426,42 @@ export class SlaService {
       doc_outbox: Number(them?.doc_outbox ?? 0),
       ops_outbox: Number(them?.ops_outbox ?? 0),
     };
+    // `0263` — tệp bình luận: SAU phần CSDL, để kho tệp hỏng không chặn phần kia.
+    const tep = await this.donTepBinhLuan();
+    const ra = { ...kq, tep_binh_luan: tep.daXoa };
+    if (tep.loi > 0) {
+      // Lượt có tệp không xoá được là lượt LỖI trên trang Vận hành — dòng của tệp ấy
+      // còn nguyên nên lượt sau thử lại; báo "thành công" thì không ai biết ổ đang đầy dần.
+      throw new Error(`Không xoá được ${tep.loi} tệp bình luận khỏi kho tệp (đã xoá ${tep.daXoa}). ${JSON.stringify(ra)}`);
+    }
+    return ra;
+  }
+
+  /**
+   * Dọn tệp bình luận (`0263`, yêu cầu 7) — `document` làm, `policy` phân loại.
+   * Lặp theo lô 500 bằng con trỏ của `document` tới khi hết, trần 200 lô (100.000
+   * tệp) một lượt — một lượt dọn không chạy vô hạn. Tệp của bình luận còn sống cũng
+   * bị quét lại mỗi lượt; ở quy mô một công ty, đó là vài nghìn dòng.
+   */
+  private async donTepBinhLuan(): Promise<{ daXoa: number; loi: number }> {
+    const url = process.env.DOCUMENT_URL ?? 'http://document:3005';
+    let daXoa = 0;
+    let loi = 0;
+    let sau: unknown = null;
+    for (let i = 0; i < 200; i++) {
+      const res = await fetch(`${url}/internal/files/don-tep-binh-luan`, {
+        method: 'POST',
+        headers: { 'X-Service-Token': mintServiceToken('sla-worker'), 'content-type': 'application/json' },
+        body: JSON.stringify({ sau }),
+      });
+      if (!res.ok) throw new Error(`document trả ${res.status} khi dọn tệp bình luận`);
+      const b = (await res.json()) as { daXoa: number; loi: number; tiep: unknown };
+      daXoa += b.daXoa;
+      loi += b.loi;
+      if (!b.tiep) break;
+      sau = b.tiep;
+    }
+    return { daXoa, loi };
   }
 
   /**

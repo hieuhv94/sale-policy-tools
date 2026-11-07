@@ -18,6 +18,7 @@ import {
   accessTokenFor,
   bootCatalogListening,
   bootCustomerListening,
+  bootDocumentListening,
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
@@ -40,6 +41,7 @@ let catalog: INestApplication;
 let customer: INestApplication;
 let policy: INestApplication;
 let ntf: INestApplication;
+let docApp: INestApplication;
 let worker: TestingModule;
 let sla: SlaService;
 let clock: Clock;
@@ -212,6 +214,10 @@ beforeAll(async () => {
   });
 
   ntf = await createNotificationApp();
+  // `0263` — lượt dọn dữ liệu gọi sang `document` để dọn tệp bình luận.
+  const d = await bootDocumentListening();
+  docApp = d.app;
+  restores.push(d.restore);
   worker = await createTestWorker();
   sla = worker.get(SlaService);
   clock = worker.get(Clock);
@@ -226,6 +232,7 @@ beforeAll(async () => {
 afterAll(async () => {
   clock?.reset();
   await worker?.close();
+  await docApp?.close();
   await ntf?.close();
   await policy?.close();
   await customer?.close();

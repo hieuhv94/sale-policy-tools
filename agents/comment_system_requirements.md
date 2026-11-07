@@ -299,8 +299,14 @@ sơ thật có thể lẫn vào giữa.
 
 - **Dùng lại đường tệp sẵn có** của service `document` (`POST /files`, MinIO riêng tư,
   `doc.stored_file`), thêm **một mục đích tệp mới** vào `doc.file_purpose` cho bình luận.
-- Quyền đọc tệp tính theo **phạm vi hồ sơ chủ bình luận** — đi cùng đường `assertCanRead` hiện có
-  (một lượt hỏi `policy`). Biết ID tệp hay khoá trong kho mà không mở được hồ sơ thì **403**.
+- Quyền đọc tệp tính theo **phạm vi hồ sơ chủ bình luận** — `document` hỏi `policy` (đúng luật
+  phạm vi của hồ sơ, có luật Kế toán chưa tới lượt), không dùng bốn cột người của `assertCanRead`.
+  Thêm điều kiện của chính bình luận: tệp đang gắn một bình luận **chưa xoá**, hoặc tệp **chưa gắn**
+  mà chính người hỏi vừa tải lên. Không đủ điều kiện thì **404** (không phải 403 — 403 là xác nhận
+  cho người dò ID rằng tệp có thật). *(chốt khi làm `0263`)*
+- Gỡ tệp bằng cách **sửa** bình luận; đường xoá rời một tệp từ chối tệp bình luận (409). Tệp bình
+  luận không hiện ở danh sách tệp của hồ sơ, và lượt tải nó không ghi vào *Lịch sử*.
+- Ban lãnh đạo tải lên được — **chỉ** tệp bình luận.
 - Không có URL công khai vĩnh viễn; tải về đi qua máy chủ như các tệp khác.
 
 ### 7.3. Dọn tệp (đã chốt: phải dọn để không đầy ổ)
@@ -312,6 +318,10 @@ dữ liệu khác, hiện trên *Vận hành → Lịch tự động* (`0251`) �
 - nó bị gỡ khi sửa bình luận;
 - nó được tải lên nhưng không gắn vào bình luận nào **quá 24 giờ** (người dùng bỏ dở, hoặc tải lại
   trang làm mất bình luận đang soạn).
+- hồ sơ Nháp chứa nó đã bị xoá hẳn (dòng gắn mất theo, tệp thành *chưa gắn*).
+
+Kho tệp không xoá được một tệp thì dòng của tệp **giữ nguyên** để lượt sau thử lại, và lượt dọn ghi
+**lỗi** trên trang Vận hành. *(chốt khi làm `0263`)*
 
 Lưu ý: bản chụp kho tệp trong sao lưu giữ tệp bằng **liên kết cứng** (`0250`), nên dung lượng ổ chỉ
 thật sự trả lại khi các bản sao lưu cũ chứa tệp ấy bị xoay vòng bỏ đi.

@@ -5,7 +5,7 @@
  * Trình dược viên lập phiên bản CSBH mới.
  */
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
-import { ServiceOnly } from '@csbh/http-kit';
+import { danhSach, ServiceOnly, uuid, validate } from '@csbh/http-kit';
 import { FilesService } from './files.service.js';
 
 @ServiceOnly()
@@ -64,5 +64,25 @@ export class FilesInternalController {
     if (!khoa) return { removed: false };
     const lyDo = typeof body?.lyDo === 'string' && body.lyDo ? body.lyDo : 'gỡ khỏi hồ sơ';
     return { removed: await this.files.goBoTheoKhoa(khoa, lyDo) };
+  }
+
+  /** `0263` — `policy` hỏi một lô tệp là gì trước khi gắn vào bình luận. */
+  @Post('thong-tin')
+  @HttpCode(200)
+  async thongTin(@Body() body: unknown) {
+    const b = validate(body, { ids: danhSach(uuid(), 50) });
+    return { tep: await this.files.thongTin(b.ids.map((x) => x.toLowerCase())) };
+  }
+
+  /** `0263` — lượt dọn tệp bình luận của `sla-worker` (yêu cầu 7). */
+  @Post('don-tep-binh-luan')
+  @HttpCode(200)
+  donTepBinhLuan(@Body() body: unknown) {
+    const sau = (body ?? {}) as { sau?: { moc?: unknown; id?: unknown } | null };
+    const c =
+      sau.sau && typeof sau.sau.moc === 'string' && typeof sau.sau.id === 'string' && /^[0-9a-f-]{36}$/i.test(sau.sau.id)
+        ? { moc: sau.sau.moc, id: sau.sau.id }
+        : null;
+    return this.files.donTepBinhLuan(c);
   }
 }

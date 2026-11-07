@@ -12,6 +12,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { GIOI_HAN_BINH_LUAN } from '@csbh/domain-policy';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
@@ -35,9 +36,23 @@ export type OwnerKind = 'POLICY' | 'CUSTOMER' | 'TEMPLATE';
  *
  * `BAN_DA_KY` vẫn KHÔNG có ở đây: bản lưu ký số đã gỡ hẳn ở `0103`.
  */
-export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'MAU_HD' | 'BAN_CSBH';
+/**
+ * `BINH_LUAN` thêm ở `0263` — tệp đính kèm của bình luận trên hồ sơ. Chủ là HỒ SƠ
+ * (`ownerKind = POLICY`), nhưng quyền đọc KHÔNG theo bốn cột người như các tệp hồ sơ
+ * khác: nó hỏi `policy` (xem `assertCanReadRow`).
+ */
+export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'MAU_HD' | 'BAN_CSBH' | 'BINH_LUAN';
 
 export const MAX_BYTES = 20 * 1024 * 1024;
+
+/** Trần riêng của tệp bình luận (yêu cầu 7) — đọc từ `domain-policy`, nơi giao diện cũng đọc. */
+const TRAN_THEO_MUC_DICH: Partial<Record<Purpose, number>> = {
+  BINH_LUAN: GIOI_HAN_BINH_LUAN.coTepToiDaByte,
+};
+export const tranCo = (purpose: Purpose) => TRAN_THEO_MUC_DICH[purpose] ?? MAX_BYTES;
+
+const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /**
  * Định dạng cho phép, kiểm bằng SỐ NHẬN DẠNG ĐẦU FILE chứ không bằng phần mở
@@ -51,7 +66,7 @@ const MAGIC: { type: string; bytes: number[] }[] = [
   { type: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
   { type: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47] },
   {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    type: DOCX,
     bytes: [0x50, 0x4b, 0x03, 0x04], //                            PK — .docx là một file zip
   },
 ];
@@ -65,12 +80,40 @@ const ALLOWED: Record<Purpose, string[]> = {
   // Gotenberg dựng ra ngay trước lượt ghi, nên mọi giá trị khác ở đây sẽ là một
   // ô không bao giờ đúng.
   BAN_CSBH: ['application/pdf'],
+  // `0263` — đúng sáu loại của yêu cầu 7.
+  BINH_LUAN: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', DOCX, XLSX],
 };
 
 export function sniff(buf: Buffer): string | undefined {
   for (const m of MAGIC) {
     if (m.bytes.every((b, i) => buf[i] === b)) return m.type;
   }
+  // WebP: `RIFF` + 4 byte cỡ + `WEBP` — số nhận dạng không nằm liền ở đầu nên
+  // không viết được bằng bảng trên.
+  if (buf.length >= 12 && buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') {
+    return 'image/webp';
+  }
+  return undefined;
+}
+
+/**
+ * Phép nhận dạng của tệp BÌNH LUẬN (`0263`): tách được `.docx` khỏi `.xlsx`.
+ *
+ * `sniff` gọi mọi tệp zip là `.docx` — đúng cho mẫu hợp đồng, nơi chỉ nhận `.docx`
+ * và thứ không phải `.docx` thì trình trộn tự từ chối. Bình luận nhận cả hai, nên
+ * phải nhìn vào trong: tên mục trong zip nằm dạng chữ trơn ở cả tiêu đề từng mục lẫn
+ * danh mục cuối tệp. Zip không mang mục nào của hai loại (một `.zip` thường, một
+ * `.pptx`) thì KHÔNG nhận ra — chứ không rơi về `.docx`.
+ *
+ * Không đổi `sniff` cho mọi mục đích: mẫu hợp đồng đi đường của nó từ `0011`, và
+ * siết nó ở đây là đổi hành vi của một đường không liên quan tới lượt này.
+ */
+export function sniffBinhLuan(buf: Buffer): string | undefined {
+  const t = sniff(buf);
+  if (t !== DOCX) return t;
+  const chu = buf.toString('latin1');
+  if (chu.includes('word/document.xml')) return DOCX;
+  if (chu.includes('xl/workbook.xml')) return XLSX;
   return undefined;
 }
 
@@ -202,6 +245,34 @@ export class FilesService {
   }
 
   /**
+   * Quyền đọc MỘT tệp đã biết dòng của nó — mọi đường đọc theo id đi qua đây.
+   *
+   * Tệp BÌNH LUẬN (`0263`) rẽ nhánh: `policy` trả lời, theo đúng `assertPolicyInScope`
+   * (có luật Kế toán `da_qua_tbp`, thứ `mucDocHoSo` bốn cột không biết), CỘNG điều
+   * kiện của chính bình luận — tệp đang gắn một bình luận chưa xoá, hoặc tệp chưa gắn
+   * mà chính mình vừa tải lên (ô soạn cần xem lại tệp mình đính). Tệp đã gỡ hay của
+   * bình luận đã xoá thì không ai đọc được nữa, kể cả tác giả (yêu cầu 3.4).
+   *
+   * 404 chứ không 403 cho tệp bình luận không đọc được: nói 403 là xác nhận cho người
+   * dò id rằng tệp ấy có thật.
+   */
+  async assertCanReadRow(row: FileRow, me: AuthUser): Promise<void> {
+    if (row.purpose !== 'BINH_LUAN') {
+      return this.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
+    }
+    const duoc =
+      row.owner_kind === 'POLICY' &&
+      row.owner_id !== null &&
+      (await this.clients.tepBinhLuanXemDuoc({
+        fileId: row.id,
+        policyId: row.owner_id,
+        nguoiTai: row.uploaded_by,
+        me,
+      }));
+    if (!duoc) throw new NotFoundException({ code: 'FILE_NOT_FOUND' });
+  }
+
+  /**
    * QUYỀN GHI — tải lên, gỡ bỏ (`0148`).
    *
    * Đúng luật cũ, không nới một chút nào: tệp pháp lý của khách hàng do TDV phụ
@@ -272,14 +343,15 @@ export class FilesService {
     if (input.buffer.length === 0) {
       throw new BadRequestException({ code: 'FILE_EMPTY', message: 'File rỗng' });
     }
-    if (input.buffer.length > MAX_BYTES) {
+    const tran = tranCo(input.purpose);
+    if (input.buffer.length > tran) {
       throw new BadRequestException({
         code: 'FILE_TOO_LARGE',
-        message: `File vượt ${MAX_BYTES / 1024 / 1024}MB`,
+        message: `File vượt ${tran / 1024 / 1024}MB`,
         sizeBytes: input.buffer.length,
       });
     }
-    const type = sniff(input.buffer);
+    const type = input.purpose === 'BINH_LUAN' ? sniffBinhLuan(input.buffer) : sniff(input.buffer);
     if (!type || !ALLOWED[input.purpose].includes(type)) {
       throw new BadRequestException({
         code: 'FILE_TYPE_NOT_ALLOWED',
@@ -287,7 +359,22 @@ export class FilesService {
         detected: type ?? 'không nhận dạng được',
       });
     }
-    await this.assertCanWrite(input.ownerKind, input.ownerId, me);
+    if (input.purpose === 'BINH_LUAN') {
+      // `0263` — ai bình luận được trên hồ sơ thì đính tệp được: đúng phạm vi của
+      // `policy`, kể cả Ban lãnh đạo và luật Kế toán chưa tới lượt.
+      const duoc =
+        input.ownerKind === 'POLICY' &&
+        input.ownerId !== null &&
+        (await this.clients.trongPhamVi(me, input.ownerId));
+      if (!duoc) {
+        throw new ForbiddenException({
+          code: 'OUT_OF_SCOPE',
+          message: 'Hồ sơ này nằm ngoài phạm vi dữ liệu của bạn',
+        });
+      }
+    } else {
+      await this.assertCanWrite(input.ownerKind, input.ownerId, me);
+    }
 
     // Chuẩn hoá NFC cho tên hiển thị. macOS gửi lên dạng NFD, Windows gửi NFC;
     // không chuẩn hoá thì "Giấy phép.pdf" từ hai máy thành hai chuỗi khác nhau
@@ -391,6 +478,9 @@ export class FilesService {
     const rows = await this.db.q<FileRow>(
       `SELECT * FROM doc.stored_file
         WHERE owner_kind = $1::doc.owner_kind AND owner_id = $2 AND deleted_at IS NULL
+          -- 0263 — tệp bình luận chỉ hiện qua chính bình luận: liệt kê ở đây là bày
+          -- tệp của bình luận đã xoá, tệp đã gỡ, và tệp người khác chưa gửi.
+          AND purpose <> 'BINH_LUAN'
         ORDER BY uploaded_at`,
       [ownerKind, ownerId],
     );
@@ -411,8 +501,9 @@ export class FilesService {
   async read(id: string, me: AuthUser): Promise<{ row: FileRow; body: Buffer }> {
     const row = await this.row(id);
     // `0183` — `purpose` PHẢI đi cùng ở đây: đây là đường trả nội dung thật, và
-    // bỏ sót nó là khe *bản trước* rộng hơn hai loại đã chốt.
-    await this.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
+    // bỏ sót nó là khe *bản trước* rộng hơn hai loại đã chốt. `0263` — qua
+    // `assertCanReadRow` để tệp bình luận rẽ sang luật của nó.
+    await this.assertCanReadRow(row, me);
     const body = await this.storage.get(row.object_key);
     if (sha256(body) !== row.sha256) {
       throw new ConflictException({
@@ -443,7 +534,7 @@ export class FilesService {
   async verify(id: string, me: AuthUser): Promise<{ ok: boolean; expected: string; actual: string }> {
     const row = await this.row(id);
     // Đối chiếu băm là một phép ĐỌC — nó không đổi gì trên kho.
-    await this.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
+    await this.assertCanReadRow(row, me);
     const actual = sha256(await this.storage.get(row.object_key));
     return { ok: actual === row.sha256, expected: row.sha256, actual };
   }
@@ -550,6 +641,84 @@ export class FilesService {
     if (!row) return false;
     await this.discard(row.id, reason);
     return true;
+  }
+
+  /** Thông tin một lô tệp cho `policy` gắn vào bình luận (`0263`). Không kiểm quyền — `policy` quyết. */
+  async thongTin(ids: string[]) {
+    if (ids.length === 0) return [];
+    const rows = await this.db.q<FileRow>(`SELECT * FROM doc.stored_file WHERE id = ANY($1::uuid[])`, [ids]);
+    return rows.map((r) => ({
+      id: r.id,
+      ownerKind: r.owner_kind,
+      ownerId: r.owner_id,
+      purpose: r.purpose,
+      uploadedBy: r.uploaded_by,
+      fileName: r.file_name,
+      contentType: r.content_type,
+      sizeBytes: String(r.size_bytes),
+      daHuy: r.deleted_at !== null,
+    }));
+  }
+
+  /**
+   * Dọn tệp bình luận (`0263`, yêu cầu 7) — `sla-worker` gọi ở lượt *Dọn dữ liệu*.
+   *
+   * `policy` nói tệp nào phải đi (bình luận đã xoá · tệp đã gỡ khi sửa · tệp không
+   * ai gắn quá 24 giờ · hồ sơ đã xoá hẳn); ở đây chỉ làm. Một lô tối đa `lo` tệp,
+   * cũ trước; `tiep` là con trỏ của lô sau.
+   *
+   * KHÔNG dùng `discard`: nó nuốt lỗi kho rồi vẫn đánh dấu dòng là đã huỷ — đúng cho
+   * lượt người dùng bấm gỡ (họ cần tệp biến khỏi màn hình), sai cho lượt dọn, nơi
+   * mục đích duy nhất là ổ đĩa. Kho hỏng thì dòng GIỮ NGUYÊN để lượt sau thử lại;
+   * đánh dấu trước là để lại một object không dòng nào trỏ tới, mãi mãi.
+   */
+  async donTepBinhLuan(
+    sau: { moc: string; id: string } | null,
+    lo = 500,
+  ): Promise<{ daXoa: number; loi: number; tiep: { moc: string; id: string } | null }> {
+    /*
+     * CON TRỎ, không `LIMIT` trần: tệp của bình luận còn sống cũng nằm trong tập quét
+     * và nằm lại mãi — quét lại từ đầu mỗi lô thì hơn `lo` tệp sống là lượt dọn đứng
+     * yên ở chúng và không bao giờ tới tệp mới hơn. Mốc là `uploaded_at::text` (đủ
+     * micro giây) chứ không qua `Date` của JS (cắt còn mili giây → hai tệp cùng mili
+     * giây có thể bị bỏ qua).
+     *
+     * Chỉ tệp tải lên quá 24 giờ: mọi tệp cần dọn đều sẽ tới tuổi ấy, còn tệp trẻ hơn
+     * thì có thể đang nằm trong một ô soạn chưa gửi.
+     */
+    const rows = await this.db.q<{ id: string; object_key: string; uploaded_at: Date; moc: string }>(
+      `SELECT id, object_key, uploaded_at, uploaded_at::text AS moc FROM doc.stored_file
+        WHERE purpose = 'BINH_LUAN' AND deleted_at IS NULL
+          AND uploaded_at < now() - interval '24 hours'
+          AND ($1::timestamptz IS NULL OR (uploaded_at, id) > ($1::timestamptz, $2::uuid))
+        ORDER BY uploaded_at, id LIMIT $3`,
+      [sau?.moc ?? null, sau?.id ?? null, lo + 1],
+    );
+    const lay = rows.slice(0, lo);
+    if (lay.length === 0) return { daXoa: 0, loi: 0, tiep: null };
+    const xoa = new Set(
+      await this.clients.phanLoaiTepBinhLuan(
+        lay.map((r) => ({ id: r.id, taoLuc: new Date(r.uploaded_at).toISOString() })),
+      ),
+    );
+    let daXoa = 0;
+    let loi = 0;
+    for (const r of lay) {
+      if (!xoa.has(r.id)) continue;
+      try {
+        await this.storage.remove(r.object_key);
+      } catch {
+        loi++;
+        continue;
+      }
+      await this.db.q(
+        `UPDATE doc.stored_file SET deleted_at = now(), delete_reason = 'dọn tệp bình luận' WHERE id = $1`,
+        [r.id],
+      );
+      daXoa++;
+    }
+    const cuoi = lay[lay.length - 1]!;
+    return { daXoa, loi, tiep: rows.length > lo ? { moc: cuoi.moc, id: cuoi.id } : null };
   }
 
   async discard(id: string, reason: string): Promise<void> {

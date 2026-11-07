@@ -57,6 +57,8 @@ type Dong = {
   xoa_luc: Date | null;
 };
 
+export type TepBay = { id: string; ten: string; loai: string; co: number };
+
 export type CamXucBay = { loai: MaCamXuc; so: number; cuaToi: boolean; nguoi: string[] };
 
 export type MucBinhLuan = {
@@ -71,6 +73,8 @@ export type MucBinhLuan = {
   taoLuc: string;
   suaLuc: string | null;
   camXuc: CamXucBay[];
+  /** Tệp còn gắn (`0263`). Rỗng khi đã xoá — tệp của bình luận đã xoá cũng không rời máy chủ. */
+  tep: TepBay[];
   /** Chỉ bình luận gốc. */
   soPhanHoi?: number;
 };
@@ -184,8 +188,8 @@ export class BinhLuanService {
    * quét mã nguồn máy chủ tìm `code: '…'` để đòi mỗi mã có câu ở `loi.ts`. Đi qua
    * một biến là ba mã vô hình với phép quét — đúng lỗ nó sinh ra để bịt.
    */
-  private kiem(noiDung: string): void {
-    switch (kiemNoiDung(noiDung)) {
+  private kiem(noiDung: string, coTep: boolean): void {
+    switch (kiemNoiDung(noiDung, coTep)) {
       case null:
         return;
       case 'BINH_LUAN_RONG':
@@ -200,6 +204,69 @@ export class BinhLuanService {
           code: 'QUA_NHIEU_NHAC_TEN',
           message: `Một bình luận nhắc tên tối đa ${GIOI_HAN_BINH_LUAN.nhacToiDa} người.`,
         });
+    }
+  }
+
+  /**
+   * Kiểm một lô tệp sắp gắn (`0263`, yêu cầu 7). `daGan` là tệp ĐANG gắn chính bình
+   * luận này (lượt sửa giữ lại tệp cũ thì không phải kiểm lại).
+   *
+   * Mọi điều kiện đọc từ `document` — nơi duy nhất biết tệp là gì — và quyết định ở
+   * đây: tệp của CHÍNH người gửi, mục đích `BINH_LUAN`, chủ là ĐÚNG hồ sơ này, chưa
+   * huỷ. *Chưa gắn ở đâu* thì `UNIQUE (file_id)` của `pol.binh_luan_tep` chốt, kể cả
+   * hai lượt gửi song song; phép hỏi trước chỉ để trả đúng mã lỗi.
+   *
+   * Một mã cho mọi lý do: người gửi không làm gì khác được với từng lý do, và tách
+   * mã là nói cho người dò ID biết tệp của người khác có tồn tại hay không.
+   */
+  private async kiemTep(c: PoolClient, p: HoSo, me: AuthUser, ids: string[], daGan: string[] = []) {
+    if (new Set(ids).size !== ids.length) throw this.tepSai();
+    if (ids.length > GIOI_HAN_BINH_LUAN.tepToiDa) {
+      throw new BadRequestException({
+        code: 'QUA_NHIEU_TEP',
+        message: `Một bình luận đính kèm tối đa ${GIOI_HAN_BINH_LUAN.tepToiDa} tệp.`,
+      });
+    }
+    const moi = ids.filter((id) => !daGan.includes(id));
+    if (moi.length === 0) return [];
+    const da = (
+      await c.query<{ file_id: string }>(
+        `SELECT file_id FROM pol.binh_luan_tep WHERE file_id = ANY($1::uuid[])`,
+        [moi],
+      )
+    ).rows;
+    if (da.length > 0) throw this.tepSai();
+    const tt = await this.clients.thongTinTep(moi);
+    const theoId = new Map(tt.map((t) => [t.id, t]));
+    return moi.map((id) => {
+      const t = theoId.get(id);
+      if (
+        !t ||
+        t.daHuy ||
+        t.purpose !== 'BINH_LUAN' ||
+        t.ownerKind !== 'POLICY' ||
+        t.ownerId !== p.id ||
+        t.uploadedBy !== me.id
+      ) {
+        throw this.tepSai();
+      }
+      return t;
+    });
+  }
+
+  private tepSai() {
+    return new BadRequestException({
+      code: 'TEP_KHONG_HOP_LE',
+      message: 'Có tệp không gắn được vào bình luận này. Tải tệp lên lại rồi gửi.',
+    });
+  }
+
+  private async ganTep(c: PoolClient, binhLuanId: string, tep: Awaited<ReturnType<BinhLuanService['kiemTep']>>) {
+    for (const t of tep) {
+      await c.query(
+        `INSERT INTO pol.binh_luan_tep (binh_luan_id, file_id, ten, loai, co) VALUES ($1, $2, $3, $4, $5)`,
+        [binhLuanId, t.id, t.fileName, t.contentType, t.sizeBytes],
+      );
     }
   }
 
@@ -221,6 +288,13 @@ export class BinhLuanService {
       ? await this.db.q<{ binh_luan_id: string; user_id: string; loai: MaCamXuc }>(
           `SELECT binh_luan_id, user_id, loai FROM pol.binh_luan_cam_xuc
             WHERE binh_luan_id = ANY($1::uuid[]) ORDER BY tao_luc`,
+          [ids],
+        )
+      : [];
+    const tep = ids.length
+      ? await this.db.q<{ binh_luan_id: string; file_id: string; ten: string; loai: string; co: string }>(
+          `SELECT binh_luan_id, file_id, ten, loai, co FROM pol.binh_luan_tep
+            WHERE binh_luan_id = ANY($1::uuid[]) AND go_luc IS NULL ORDER BY stt`,
           [ids],
         )
       : [];
@@ -254,6 +328,11 @@ export class BinhLuanService {
         taoLuc: iso(r.tao_luc)!,
         suaLuc: iso(r.sua_luc),
         camXuc,
+        tep: r.xoa_luc
+          ? []
+          : tep
+              .filter((t) => t.binh_luan_id === r.id)
+              .map((t) => ({ id: t.file_id, ten: t.ten, loai: t.loai, co: Number(t.co) })),
         ...(r.parent_id === null ? { soPhanHoi: soPhanHoi.get(r.id) ?? 0 } : {}),
       });
     }
@@ -435,12 +514,13 @@ export class BinhLuanService {
 
   async tao(
     policyId: string,
-    input: { maGui: string; noiDung: string; parentId?: string | undefined },
+    input: { maGui: string; noiDung: string; parentId?: string | undefined; tep?: string[] | undefined },
     me: AuthUser,
   ) {
     const p = await this.moHoSo(policyId, me);
     const noiDung = chuanNoiDung(input.noiDung);
-    this.kiem(noiDung);
+    const tepIds = input.tep ?? [];
+    this.kiem(noiDung, tepIds.length > 0);
     const nhac = await this.kiemNhac(p, me, noiDung);
     const customerName = await this.tenKhach(p);
 
@@ -491,6 +571,7 @@ export class BinhLuanService {
           [p.id, cha?.id ?? null, me.id, noiDung, input.maGui],
         )
       ).rows[0]!;
+      await this.ganTep(c, r.id, await this.kiemTep(c, p, me, tepIds));
       // Gốc đổi số reply → chạm gốc để nó lên đường hỏi thay đổi với con số mới.
       if (cha) await c.query(`UPDATE pol.binh_luan SET id = id WHERE id = $1`, [cha.id]);
 
@@ -514,18 +595,43 @@ export class BinhLuanService {
     return this.mot(id, me);
   }
 
-  async sua(policyId: string, id: string, input: { noiDung: string }, me: AuthUser) {
+  /**
+   * `tep` VẮNG MẶT = giữ nguyên tệp đang gắn; có mặt = danh sách tệp SAU khi sửa
+   * (tệp cũ không còn trong danh sách thì gỡ — `go_luc`, lượt dọn xoá byte).
+   */
+  async sua(
+    policyId: string,
+    id: string,
+    input: { noiDung: string; tep?: string[] | undefined },
+    me: AuthUser,
+  ) {
     const p = await this.moHoSo(policyId, me);
     const noiDung = chuanNoiDung(input.noiDung);
-    this.kiem(noiDung);
     const customerName = await this.tenKhach(p);
 
     await this.db.tx(async (c) => {
       await this.khoa(c, p.id);
       const r = await this.layDeGhi(c, p, id, me, true);
-      // Không đổi chữ nào thì không phải một lượt sửa: không nhãn *Đã sửa*, không sự kiện.
-      if (r.noi_dung === noiDung) return;
+      const dangGan = (
+        await c.query<{ file_id: string }>(
+          `SELECT file_id FROM pol.binh_luan_tep WHERE binh_luan_id = $1 AND go_luc IS NULL`,
+          [id],
+        )
+      ).rows.map((x) => x.file_id);
+      const tepSau = input.tep ?? dangGan;
+      this.kiem(noiDung, tepSau.length > 0);
+      const moi = await this.kiemTep(c, p, me, tepSau, dangGan);
+      const go = dangGan.filter((f) => !tepSau.includes(f));
+      // Không đổi chữ nào, không đổi tệp nào thì không phải một lượt sửa: không nhãn *Đã sửa*, không sự kiện.
+      if (r.noi_dung === noiDung && moi.length === 0 && go.length === 0) return;
       const nhac = await this.kiemNhac(p, me, noiDung, nguoiDuocNhac(r.noi_dung));
+      if (go.length > 0) {
+        await c.query(
+          `UPDATE pol.binh_luan_tep SET go_luc = now() WHERE binh_luan_id = $1 AND file_id = ANY($2::uuid[])`,
+          [id, go],
+        );
+      }
+      await this.ganTep(c, id, moi);
       await c.query(`UPDATE pol.binh_luan SET noi_dung = $2, sua_luc = now() WHERE id = $1`, [
         id,
         noiDung,
@@ -582,5 +688,59 @@ export class BinhLuanService {
       if ((r.rowCount ?? 0) > 0) await c.query(`UPDATE pol.binh_luan SET id = id WHERE id = $1`, [id]);
     });
     return this.mot(id, me);
+  }
+
+  // --- Cho `document` (`0263`) ----------------------------------------------
+
+  /**
+   * Người này đọc được tệp bình luận ấy không. Hai vế, cả hai đều cần:
+   *
+   *   1. trong phạm vi HỒ SƠ — đúng `coTrongPhamVi`, có luật `da_qua_tbp`;
+   *   2. tệp đang gắn một bình luận CHƯA XOÁ của chính hồ sơ ấy, hoặc tệp chưa gắn
+   *      ở đâu mà chính người hỏi đã tải lên (ô soạn xem lại tệp vừa đính).
+   *
+   * Tệp đã gỡ khi sửa, tệp của bình luận đã xoá: KHÔNG ai đọc được — nội dung bình
+   * luận đã xoá không rời máy chủ (yêu cầu 3.4), và tệp là một phần nội dung.
+   */
+  async tepXemDuoc(a: { fileId: string; policyId: string; nguoiTai: string; userId: string; role: string }) {
+    const me: AuthUser = { id: a.userId, role: a.role as AuthUser['role'], mustChangePassword: false };
+    const [trong] = await this.policies.trongPhamVi(me, [a.policyId]);
+    if (trong !== a.policyId) return false;
+    const r = await this.db.one<{ go_luc: Date | null; xoa_luc: Date | null; policy_id: string }>(
+      `SELECT t.go_luc, b.xoa_luc, b.policy_id
+         FROM pol.binh_luan_tep t JOIN pol.binh_luan b ON b.id = t.binh_luan_id
+        WHERE t.file_id = $1`,
+      [a.fileId],
+    );
+    if (!r) return a.nguoiTai === a.userId;
+    return r.policy_id === a.policyId && r.go_luc === null && r.xoa_luc === null;
+  }
+
+  /**
+   * Tệp nào trong lô phải dọn (yêu cầu 7). Đi: tệp đã gỡ · tệp của bình luận đã xoá
+   * · tệp chưa gắn quá 24 giờ — gồm cả tệp của hồ sơ Nháp đã xoá hẳn (`0035`), vì
+   * khi ấy dòng gắn mất theo `ON DELETE CASCADE` và tệp trở thành *chưa gắn*.
+   *
+   * 24 giờ đếm từ lúc TẢI LÊN: người soạn để tệp trong ô qua đêm rồi mới gửi thì
+   * lượt gửi nhận `TEP_KHONG_HOP_LE` và phải tải lại — cái giá đã nêu ở yêu cầu 7.
+   */
+  async phanLoaiTep(tep: { id: string; taoLuc: string }[], bayGio = Date.now()): Promise<string[]> {
+    if (tep.length === 0) return [];
+    const rows = await this.db.q<{ file_id: string; go_luc: Date | null; xoa_luc: Date | null }>(
+      `SELECT t.file_id, t.go_luc, b.xoa_luc
+         FROM pol.binh_luan_tep t JOIN pol.binh_luan b ON b.id = t.binh_luan_id
+        WHERE t.file_id = ANY($1::uuid[])`,
+      [tep.map((t) => t.id)],
+    );
+    const gan = new Map(rows.map((r) => [r.file_id, r]));
+    const HAN = 24 * 3600 * 1000;
+    return tep
+      .filter((t) => {
+        const r = gan.get(t.id);
+        if (r) return r.go_luc !== null || r.xoa_luc !== null;
+        const tao = Date.parse(t.taoLuc);
+        return Number.isFinite(tao) && bayGio - tao > HAN;
+      })
+      .map((t) => t.id);
   }
 }

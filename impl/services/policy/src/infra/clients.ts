@@ -144,6 +144,36 @@ export class Clients {
     ).targets;
   }
 
+  /**
+   * Thông tin một lô tệp của `document` (`0263`) — để gắn tệp vào bình luận.
+   *
+   * `policy` quyết định tệp nào được gắn (của chính người gửi, của đúng hồ sơ, đúng
+   * mục đích, chưa gắn ở đâu); `document` chỉ trả lời tệp ấy là gì. Ném khi hỏng:
+   * gắn một tệp mà không kiểm được nó là gì thì không gắn.
+   */
+  async thongTinTep(ids: string[]): Promise<
+    {
+      id: string;
+      ownerKind: string;
+      ownerId: string | null;
+      purpose: string;
+      uploadedBy: string;
+      fileName: string;
+      contentType: string;
+      sizeBytes: string;
+      daHuy: boolean;
+    }[]
+  > {
+    if (ids.length === 0) return [];
+    const res = await fetch(`${documentUrl()}/internal/files/thong-tin`, {
+      method: 'POST',
+      headers: { ...svc(), 'content-type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) throw new Error(`document trả ${res.status} khi tra thông tin tệp`);
+    return ((await res.json()) as { tep: Awaited<ReturnType<Clients['thongTinTep']>> }).tep;
+  }
+
   async checkUsers(
     ids: string[],
   ): Promise<Record<string, { role: string; isActive: boolean; fullName: string }>> {

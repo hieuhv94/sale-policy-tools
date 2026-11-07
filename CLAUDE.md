@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 80 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 82 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -108,7 +108,8 @@ dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có ph�
 (đọc phần đầu trước). **Mockup bản 2 ĐÃ DUYỆT 07/11** (https://claude.ai/artifact/M9CzyKU338eAmjFuVpMip9, nguồn
 `artifacts/binh-luan-mockup.html`) và tài liệu yêu cầu đã chép đủ quyết định. Chặng P297–P301 (`0261`–`0265`);
 **P297 XONG** (lược đồ + API ở `policy`), **P298 XONG** (thông báo chuông — ngoại lệ có chủ ý của `0096`, không thư;
-kiểm quyền LÚC ĐỌC; chuông 30 giây), 3207/3207 xanh. Kế tiếp P299 tệp đính kèm.
+kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm — mục đích `BINH_LUAN`, quyền đọc tệp hỏi
+`policy`, 404 không 403, dọn ở *Dọn dữ liệu* bằng con trỏ), 3240/3240 xanh. Kế tiếp P300 giao diện.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
 Chặng gần nhất **P296** (`0260`): **Ban lãnh đạo không nhận bất kỳ thư hay thông báo nào** — `KHONG_NHAN_THONG_BAO`

@@ -1366,7 +1366,8 @@ describe('DOC-28 quét lược đồ, bảng định tuyến và kho lưu trữ'
       );
       return r.rows.map((x) => x.v.toLowerCase());
     });
-    expect(known.sort()).toEqual(['ban_csbh', 'ban_da_ky', 'ho_so', 'mau_hd', 'phap_ly', 'scan']);
+    // `binh_luan` (`0263`) — tệp đính kèm của bình luận trên hồ sơ, không phải hợp đồng.
+    expect(known.sort()).toEqual(['ban_csbh', 'ban_da_ky', 'binh_luan', 'ho_so', 'mau_hd', 'phap_ly', 'scan']);
   });
 });
 

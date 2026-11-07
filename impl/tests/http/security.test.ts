@@ -1217,6 +1217,9 @@ const MIEN_BAN_LANH_DAO: Record<string, string> = {
   'DELETE /policies/:id/binh-luan/:bid': 'xoá bình luận của chính mình',
   'PUT /policies/:id/binh-luan/:bid/cam-xuc/:loai': 'thả cảm xúc',
   'DELETE /policies/:id/binh-luan/:bid/cam-xuc/:loai': 'gỡ cảm xúc của chính mình',
+  // `0263` — tải tệp lên để đính vào bình luận. Thân hàm chặn Ban lãnh đạo ở MỌI mục
+  // đích khác `BINH_LUAN` (`ROLE_FORBIDDEN`), có ca gọi thật ở `binh-luan-tep.test.ts`.
+  'POST /files': 'tải tệp lên — CHỈ mục đích BINH_LUAN',
 };
 
 const timControllers = (d: string): string[] =>
@@ -1335,10 +1338,15 @@ describe('SEC-13 Ban lãnh đạo và mọi đường ghi', () => {
       .map((d) => `${d.method} ${d.path}`)
       .sort();
     expect(mo).toEqual(Object.keys(MIEN_BAN_LANH_DAO).sort());
-    // Chiều ngược: miễn trừ chỉ được mang đường BÌNH LUẬN.
+    // Chiều ngược: miễn trừ chỉ được mang đường BÌNH LUẬN — cộng đúng MỘT đường tải
+    // tệp lên của bình luận (`0263`), nơi thân hàm tự chặn mọi mục đích khác.
     for (const k of Object.keys(MIEN_BAN_LANH_DAO)) {
-      expect(k, k).toMatch(/^[A-Z]+ \/policies\/:id\/binh-luan(\/|$)/);
+      expect(k, k).toMatch(/^([A-Z]+ \/policies\/:id\/binh-luan(\/|$)|POST \/files$)/);
     }
+    const files = readFileSync('services/document/src/files/files.controller.ts', 'utf8');
+    expect(files, 'POST /files chặn Ban lãnh đạo ngoài BINH_LUAN').toMatch(
+      /me\.role === 'BAN_LANH_DAO' && b\.purpose !== 'BINH_LUAN'\)\s*\{\s*throw new ForbiddenException\(\{ code: 'ROLE_FORBIDDEN' \}\)/,
+    );
   });
 
   it('gọi THẬT từng đường ghi bằng bld01 thì 403, không đường nào lọt', async () => {

@@ -239,6 +239,46 @@ export class Clients implements OnModuleDestroy {
     return out;
   }
 
+  // --- Tệp bình luận (`0263`) — `policy` quyết, fail closed ------------------
+
+  /** Người này có trong phạm vi hồ sơ ấy không — đúng `assertPolicyInScope` của `policy`. */
+  async trongPhamVi(me: AuthUser, policyId: string): Promise<boolean> {
+    const r = await fetch(`${policyUrl()}/internal/policies/trong-pham-vi`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...svc() },
+      body: JSON.stringify({ userId: me.id, role: me.role, policyIds: [policyId] }),
+    });
+    if (!r.ok) throw new Error(`policy trả ${r.status} khi hỏi phạm vi hồ sơ`);
+    return ((await r.json()) as { coQuyen: string[] }).coQuyen.includes(policyId);
+  }
+
+  async tepBinhLuanXemDuoc(a: { fileId: string; policyId: string; nguoiTai: string; me: AuthUser }): Promise<boolean> {
+    const r = await fetch(`${policyUrl()}/internal/binh-luan/tep/xem-duoc`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...svc() },
+      body: JSON.stringify({
+        fileId: a.fileId,
+        policyId: a.policyId,
+        nguoiTai: a.nguoiTai,
+        userId: a.me.id,
+        role: a.me.role,
+      }),
+    });
+    if (!r.ok) throw new Error(`policy trả ${r.status} khi hỏi quyền xem tệp bình luận`);
+    return ((await r.json()) as { duoc: boolean }).duoc === true;
+  }
+
+  /** Tệp nào trong lô phải dọn. Ném khi hỏng — lượt dọn không đoán. */
+  async phanLoaiTepBinhLuan(tep: { id: string; taoLuc: string }[]): Promise<string[]> {
+    const r = await fetch(`${policyUrl()}/internal/binh-luan/tep/phan-loai`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...svc() },
+      body: JSON.stringify({ tep }),
+    });
+    if (!r.ok) throw new Error(`policy trả ${r.status} khi phân loại tệp bình luận`);
+    return ((await r.json()) as { xoa: string[] }).xoa;
+  }
+
   async scopeUserIds(me: AuthUser): Promise<string[]> {
     const key = `idn:scope:${me.id}`;
     const hit = await this.redis.get(key);

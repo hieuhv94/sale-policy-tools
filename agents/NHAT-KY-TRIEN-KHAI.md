@@ -21730,3 +21730,70 @@ identity (đường không tồn tại → 404); phá lại lần hai: đỏ.
 dòng của chính bình luận được kiểm đích danh. Kèm số migration ở tài liệu lên 80.
 
 **3207/3207 xanh.**
+
+## P299 — `0263` Bình luận, chặng 3/5: tệp đính kèm
+
+**Byte ở `document`, con trỏ ở `policy`** — cùng ranh giới với `pol.policy_attachment`. Mục đích tệp mới `BINH_LUAN`
+(`0130_muc_dich_tep_binh_luan.sql`, tệp RIÊNG chỉ `ADD VALUE` — bài học `0121`/`0122`), bảng `pol.binh_luan_tep`
+(`0131`): `file_id UNIQUE` (một tệp gắn MỘT bình luận, MỘT lần — gỡ rồi không gắn lại được, kể cả vào chính bình luận
+ấy), tên · loại · cỡ chép sang lúc gắn để đọc danh sách không phải hỏi `document`, `go_luc` khi gỡ lúc sửa.
+
+**Ai quyết gì.** `policy` quyết tệp nào gắn được: hỏi `document` (`POST /internal/files/thong-tin`) tệp là gì, rồi đòi
+của CHÍNH người gửi · chủ là ĐÚNG hồ sơ này · mục đích `BINH_LUAN` · chưa huỷ · chưa gắn ở đâu. Một mã
+`TEP_KHONG_HOP_LE` cho mọi lý do — tách mã là nói cho người dò id biết tệp người khác có tồn tại. Kiểm TRONG khoá
+advisory của hồ sơ (`0261`), nên hai lượt gửi song song cùng một tệp xếp hàng: lượt sau thấy dòng gắn của lượt trước,
+không chạm tới `23505`. `PATCH` vắng `tep` = giữ nguyên; có `tep` = danh sách SAU khi sửa (`danhSach()` trả `[]` cho
+cả vắng lẫn rỗng, nên controller đọc chính thân yêu cầu). Đổi tệp thôi cũng là một lượt sửa (nhãn *Đã sửa*).
+
+`document` quyết tệp có đọc được không bằng cách hỏi lại `policy` (`POST /internal/binh-luan/tep/xem-duoc`): **trong
+phạm vi hồ sơ theo `coTrongPhamVi`** — tức có luật Kế toán `da_qua_tbp`, thứ `mucDocHoSo` bốn cột của `document`
+không biết (ca *"kt01 chưa tới lượt"* là ca canh đúng khe ấy) — CỘNG tệp đang gắn một bình luận chưa xoá, hoặc tệp chưa
+gắn mà chính người hỏi tải lên. Không được thì **404**, không 403. Mọi đường đọc theo id (`meta` · `link` · `content` ·
+`verify`) đi một hàm `assertCanReadRow`. `listFor` loại `BINH_LUAN`; tải tệp bình luận không ghi *Lịch sử*; `DELETE
+/files/:id` từ chối tệp bình luận (`409 TEP_BINH_LUAN_XOA_QUA_BINH_LUAN`, `dang: 'im'`) — gỡ bằng sửa bình luận.
+
+Đường nội bộ của bình luận ở **tệp controller riêng** (`binh-luan-noi-bo.controller.ts`): ca `0261` đòi
+`internal.controller` không chạm bình luận, vì đó là cửa bản in và read-model đọc hồ sơ.
+
+**Loại tệp**: bảng `ALLOWED.BINH_LUAN` sáu loại; WebP nhận bằng `RIFF…WEBP` (số nhận dạng không liền ở đầu). `sniff`
+gọi mọi zip là `.docx` — đúng cho mẫu hợp đồng, sai ở đây — nên `sniffBinhLuan` nhìn tên mục trong zip (`word/document.xml`
+/ `xl/workbook.xml`, chữ trơn trong tiêu đề mục); zip không mang mục nào (`.pptx`, `.zip`) KHÔNG nhận chứ không rơi về
+`.docx`. Không đổi `sniff` cho mục đích khác. Trần **10MB** riêng mục đích này (`tranCo`, đọc `GIOI_HAN_BINH_LUAN`), mục
+đích khác giữ 20MB — có ca chiều ngược.
+
+**Ban lãnh đạo** tải được tệp — CHỈ `BINH_LUAN`: `@Roles` của `POST /files` thêm `BAN_LANH_DAO` bằng chữ, thân hàm chặn
+mọi mục đích khác (`ROLE_FORBIDDEN`). SEC-13: `POST /files` vào `MIEN_BAN_LANH_DAO`, phép kiểm chiều ngược nới đúng một
+đường ấy, và một ca đọc chính dòng chặn trong `files.controller.ts`.
+
+**Dọn tệp** ở lượt *Dọn dữ liệu* (`sla-worker.runRetention` → `document` `POST /internal/files/don-tep-binh-luan` →
+`policy` `tep/phan-loai`): tệp đã gỡ · tệp của bình luận đã xoá · tệp không ai gắn quá 24 giờ — gồm tệp của bản Nháp đã
+xoá hẳn, vì `ON DELETE CASCADE` gỡ dòng gắn và tệp thành *chưa gắn*. Ba điều:
+
+- **Không dùng `discard`**: nó nuốt lỗi kho rồi vẫn đánh dấu dòng — đúng cho người bấm gỡ, sai cho lượt dọn. Kho hỏng
+  thì dòng GIỮ NGUYÊN, lượt có tệp không xoá được là lượt **LỖI** trên trang Vận hành (`runRetention` ném sau khi phần
+  CSDL đã xong).
+- **Con trỏ, không `LIMIT` trần.** Bản đầu quét `LIMIT 500` từ đầu mỗi lô — tệp của bình luận còn sống nằm trong tập
+  quét mãi mãi, nên hơn 500 tệp sống là lượt dọn đứng yên ở chúng. Con trỏ là `uploaded_at::text` (micro giây), không
+  qua `Date` của JS (cắt mili giây). Trần 200 lô một lượt; tệp sống bị quét lại mỗi ngày — ở quy mô một công ty là vài
+  nghìn dòng, đã nêu.
+- `document` chỉ gửi tệp quá 24 giờ; `policy` giữ ngưỡng ấy LẦN NỮA (ca riêng hỏi thẳng `phanLoaiTep`). Cái giá: để tệp
+  trong ô soạn qua ngày thì lượt gửi nhận `TEP_KHONG_HOP_LE`, phải tải lại.
+
+`sla.test.ts` dựng thêm `document` nghe thật — lượt dọn dữ liệu giờ gọi sang nó.
+
+**Phá lại hai mươi mốt lượt, tất cả đỏ — nhưng lượt đầu tìm ra MỘT LỖI THẬT không ai phá**: ca *"bình luận mang tệp trả
+về tên · loại · cỡ"* đỏ ở sáu lượt phá KHÔNG LIÊN QUAN (mục đích, dọn tệp gỡ, trần 20MB, zip, vắng `tep`, con trỏ) và xanh
+ở lượt chạy thường. Thứ tự tệp xếp `ORDER BY gan_luc, file_id` — mọi tệp của một lượt gửi ghi cùng transaction nên cùng
+`now()`, và `file_id` là uuid ngẫu nhiên: thứ tự đúng một nửa số lần. Thêm cột `stt bigserial` (sửa thẳng `0131` vì chưa
+commit; CSDL kiểm `DROP` bảng + xoá dòng `sys.schema_migration` rồi migrate lại), ca riêng gửi bốn tệp xếp ngược id.
+**Lượt XANH ở lần đầu**: bỏ ngưỡng 24 giờ ở `policy` — xanh CÓ LÝ DO, `document` đã lọc; thêm ca hỏi thẳng hàm, phá lại:
+đỏ. **Một ca đỏ ở nhiều lượt phá không liên quan là một ca chập chờn, không phải một ca rộng** — đọc DANH SÁCH ca đỏ
+của từng lượt, không chỉ con số.
+
+**Tài liệu**: YCNV 9.4 + Phụ lục B; `comment_system_requirements.md` 7.2 (404 thay 403, gỡ bằng sửa, BLĐ chỉ tệp bình
+luận) và 7.3 (Nháp xoá hẳn, kho hỏng). HDSD chưa có mục bình luận — viết ở chặng giao diện `0264`. Migration lên 82.
+
+Lượt chạy cả bộ đầu: **1 đỏ** — DOC-28 ghim tập giá trị của `doc.file_purpose` (*"thêm một giá trị là đỏ, người thêm
+phải nói nó dùng cho việc gì"*); đỏ đúng việc của nó, thêm `binh_luan` kèm lý do.
+
+**3240/3240 xanh.**

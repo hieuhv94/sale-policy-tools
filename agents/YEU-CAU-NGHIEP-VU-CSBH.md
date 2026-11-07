@@ -1321,7 +1321,17 @@ dữ liệu và quyền:
   Người nhận: người **mới** được nhắc, và tác giả bình luận gốc khi có **reply mới** — trừ chính người
   viết, trừ tài khoản vô hiệu hoá, **không bao giờ Ban lãnh đạo**; một người một thông báo cho một
   bình luận. Sửa, xoá, thả cảm xúc không sinh thông báo (sửa thêm người mới thì chỉ người mới nhận).
-  Tệp đính kèm *(chặng `0263`)*.
+- **Tệp đính kèm** `0263`: ảnh JPG/PNG/WebP, PDF, Word `.docx`, Excel `.xlsx` — nhận dạng bằng **nội
+  dung tệp**, không bằng tên; tối đa **5 tệp**, mỗi tệp **10MB**. Ai bình luận được trên hồ sơ thì
+  đính được, kể cả Ban lãnh đạo (chỉ tệp bình luận). Chỉ gắn được tệp **của chính mình, tải lên cho
+  đúng hồ sơ ấy, chưa gắn ở đâu**. Ai xem được bình luận thì xem được tệp; tệp chưa gửi chỉ người tải
+  lên xem được; tệp đã gỡ khi sửa và tệp của bình luận đã xoá **không ai xem được nữa**. Gỡ tệp bằng
+  cách sửa bình luận — không xoá rời một tệp. Tệp bình luận **không** hiện trong các khối tệp của hồ
+  sơ và lượt tải nó không vào *Lịch sử*.
+- **Dọn tệp** ở lượt *Dọn dữ liệu* hằng ngày (trang *Vận hành → Lịch tự động*): tệp đã gỡ, tệp của
+  bình luận đã xoá, tệp của bản Nháp đã xoá hẳn và tệp **tải lên mà không gửi quá 24 giờ** — nên
+  để tệp trong ô soạn quá một ngày rồi mới gửi thì phải tải lên lại. Kho tệp không xoá được thì lượt
+  dọn báo **lỗi** và lượt sau làm tiếp.
 - Nhật ký ghi *ai, lúc nào* tạo, sửa, xoá bình luận — **không ghi nội dung**.
 
 ## 10. Nhật ký, phiên bản và bảo mật
@@ -3065,6 +3075,8 @@ tự đọc khi bình luận hiện trên màn hình · chữ thuần + nhắc t
 xoá bình luận thì dọn tệp · lý do trả về để riêng · phiên bản mới luồng trống · chỉ nhãn *Đã sửa* ·
 giao một lần. **Ban lãnh đạo bình luận được** (06/11) nhưng **không được nhắc tên, không nhận thông
 báo** (07/11 — giữ luật *"không nhận bất kỳ thông báo nào"*). Mockup duyệt 07/11. Xem mục 9.4.
+Tệp đính kèm (`0263`, cùng ngày): sáu loại, 5 tệp × 10MB, dọn ở lượt *Dọn dữ liệu* hằng ngày — tệp
+tải lên mà không gửi quá **24 giờ** cũng dọn (cái giá: để tệp trong ô soạn qua ngày thì tải lại).
 
 **TRANG VẬN HÀNH** `mới 05/11 — 06/11` — *"đưa mọi thao tác vận hành từ command line lên giao diện web
 của tài khoản admin, trong một trang riêng biệt gọi là vận hành"*. Mockup duyệt 05/11. Chốt khi hỏi:

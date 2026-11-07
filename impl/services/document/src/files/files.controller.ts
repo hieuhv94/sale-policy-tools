@@ -4,6 +4,7 @@
  */
 import {
   BadRequestException,
+  ConflictException,
   Controller,
   Delete,
   ForbiddenException,
@@ -62,7 +63,12 @@ export class FilesController {
     private readonly clients: Clients,
   ) {}
 
-  @Roles(...WRITERS)
+  /*
+   * Vai trò khai BẰNG CHỮ (SEC-13 đọc chuỗi trong ngoặc). `BAN_LANH_DAO` có mặt từ
+   * `0263` và CHỈ cho tệp bình luận — chặn ngay đầu thân hàm; SEC-13 khai miễn trừ
+   * cho đường này kèm lý do.
+   */
+  @Roles('TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO')
   @Post()
   @HttpCode(201)
   // Nhận vào bộ nhớ chứ không ghi tạm ra đĩa: phải BĂM và KIỂM ĐỊNH DẠNG trước
@@ -89,9 +95,12 @@ export class FilesController {
        * ở đây là mở một đường để đính bất kỳ tệp PDF nào vào hồ sơ dưới nhãn
        * *bản mềm*, tức là đúng thứ mà việc dựng-từ-mẫu sinh ra để bảo đảm.
        */
-      purpose: oneOf('HO_SO', 'SCAN', 'PHAP_LY', 'MAU_HD'),
+      purpose: oneOf('HO_SO', 'SCAN', 'PHAP_LY', 'MAU_HD', 'BINH_LUAN'),
       fileName: opt(str(1, 300)),
     });
+    if (me.role === 'BAN_LANH_DAO' && b.purpose !== 'BINH_LUAN') {
+      throw new ForbiddenException({ code: 'ROLE_FORBIDDEN' });
+    }
     const row = await this.files.upload(
       {
         ownerKind: b.ownerKind as OwnerKind,
@@ -113,7 +122,7 @@ export class FilesController {
     const row = await this.files.row(id);
     // `0183` — `purpose` đi cùng: người ở mức *bản trước* chỉ đọc được bản mềm
     // và file scan, và chỗ duy nhất biết tệp này thuộc loại nào là chính `row`.
-    await this.files.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
+    await this.files.assertCanReadRow(row, me);
     return view(row);
   }
 
@@ -122,7 +131,7 @@ export class FilesController {
   async link(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
     // ĐỌC: đây là bước một của lượt tải xuống (`DOC-09`), không phải lượt ghi nào.
-    await this.files.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
+    await this.files.assertCanReadRow(row, me);
     return {
       url: `/files/${id}/content?t=${encodeURIComponent(mintFileToken(id, me.id))}`,
       expiresInSec: FILE_LINK_TTL_SEC,
@@ -171,7 +180,9 @@ export class FilesController {
      * sẵn trong tay, nên ghi trước là bảo đảm không có lượt tải nào chui lọt vì
      * lỗi xảy ra giữa hai bước.
      */
-    if (row.owner_kind === 'POLICY' && row.owner_id && xem !== '1') {
+    // `0263` — tệp bình luận KHÔNG vào *Lịch sử* hồ sơ: lịch sử kể chuyện của văn
+    // bản hồ sơ, còn tệp bình luận là một phần của cuộc trao đổi.
+    if (row.owner_kind === 'POLICY' && row.owner_id && xem !== '1' && row.purpose !== 'BINH_LUAN') {
       await this.clients.daSinhVanBan(
         row.owner_id,
         row.purpose === 'SCAN' ? 'BAN_SCAN' : 'TEP_DINH_KEM',
@@ -208,6 +219,14 @@ export class FilesController {
   @Delete(':id')
   async remove(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
+    // `0263` — tệp bình luận gỡ bằng cách SỬA bình luận, không xoá rời: xoá rời là
+    // để lại một bình luận trỏ vào tệp đã mất.
+    if (row.purpose === 'BINH_LUAN') {
+      throw new ConflictException({
+        code: 'TEP_BINH_LUAN_XOA_QUA_BINH_LUAN',
+        message: 'Tệp đính kèm của bình luận gỡ bằng cách sửa hoặc xoá bình luận.',
+      });
+    }
     // GHI, và cố ý hẹp hơn quyền đọc từ `0148`: Trưởng bộ phận đọc được tệp
     // pháp lý của khách hàng, nhưng xoá thì vẫn chỉ TDV phụ trách.
     await this.files.assertCanWrite(row.owner_kind, row.owner_id, me);

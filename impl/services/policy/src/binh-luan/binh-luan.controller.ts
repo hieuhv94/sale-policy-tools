@@ -12,7 +12,7 @@
  */
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { laMaCamXuc } from '@csbh/domain-policy';
-import { CurrentUser, int, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, danhSach, int, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { BinhLuanService } from './binh-luan.service.js';
 
 /*
@@ -46,6 +46,13 @@ const loaiCamXuc = (v: string) => {
   }
   return v;
 };
+/**
+ * Danh sách id tệp (`0263`). Trần THÔ 20 rộng hơn trần nghiệp vụ 5 để lượt gửi sáu
+ * tệp nhận `QUA_NHIEU_TEP` — câu người dùng đọc được — chứ không `VALIDATION_FAILED`.
+ */
+const dsTep = danhSach(uuid(), 20);
+const thuong = (ids: string[]) => ids.map((x) => x.toLowerCase());
+
 const mocSo = (v: string | undefined, field: string) =>
   validate({ [field]: v }, { [field]: opt(int(0, Number.MAX_SAFE_INTEGER)) })[field] as number | undefined;
 
@@ -88,10 +95,11 @@ export class BinhLuanController {
       // Trần ở đây là trần THÔ của lượt gửi, rộng hơn trần nghiệp vụ.
       noiDung: str(0, 30000),
       parentId: opt(uuid()),
+      tep: dsTep,
     });
     return this.binhLuan.tao(
       idHoSo(id),
-      { maGui: b.maGui.toLowerCase(), noiDung: b.noiDung, parentId: b.parentId?.toLowerCase() },
+      { maGui: b.maGui.toLowerCase(), noiDung: b.noiDung, parentId: b.parentId?.toLowerCase(), tep: thuong(b.tep) },
       me,
     );
   }
@@ -99,8 +107,16 @@ export class BinhLuanController {
   @Roles('TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO')
   @Patch(':id/binh-luan/:bid')
   sua(@CurrentUser() me: AuthUser, @Param('id') id: string, @Param('bid') bid: string, @Body() body: unknown) {
-    const b = validate(body, { noiDung: str(0, 30000) });
-    return this.binhLuan.sua(idHoSo(id), idBinhLuan(bid), b, me);
+    const b = validate(body, { noiDung: str(0, 30000), tep: dsTep });
+    // `tep` VẮNG MẶT là giữ nguyên tệp đang gắn — `danhSach` trả `[]` cho cả vắng mặt
+    // lẫn rỗng, nên phân biệt bằng chính thân yêu cầu.
+    const coTep = typeof body === 'object' && body !== null && 'tep' in body && (body as { tep: unknown }).tep != null;
+    return this.binhLuan.sua(
+      idHoSo(id),
+      idBinhLuan(bid),
+      { noiDung: b.noiDung, ...(coTep ? { tep: thuong(b.tep) } : {}) },
+      me,
+    );
   }
 
   @Roles('TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO')
