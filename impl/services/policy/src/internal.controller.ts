@@ -9,6 +9,7 @@
 import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/common';
 import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
+import { PoliciesService } from './policies/policies.service.js';
 import {
   CHUA_DUYET_XONG,
   SQL_NOI_BAN_TRUOC,
@@ -40,7 +41,36 @@ const HANH_DONG_TAI: Record<string, string> = {
 @ServiceOnly()
 @Controller('internal/policies')
 export class PolicyInternalController {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly policies: PoliciesService,
+  ) {}
+
+  /**
+   * Trong một lô hồ sơ, những hồ sơ nào một người CÒN mở được (`0262`).
+   *
+   * `notification` hỏi lúc trả hộp thông báo: dòng thông báo về một bình luận chỉ
+   * mang mã hồ sơ, tên khách và trích đoạn khi người nhận còn trong phạm vi — mất
+   * phạm vi thì chỉ còn tiêu đề (yêu cầu 6.3). Luật là `coTrongPhamVi`, đúng luật
+   * của trang hồ sơ.
+   *
+   * KHAI TRƯỚC `@Get(':id')` không cần — khác phương thức — nhưng đứng đầu cho
+   * người đọc thấy ngay: đây là đường duy nhất của controller này nhận một lô.
+   */
+  @Post('trong-pham-vi')
+  async trongPhamVi(@Body() body: unknown) {
+    const b = (body ?? {}) as { userId?: unknown; role?: unknown; policyIds?: unknown };
+    const ids = Array.isArray(b.policyIds)
+      ? b.policyIds.filter((x): x is string => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 200)
+      : [];
+    if (typeof b.userId !== 'string' || typeof b.role !== 'string') return { coQuyen: [] };
+    return {
+      coQuyen: await this.policies.trongPhamVi(
+        { id: b.userId, role: b.role, mustChangePassword: false },
+        ids,
+      ),
+    };
+  }
 
   @Get(':id')
   async byId(@Param('id') id: string) {

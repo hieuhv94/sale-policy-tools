@@ -15,7 +15,7 @@
  * Gửi hỏng thì chỗ đã giữ được TRẢ LẠI và sự kiện vào DLQ, nên gửi lại được.
  */
 import { Injectable, Logger } from '@nestjs/common';
-import { CHU_BUOC, type Status } from '@csbh/domain-policy';
+import { CHU_BUOC, nguoiDuocNhac, trichDoan, type Status } from '@csbh/domain-policy';
 import { Db } from '../infra/db.js';
 import { Mailer } from '../infra/mailer.js';
 import { RecipientsClient, type Target } from './recipients.js';
@@ -78,6 +78,8 @@ export class NotifyService {
     if (ev.routingKey === 'customer.handover') return this.banGiao(ev);
     // `0253` — cảnh báo ổ đĩa, cũng không nói về hồ sơ nào: người nhận là mọi Quản trị.
     if (ev.routingKey === 'van_hanh.o_dia_vuot_nguong') return this.oDia(ev);
+    // `0262` — bình luận: CHỈ chuông, không thư (ngoại lệ có chủ ý của `0096`).
+    if (ev.routingKey === 'binh_luan.tao' || ev.routingKey === 'binh_luan.sua') return this.binhLuan(ev);
 
     const roles = Array.isArray(p['recipients']) ? (p['recipients'] as string[]) : [];
     const tdvUserId = s(p['tdvUserId']);
@@ -286,6 +288,111 @@ export class NotifyService {
    * KHÔNG có thư "để biết" đi kèm: người bàn giao vừa bị vô hiệu hoá tài khoản,
    * và Quản trị thì vừa tự tay bấm nút.
    */
+  /**
+   * THÔNG BÁO BÌNH LUẬN (`0262`) — dòng chuông, KHÔNG thư.
+   *
+   * NGOẠI LỆ CÓ CHỦ Ý của luật `0096` (*"thông báo trên web = người nhận thư"*),
+   * chốt 06/11: bình luận là trao đổi dồn dập, một lá thư cho từng câu là ngập
+   * hộp thư. Đừng "sửa cho đồng bộ" bằng cách gửi thư ở đây.
+   *
+   * Không `claim` vào `ntf.sent_mail`: bảng ấy giữ chỗ cho THƯ. Chống trùng khi
+   * hàng đợi giao lại là chỉ mục `uq_thong_bao_event_kind_user` — cùng sự kiện,
+   * cùng người, một dòng.
+   *
+   * Người nhận (yêu cầu 6.2): người MỚI được nhắc, cộng tác giả bình luận gốc khi
+   * đây là một reply mới — trừ chính người viết. Một người một dòng: vừa được nhắc
+   * vừa là tác giả gốc thì nhận câu *nhắc tên* (cụ thể hơn). Tra qua `byIds`, tức
+   * `users/mail-targets` của identity — nơi đã lọc tài khoản vô hiệu hoá và
+   * `KHONG_NHAN_THONG_BAO` (Ban lãnh đạo, `0260`). Không lọc lại ở đây.
+   *
+   * BẬC VIỆC (`kind = CHINH`, chốt 06/11): tính vào con số trên chuông, có kẻ xanh.
+   * Câu chữ ĐÚNG như chủ sản phẩm viết — câu KỂ, lệch lối câu mệnh lệnh của bậc
+   * VIỆC (`0195`). Không mâu thuẫn thật: thông báo bình luận chỉ có một bậc, nên
+   * bất biến *"hai bậc ra hai tiêu đề khác nhau"* không áp vào đây.
+   */
+  private async binhLuan(ev: Incoming): Promise<Outcome> {
+    const p = ev.payload;
+    const policyId = s(p['policyId']);
+    const binhLuanId = s(p['binhLuanId']);
+    const actorId = s(p['actorId']);
+    if (!policyId || !binhLuanId || !actorId) return 'ignored';
+
+    const nhac = (Array.isArray(p['nguoiDuocNhac']) ? (p['nguoiDuocNhac'] as unknown[]) : [])
+      .filter((x): x is string => typeof x === 'string' && x !== actorId);
+    const gocId = ev.routingKey === 'binh_luan.tao' ? s(p['tacGiaGocId']) : undefined;
+    const traLoi = gocId && gocId !== actorId && !nhac.includes(gocId) ? [gocId] : [];
+    if (nhac.length === 0 && traLoi.length === 0) return 'ignored';
+
+    const nhan = new Set((await this.recipients.byIds([...nhac, ...traLoi])).map((t) => t.userId));
+    const noiDung = s(p['noiDungBinhLuan']) ?? '';
+    const ten = await this.recipients.ten([actorId, ...nguoiDuocNhac(noiDung)]);
+    const nguoiViet = ten[actorId] ?? s(p['actorName']) ?? 'Một người dùng';
+    const moTa = [s(p['policyCode']), s(p['customerName'])].filter(Boolean).join(' · ') || null;
+    const trich = noiDung ? trichDoan(noiDung, (id) => ten[id]) : null;
+    const chung = {
+      policyId,
+      customerId: s(p['customerId']) ?? null,
+      binhLuanId,
+      moTa,
+      trichDoan: trich,
+      duongDan: `/ho-so/${policyId}#binh-luan-${binhLuanId}`,
+      xayRaLuc: s(p['at']) ?? null,
+    };
+    // Nhắc tên ghi TRƯỚC: người vừa được nhắc vừa là tác giả gốc đã bị loại khỏi
+    // `traLoi` ở trên, nên hai lượt ghi không bao giờ cùng một người.
+    await this.ghiBinhLuan(ev, nhac.filter((u) => nhan.has(u)), {
+      ...chung,
+      action: 'BINH_LUAN_NHAC',
+      tieuDe: `${nguoiViet} đã nhắc đến bạn trong một bình luận`,
+    });
+    await this.ghiBinhLuan(ev, traLoi.filter((u) => nhan.has(u)), {
+      ...chung,
+      action: 'BINH_LUAN_TRA_LOI',
+      tieuDe: `${nguoiViet} đã phản hồi một bình luận của bạn`,
+    });
+    return 'sent';
+  }
+
+  private async ghiBinhLuan(
+    ev: Incoming,
+    userIds: string[],
+    t: {
+      action: string;
+      tieuDe: string;
+      moTa: string | null;
+      trichDoan: string | null;
+      duongDan: string;
+      policyId: string;
+      customerId: string | null;
+      binhLuanId: string;
+      xayRaLuc: string | null;
+    },
+  ): Promise<void> {
+    if (userIds.length === 0) return;
+    await this.db.q(
+      `INSERT INTO ntf.thong_bao
+         (user_id, event_id, kind, action, tieu_de, mo_ta, duong_dan,
+          policy_id, customer_id, xay_ra_luc, binh_luan_id, trich_doan)
+       SELECT u, $1::uuid, 'CHINH', $2, $3, $4, $5, $6::uuid, $7::uuid,
+              coalesce($8::timestamptz, now()), $9::uuid, $10
+         FROM unnest($11::uuid[]) AS u
+       ON CONFLICT (event_id, kind, user_id) DO NOTHING`,
+      [
+        ev.eventId,
+        t.action,
+        t.tieuDe,
+        t.moTa,
+        t.duongDan,
+        t.policyId,
+        t.customerId,
+        t.xayRaLuc,
+        t.binhLuanId,
+        t.trichDoan,
+        userIds,
+      ],
+    );
+  }
+
   /**
    * Thư cảnh báo ổ đĩa (`0253`) — cùng khuôn `banGiao`: không thuộc hồ sơ nào, người nhận
    * đích danh (mọi Quản trị đang hoạt động), chuông ghi TRƯỚC thư (SMTP chết thì chuông là

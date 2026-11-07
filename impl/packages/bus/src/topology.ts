@@ -32,7 +32,17 @@ export const BUS = {
   bindings: {
     // `van_hanh.o_dia_vuot_nguong` (`0253`) — ĐÚNG một khoá: mọi sự kiện khác của
     // `van-hanh` là vết nhật ký, không phải thư.
-    notification: ['policy.#', 'catalog.#', 'customer.#', 'sla.#', 'van_hanh.o_dia_vuot_nguong'],
+    // `binh_luan.tao` / `binh_luan.sua` (`0262`) — ĐÚNG hai khoá: xoá bình luận và đổi cảm xúc
+    // không sinh thông báo nào (yêu cầu 6.2), nên không nghe chúng.
+    notification: [
+      'policy.#',
+      'catalog.#',
+      'customer.#',
+      'sla.#',
+      'van_hanh.o_dia_vuot_nguong',
+      'binh_luan.tao',
+      'binh_luan.sua',
+    ],
     // `policy.scan_discarded` gỡ ở `0050`: yêu cầu in lại không còn xoá bản
     // scan nữa, nên không còn sự kiện nào để nghe.
     document: ['policy.rejected'],

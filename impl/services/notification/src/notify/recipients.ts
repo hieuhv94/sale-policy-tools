@@ -60,6 +60,36 @@ export class RecipientsClient {
     return ((await res.json()) as { targets: Target[] }).targets;
   }
 
+  /**
+   * TÊN của một loạt người, kể cả người KHÔNG nhận thông báo (`0262`).
+   *
+   * Thông báo bình luận cần tên NGƯỜI VIẾT (*"Lê Hoàng Minh đã nhắc đến bạn…"*)
+   * và tên người được nhắc trong trích đoạn — mà người viết có thể là Ban lãnh
+   * đạo, đúng người `byIds` lọc bỏ. Nên đi đường `users/names`, không đi
+   * `mail-targets`.
+   *
+   * Hỏng thì trả rỗng, không ném: thiếu tên thì tiêu đề nói *"Một người dùng"*,
+   * còn ném thì người được nhắc không nhận được gì.
+   */
+  async ten(userIds: string[]): Promise<Record<string, string>> {
+    const ids = [...new Set(userIds.filter(Boolean))];
+    if (ids.length === 0) return {};
+    try {
+      const res = await fetch(`${identityUrl()}/internal/users/names`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'X-Service-Token': mintServiceToken('notification'),
+        },
+        body: JSON.stringify({ userIds: ids }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      return (await res.json()) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
   /** Mọi Quản trị đang hoạt động (`0253`, thư cảnh báo ổ đĩa). */
   async quanTri(): Promise<Target[]> {
     const res = await fetch(`${identityUrl()}/internal/users/quan-tri`, {

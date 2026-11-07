@@ -3451,29 +3451,34 @@ export class PoliciesService {
     me: AuthUser,
   ): Promise<void> {
     const ids = await this.scope.userIdsFor(me);
-    const nguoi = [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
-    if (!nguoi.some((x) => x !== null && ids.includes(x))) {
+    if (!coTrongPhamVi(p, ids, me.role)) {
       throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
     }
+  }
 
-    /*
-     * Cùng luật với `thuocPhamVi(..., 'KE_TOAN')`, ở đường MỞ MỘT HỒ SƠ (`0142`).
-     *
-     * Thiếu chốt này thì danh sách giấu hồ sơ đi nhưng gõ thẳng địa chỉ vẫn mở
-     * được — đúng lỗ hổng mà `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
-     *
-     * `da_qua_tbp` khai BẮT BUỘC (`0143`): khai tuỳ chọn thì hai đường
-     * `attach`/`detach` — vốn liệt kê từng cột trong `SELECT` — im lặng bỏ qua
-     * chốt, và không ca kiểm nào đỏ. Kiểu bắt buộc thì trình biên dịch chỉ chỗ.
-     *
-     * `0157` GỠ VẾ TRẠNG THÁI. Điều kiện cũ chỉ chặn ở `CHO_TBP_DUYET`, nên hồ
-     * sơ bị Trưởng bộ phận trả về (`YEU_CAU_CHINH_SUA`) lọt qua. Cột `status`
-     * theo đó rời khỏi cả kiểu tham số — giữ một trường bắt buộc mà không dòng
-     * nào đọc là bắt mọi chỗ gọi mang theo dữ liệu cho một luật đã bỏ.
-     */
-    if (me.role === 'KE_TOAN' && !p.da_qua_tbp) {
-      throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
-    }
+  /**
+   * Trong `policyIds`, những hồ sơ nào `user` CÒN mở được (`0262`).
+   *
+   * Cho thông báo bình luận kiểm quyền LÚC ĐỌC (yêu cầu 6.3): người đã mất phạm
+   * vi thì dòng thông báo chỉ còn tiêu đề. Cùng hàm `coTrongPhamVi` với
+   * `assertPolicyInScope` — một luật, hai cách hỏi.
+   */
+  async trongPhamVi(user: AuthUser, policyIds: string[]): Promise<string[]> {
+    if (policyIds.length === 0) return [];
+    const ids = await this.scope.userIdsFor(user);
+    const rows = await this.db.q<{
+      id: string;
+      tdv_user_id: string | null;
+      tbp_user_id: string | null;
+      ke_toan_user_id: string | null;
+      sale_admin_user_id: string | null;
+      da_qua_tbp: boolean;
+    }>(
+      `SELECT id, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id, da_qua_tbp
+         FROM pol.policy WHERE id = ANY($1::uuid[])`,
+      [policyIds],
+    );
+    return rows.filter((p) => coTrongPhamVi(p, ids, user.role)).map((p) => p.id);
   }
 
   /*
@@ -3495,4 +3500,42 @@ export class PoliciesService {
    * không có dòng mờ ấy thì đúng là dựng lại cái hỏng mà `POL-08` sinh ra để
    * chống — xem `0117_dong_da_xoa.sql`.
    */
+}
+
+/**
+ * MỘT luật phạm vi hồ sơ, dùng chung cho `assertPolicyInScope` (mở một hồ sơ) và
+ * `trongPhamVi` (lọc một lô — thông báo bình luận, `0262`).
+ *
+ * Vế bốn cột người: người gọi (qua tập phạm vi `ids`) đứng tên ở ít nhất một ô.
+ *
+ * Vế Kế toán — cùng luật với `thuocPhamVi(..., 'KE_TOAN')`, ở đường MỞ MỘT HỒ SƠ
+ * (`0142`). Thiếu chốt này thì danh sách giấu hồ sơ đi nhưng gõ thẳng địa chỉ vẫn
+ * mở được — đúng lỗ hổng mà `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
+ *
+ * `da_qua_tbp` khai BẮT BUỘC (`0143`): khai tuỳ chọn thì hai đường `attach`/`detach`
+ * — vốn liệt kê từng cột trong `SELECT` — im lặng bỏ qua chốt, và không ca kiểm
+ * nào đỏ. Kiểu bắt buộc thì trình biên dịch chỉ chỗ.
+ *
+ * `0157` GỠ VẾ TRẠNG THÁI. Điều kiện cũ chỉ chặn ở `CHO_TBP_DUYET`, nên hồ sơ bị
+ * Trưởng bộ phận trả về (`YEU_CAU_CHINH_SUA`) lọt qua.
+ *
+ * `0262` tách khối này ra khỏi `assertPolicyInScope`: hai đường hỏi phạm vi mà mỗi
+ * đường tự viết luật là hai luật sẽ lệch — đúng thứ mà thông báo bình luận cần
+ * tránh khi nó quyết định ai còn được đọc trích đoạn.
+ */
+export function coTrongPhamVi(
+  p: {
+    tdv_user_id: string | null;
+    tbp_user_id: string | null;
+    ke_toan_user_id: string | null;
+    sale_admin_user_id: string | null;
+    da_qua_tbp: boolean;
+  },
+  ids: string[],
+  role: string,
+): boolean {
+  const nguoi = [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
+  if (!nguoi.some((x) => x !== null && ids.includes(x))) return false;
+  if (role === 'KE_TOAN' && !p.da_qua_tbp) return false;
+  return true;
 }

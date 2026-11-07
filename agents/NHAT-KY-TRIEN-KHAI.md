@@ -21685,3 +21685,48 @@ lượt hỏi đặt mốc vượt qua dòng kia và nó mất hẳn. Phá lại
 `KIEN-TRUC` (hai chỗ — một chỗ in đậm `**78**` mà phép thay đầu không khớp) và `02-CHAY-DEMO`. HDSD để chặng giao diện.
 
 **3185/3185 xanh.**
+
+## P298 — `0262` Bình luận, chặng 2/5: thông báo trên chuông
+
+**Chỉ chuông, không thư — ngoại lệ có chủ ý của `0096`** (*"thông báo trên web = người nhận thư"*), chốt 06/11: bình
+luận là trao đổi dồn dập, một lá thư cho từng câu là ngập hộp thư. Nhánh `binhLuan()` rẽ sớm trong `notify.handle`
+(lối `oDia`), ghi `ntf.thong_bao` thẳng, **không `claim` vào `ntf.sent_mail`** (bảng ấy giữ chỗ cho THƯ). Hàng đợi
+`notification` nghe ĐÚNG `binh_luan.tao` và `binh_luan.sua` — xoá và cảm xúc không sinh thông báo, nên không nghe.
+
+**Người nhận**: người MỚI được nhắc ∪ tác giả gốc khi đây là reply mới (sự kiện sửa thì không) − người viết. Tra qua
+`byIds` → `users/mail-targets`, tức đường đã lọc tài khoản vô hiệu hoá và `KHONG_NHAN_THONG_BAO` (`0260`); không lọc
+lại ở `notification`. Bậc VIỆC (`kind = CHINH`). Câu chữ đúng như chủ sản phẩm viết (câu KỂ, lệch lối mệnh lệnh của
+bậc VIỆC `0195` — không mâu thuẫn vì chỉ có một bậc). Hai cột mới ở `0129_thong_bao_binh_luan.sql`: `binh_luan_id`
+(để đánh dấu đã đọc theo bình luận) và `trich_doan` (tách khỏi `mo_ta` vì đường đọc phải GIẤU RIÊNG nó).
+
+**Tên người viết đi đường `users/names`, không `mail-targets`**: người viết có thể là Ban lãnh đạo — đúng người
+`mail-targets` lọc bỏ — nên tra tên qua đường ấy thì tiêu đề ra *"Một người dùng"*. Ca bất biến của `0260` (*"chỉ ba
+đường tra người nhận"*) đỏ khi thêm đường thứ tư, ĐÚNG việc của nó; sửa ca ấy cho nói rõ `users/names` là đường TÊN,
+không quyết định ai nhận, và trỏ sang ca hết-đường *"Ban lãnh đạo không bao giờ nhận"* ở tệp mới.
+
+**Kiểm quyền LÚC ĐỌC** (yêu cầu 6.3): `GET /notifications/cua-toi` hỏi `policy` (`POST /internal/policies/trong-pham-vi`)
+cho các dòng bình luận; hồ sơ người đọc không còn mở được thì dòng chỉ còn tiêu đề (`moTa`, `trichDoan` = null,
+`matQuyen: true`). **Luật phạm vi tách thành hàm thuần `coTrongPhamVi`** ở `policies.service.ts`, dùng chung cho
+`assertPolicyInScope` và đường lô — hai đường hỏi phạm vi mà mỗi đường tự viết luật là hai luật sẽ lệch (phá lại *"luật
+Kế toán rời khỏi hàm chung"* làm đỏ ca Kế toán của `0261`). **Hỏng thì đóng**: `policy` không trả lời hay trả lỗi thì
+giấu.
+
+**Tự đọc khi thấy**: `POST /notifications/da-doc-binh-luan {binhLuanIds}` — `user_id = $me` là chốt duy nhất; vào danh
+sách trắng của SEC-13 (thông báo của chính mình). Giao diện gọi ở chặng `0264`. Chuông hỏi mỗi **30 giây** (trước 60).
+
+**Phá lại mười một lượt.** Đỏ: bỏ nhánh (16) · người viết cũng nhận (2) · không qua lọc identity (2 — Ban lãnh đạo, vô
+hiệu hoá) · sự kiện sửa báo "đã phản hồi" (1) · bỏ giấu khi mất quyền (3) · chạm hộp người khác (1) · luật Kế toán rời
+hàm chung (1) · bỏ khoá `binh_luan.sua` (1). **Hai lượt XANH ở lần đầu**: (a) *bỏ vế "một người một dòng"* — xanh CÓ LÝ
+DO: chỉ mục `uq_thong_bao_event_kind_user` của `0096` vốn chặn dòng thứ hai, và nhánh nhắc tên ghi trước nên câu nhắc
+tên luôn thắng; vế trong mã là lớp thứ hai, chốt thật là chỉ mục. (b) *policy hỏng thì MỞ* — xanh vì CA KIỂM HỤT: ca
+trỏ `policy` vào cổng chết nên lỗi đi `catch`, không qua nhánh `!res.ok` vừa phá. Thêm ca trỏ `POLICY_URL` sang
+identity (đường không tồn tại → 404); phá lại lần hai: đỏ.
+
+**Tài liệu**: YCNV 9.1b (ngoại lệ + nhịp 30 giây) và 9.4; HDSD câu nhịp chuông.
+
+**Hai ca mong manh lộ ra ở lượt chạy cả bộ, không ở lượt chạy riêng**: *"không thư nào tới Mailpit"* đọc CẢ hộp thư, và
+*"chuông tăng đúng 1"* đếm CẢ hộp `tbp01` — trong lúc tệp này chạy, thư và thông báo của một tệp khác (luồng duyệt
+`ZZAUD`) tới trễ. Đổi câu hỏi: không thư nào mang MÃ SỰ KIỆN bình luận trong `MessageID`; con số chuông là `≥`, còn
+dòng của chính bình luận được kiểm đích danh. Kèm số migration ở tài liệu lên 80.
+
+**3207/3207 xanh.**

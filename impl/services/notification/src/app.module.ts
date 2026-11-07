@@ -1,3 +1,4 @@
+import { PolicyClient } from './infra/policy.client.js';
 import { Controller, Get, Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware } from '@csbh/http-kit';
@@ -34,6 +35,7 @@ class HealthController {
     Db,
     Mailer,
     RecipientsClient,
+    PolicyClient,
     NotifyService,
     NotifyConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },

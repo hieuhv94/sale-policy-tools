@@ -153,7 +153,11 @@ describe('`0260` bất biến toàn hệ thống', () => {
   it('notification chỉ tra người nhận qua ĐÚNG ba đường đã chặn — đường thứ tư phải đi qua chốt này', () => {
     const src = readFileSync('services/notification/src/notify/recipients.ts', 'utf8');
     const duong = [...src.matchAll(/\/internal\/([a-z-]+(?:\/[a-z-]+)?)/g)].map((m) => m[1]!).sort();
-    expect(duong).toEqual(['notify-targets', 'users/mail-targets', 'users/quan-tri']);
+    // `users/names` (`0262`) là đường lấy TÊN để hiển thị (người viết bình luận có thể
+    // chính là Ban lãnh đạo — đúng người `mail-targets` lọc bỏ), KHÔNG quyết định ai
+    // nhận: người nhận bình luận vẫn đi `byIds` → `users/mail-targets`. Ca "Ban lãnh đạo
+    // không bao giờ nhận" ở `binh-luan-thong-bao.test.ts` canh điều ấy ở tầng hết đường.
+    expect(duong).toEqual(['notify-targets', 'users/mail-targets', 'users/names', 'users/quan-tri']);
     const ctl = readFileSync('services/identity/src/internal/internal.controller.ts', 'utf8');
     expect(ctl.match(/KHONG_NHAN_THONG_BAO\]/g)?.length ?? 0, 'mỗi đường truyền hằng chặn làm tham số').toBe(3);
   });

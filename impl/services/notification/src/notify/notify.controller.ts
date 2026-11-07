@@ -13,16 +13,18 @@
  * người kia, nên nó phải có mặt ở cả bốn — kể cả hai câu `UPDATE`, chỗ dễ quên
  * nhất. `tests/http/thong-bao.test.ts` có ca đối chiếu riêng cho từng câu.
  */
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser, Roles, pageOf, paged, pageSql, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { NotifyService } from './notify.service.js';
+import { PolicyClient } from '../infra/policy.client.js';
 
 @Controller('notifications')
 export class NotifyController {
   constructor(
     private readonly db: Db,
     private readonly notify: NotifyService,
+    private readonly policy: PolicyClient,
   ) {}
 
   /**
@@ -47,6 +49,7 @@ export class NotifyController {
       `SELECT id, kind, action, tieu_de AS "tieuDe", mo_ta AS "moTa",
               duong_dan AS "duongDan", policy_id AS "policyId", customer_id AS "customerId",
               xay_ra_luc AS "xayRaLuc", da_doc_luc AS "daDocLuc",
+              binh_luan_id AS "binhLuanId", trich_doan AS "trichDoan",
               count(*) OVER() AS total_count
          FROM ntf.thong_bao
         WHERE user_id = $1
@@ -54,8 +57,68 @@ export class NotifyController {
         ORDER BY xay_ra_luc DESC, id DESC ${pageSql(3)}`,
       [me.id, q.chuaDoc === 'true', p.limit, p.offset],
     );
+    await this.giauKhiMatQuyen(rows, me);
     const dem = await this.demChuaDocCua(me.id);
     return { ...paged(rows, p), soViecChuaDoc: dem.viec, soTinChuaDoc: dem.tin };
+  }
+
+  /**
+   * Dòng thông báo BÌNH LUẬN của hồ sơ người đọc không còn mở được: chỉ còn tiêu
+   * đề (`0262`, yêu cầu 6.3). Mã hồ sơ, tên khách và trích đoạn bị giấu; `matQuyen`
+   * để giao diện nói *"bạn không còn quyền xem hồ sơ này"*.
+   *
+   * Kiểm LÚC ĐỌC, không lúc ghi: phạm vi đổi sau khi thông báo đã ghi (đổi người
+   * duyệt, đổi TDV phụ trách) là chuyện thường. Chỉ dòng bình luận — thông báo luồng
+   * duyệt là bản chụp của một lá thư đã gửi, không thuộc luật này.
+   *
+   * `policy` không trả lời thì GIẤU (xem `PolicyClient`).
+   */
+  private async giauKhiMatQuyen(rows: Record<string, unknown>[], me: AuthUser): Promise<void> {
+    const bl = rows.filter((r) => r['binhLuanId']);
+    for (const r of rows) r['matQuyen'] = false;
+    if (bl.length === 0) return;
+    const con = await this.policy.trongPhamVi(me, bl.map((r) => String(r['policyId'])));
+    for (const r of bl) {
+      if (con.has(String(r['policyId']))) continue;
+      r['moTa'] = null;
+      r['trichDoan'] = null;
+      r['matQuyen'] = true;
+    }
+  }
+
+  /**
+   * Đánh dấu đã đọc mọi thông báo của MÌNH gắn với những bình luận vừa hiện trên
+   * màn hình (`0262`, chốt 06/11): đang trao đổi trên trang hồ sơ thì con số trên
+   * chuông không tăng vô ích. Giao diện biết id bình luận, không biết id thông báo.
+   *
+   * `user_id = $me` là chốt duy nhất — id bình luận của người khác chỉ làm không gì
+   * đổi. Trả hai con số mới để chuông cập nhật ngay, như `da-doc`.
+   */
+  @Post('da-doc-binh-luan')
+  async daDocBinhLuan(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    const ids = (body as { binhLuanIds?: unknown } | null)?.binhLuanIds;
+    if (
+      !Array.isArray(ids) ||
+      ids.length > 100 ||
+      !ids.every((x) => typeof x === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(x))
+    ) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'binhLuanIds',
+        message: 'binhLuanIds: phải là danh sách tối đa 100 định danh hợp lệ',
+      });
+    }
+    const rows =
+      ids.length === 0
+        ? []
+        : await this.db.q<{ id: string }>(
+            `UPDATE ntf.thong_bao SET da_doc_luc = now()
+              WHERE user_id = $1 AND binh_luan_id = ANY($2::uuid[]) AND da_doc_luc IS NULL
+              RETURNING id`,
+            [me.id, ids],
+          );
+    const dem = await this.demChuaDocCua(me.id);
+    return { soDaDanhDau: rows.length, soViecChuaDoc: dem.viec, soTinChuaDoc: dem.tin };
   }
 
   /**

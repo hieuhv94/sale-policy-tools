@@ -259,7 +259,7 @@ Chân bảng có **Xem tất cả** → trang *Thông báo* đầy đủ, phân 
 Đóng bảng bằng cách bấm ra ngoài, bấm lại vào chuông, hoặc nhấn **Esc**.
 
 > Thông báo giữ **6 tháng gần nhất**, cùng cửa sổ với *Nhật ký hệ thống*. Con số trên chuông tự làm
-> mới mỗi phút; chuyển sang tab khác thì nó dừng và hỏi lại ngay khi bạn quay về.
+> mới **mỗi 30 giây**; chuyển sang tab khác thì nó dừng và hỏi lại ngay khi bạn quay về.
 
 ### Menu tài khoản
 

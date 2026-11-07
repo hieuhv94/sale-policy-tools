@@ -2,7 +2,9 @@
 
 > **TRẠNG THÁI (07/11/2026): Bước 1 XONG — mockup bản 2 ĐÃ DUYỆT. Bước 2 XONG — mọi quyết định đã chép vào
 > `comment_system_requirements.md` (2.2 · 3.2 · 4 · 6.2 · 6.3 · 9.6 · 9.7 · AC 20/31a/31b). **
-> **P297 (`0261`) XONG 07/11** — lược đồ + API ở `policy`, 3185/3185 xanh. **Kế tiếp: P298 (`0262`) thông báo.**
+> **P297 (`0261`) XONG 07/11** — lược đồ + API ở `policy`, 3185/3185 xanh.
+> **P298 (`0262`) XONG 07/11** — thông báo chuông, kiểm quyền lúc đọc, tự đọc theo bình luận, 3207/3207 xanh.
+> **Kế tiếp: P299 (`0263`) tệp đính kèm.**
 > Lệch so với kế hoạch: nhắc tên lưu TRONG CHỮ dạng `@{uuid}` (không có bảng `binh_luan_nhac`, không gửi vị trí);
 > tệp đính kèm chưa có ở P297 (để P299 như kế hoạch). Xem nhật ký P297.
 >

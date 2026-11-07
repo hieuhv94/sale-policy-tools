@@ -41,6 +41,7 @@ type HoSo = {
   ke_toan_user_id: string | null;
   sale_admin_user_id: string | null;
   da_qua_tbp: boolean;
+  kh_ten_snap: string | null;
 };
 
 type Dong = {
@@ -99,7 +100,7 @@ export class BinhLuanService {
   private async moHoSo(policyId: string, me: AuthUser): Promise<HoSo> {
     const p = await this.db.one<HoSo>(
       `SELECT id, code, customer_id, tdv_user_id, tbp_user_id, ke_toan_user_id,
-              sale_admin_user_id, da_qua_tbp
+              sale_admin_user_id, da_qua_tbp, kh_ten_snap
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );
@@ -403,6 +404,20 @@ export class BinhLuanService {
     return r;
   }
 
+  /**
+   * Tên khách cho dòng thông báo *"mã hồ sơ · tên khách"* (`0262`). Ảnh chụp lúc
+   * gửi duyệt nếu có (`0101`), không thì hỏi `customer`. Hỏng thì `null` — dòng
+   * thông báo thiếu tên khách vẫn đọc được, còn ném thì bình luận không gửi được.
+   */
+  private async tenKhach(p: HoSo): Promise<string | null> {
+    if (p.kh_ten_snap) return p.kh_ten_snap;
+    try {
+      return (await this.clients.customer(p.customer_id)).name;
+    } catch {
+      return null;
+    }
+  }
+
   private suKien(p: HoSo, me: AuthUser, action: string, extra: Record<string, unknown>) {
     return {
       entity: 'binh_luan',
@@ -427,6 +442,7 @@ export class BinhLuanService {
     const noiDung = chuanNoiDung(input.noiDung);
     this.kiem(noiDung);
     const nhac = await this.kiemNhac(p, me, noiDung);
+    const customerName = await this.tenKhach(p);
 
     const id = await this.db.tx(async (c) => {
       await this.khoa(c, p.id);
@@ -487,6 +503,7 @@ export class BinhLuanService {
           parentId: cha?.id ?? null,
           tacGiaGocId: cha?.tac_gia_id ?? null,
           nguoiDuocNhac: nhac,
+          customerName,
           // Cho `notification` dựng trích đoạn. Nhật ký KHÔNG lưu trường này —
           // `audit` chỉ ghi `before`/`after`/`reason`.
           noiDungBinhLuan: noiDung,
@@ -501,6 +518,7 @@ export class BinhLuanService {
     const p = await this.moHoSo(policyId, me);
     const noiDung = chuanNoiDung(input.noiDung);
     this.kiem(noiDung);
+    const customerName = await this.tenKhach(p);
 
     await this.db.tx(async (c) => {
       await this.khoa(c, p.id);
@@ -521,6 +539,7 @@ export class BinhLuanService {
           parentId: r.parent_id,
           // Chỉ người MỚI được nhắc nhận thông báo (yêu cầu 3.3).
           nguoiDuocNhac: nhac,
+          customerName,
           noiDungBinhLuan: noiDung,
         }),
       );

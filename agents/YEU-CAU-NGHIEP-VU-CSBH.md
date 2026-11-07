@@ -1058,7 +1058,14 @@ phải một cách in khác của hồ sơ.
 ### 9.1b. Thông báo trên web `mới 23/08` `sửa 10/09`
 
 Một **biểu tượng chuông** ở thanh trên cùng, sát trái thẻ tài khoản, mang **con số** việc chưa đọc —
-không phải một dấu chấm. Quá 99 thì ghi `99+`.
+không phải một dấu chấm. Quá 99 thì ghi `99+`. Chuông hỏi lại máy chủ **mỗi 30 giây** `sửa 07/11`
+(trước là một phút) — để người được nhắc tên trong một bình luận thấy trong 30 giây.
+
+- **Bình luận là ngoại lệ có chủ ý** `mới 07/11` của luật *"thông báo trên web = người nhận thư"*:
+  thông báo bình luận **chỉ có trên chuông, không có thư**. Bậc **việc**. Câu chữ: *"<tên> đã nhắc
+  đến bạn trong một bình luận"* / *"<tên> đã phản hồi một bình luận của bạn"*, dòng dưới là mã hồ sơ ·
+  tên khách và một trích đoạn. Người đã **mất phạm vi** hồ sơ thì dòng chỉ còn tiêu đề. Bình luận hiện
+  trên màn hình của người nhận thì thông báo của nó **tự thành đã đọc**. Mục 9.4.
 
 - **BẬC của một thông báo** `mới 09/09` — với mỗi người đọc, một thông báo hoặc là **việc của họ**
   hoặc chỉ là **tin**. Người đọc là *chủ bước* của trạng thái đích thì đó là việc; còn lại là tin.
@@ -1311,7 +1318,10 @@ dữ liệu và quyền:
 - **Không lưu nháp**: tải lại trang thì chữ đang gõ mất (trình duyệt hỏi lại trước khi rời trang).
 - **Tự cập nhật ≤ 30 giây**, không cần tải lại trang.
 - **Thông báo chỉ trên chuông, không gửi thư** — ngoại lệ có chủ ý của mục 9.1b; tính là **việc**.
-  *(Chặng `0262`.)* Tệp đính kèm *(chặng `0263`)*.
+  Người nhận: người **mới** được nhắc, và tác giả bình luận gốc khi có **reply mới** — trừ chính người
+  viết, trừ tài khoản vô hiệu hoá, **không bao giờ Ban lãnh đạo**; một người một thông báo cho một
+  bình luận. Sửa, xoá, thả cảm xúc không sinh thông báo (sửa thêm người mới thì chỉ người mới nhận).
+  Tệp đính kèm *(chặng `0263`)*.
 - Nhật ký ghi *ai, lúc nào* tạo, sửa, xoá bình luận — **không ghi nội dung**.
 
 ## 10. Nhật ký, phiên bản và bảo mật

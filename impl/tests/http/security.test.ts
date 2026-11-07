@@ -1194,6 +1194,7 @@ const KHONG_PHAI_GHI_NGHIEP_VU: Record<string, string> = {
   'POST /auth/google/exchange': 'công khai — nộp mã một lần của lượt đăng nhập Google (`0241`)',
   'POST /notifications/:id/da-doc': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
   'POST /notifications/da-doc-het': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
+  'POST /notifications/da-doc-binh-luan': 'đánh dấu đã đọc thông báo bình luận CỦA CHÍNH MÌNH (`0262`)',
 
   // 2 — đọc, nhưng viết bằng POST/PUT
   'POST /reports/exports': 'XUẤT Excel danh sách hồ sơ — đọc, và đọc trong đúng phạm vi của người gọi',

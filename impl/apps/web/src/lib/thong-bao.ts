@@ -224,8 +224,14 @@ export function useChuaDoc(): DemChuaDoc {
   return d;
 }
 
-/** Nhịp hỏi lại máy chủ. Một phút — xem `useDemThongBao`. */
-export const NHIP_HOI_MS = 60_000;
+/**
+ * Nhịp hỏi lại máy chủ — 30 giây (`0262`, trước là một phút).
+ *
+ * Bình luận nhắc tên một người đang ở trang khác: chậm nhất 30 giây họ phải thấy
+ * trên chuông (yêu cầu 5, chốt 06/11). Một phút là ngưỡng của thông báo luồng
+ * duyệt, nơi hạn xử lý tính bằng ngày. Xem `useDemThongBao`.
+ */
+export const NHIP_HOI_MS = 30_000;
 
 /**
  * Hỏi máy chủ số chưa đọc, định kỳ. Gọi ở ĐÚNG MỘT chỗ: cái chuông.
@@ -250,7 +256,7 @@ export function useDemThongBao(bat: boolean): void {
         .then((r) => {
           if (song) datChuaDoc({ viec: r.soViecChuaDoc, tin: r.soTinChuaDoc });
         })
-        // NUỐT CÓ LÝ DO (`0089`): đây là con số phụ và nó tự hỏi lại sau 60
+        // NUỐT CÓ LÝ DO (`0089`): đây là con số phụ và nó tự hỏi lại sau 30
         // giây. Một lượt hỏi hụt mà dựng dải đỏ là đè lỗi của thứ người dùng
         // KHÔNG yêu cầu lên trên việc họ đang làm. Khai ở `NUOT_CO_LY_DO`.
         .catch(() => undefined);
