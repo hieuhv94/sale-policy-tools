@@ -44,6 +44,8 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
                      mo-goi · bi-mat-dong · bi-mat-mo. Gọi qua ./csbh, không gõ tay.
   psql [...]         Mở psql vào CSDL, hoặc chạy câu lệnh truyền vào.
   gen-secrets [dir]  Sinh bí mật cho một lần triển khai. Mặc định /run/secrets.
+  kiem-nghiem        Bộ kiểm nghiệm đủ chức năng qua API thật (`0270`). CHỈ chạy trong
+                     chồng kiểm (CSBH_KIEM_NGHIEM=1). Gọi qua ./csbh kiem-nghiem.
   ban-cai <thư mục>  Dựng thư mục CHƯƠNG TRÌNH đi kèm ảnh này (csbh · deploy/ ·
                      tai-lieu/) vào thư mục gắn vào (`0270`). Gọi qua ./csbh cap-nhat.
   version            In phiên bản ảnh.
@@ -111,6 +113,7 @@ case "${1:-help}" in
   chuyen-may)      shift; exec /bin/sh /app/scripts/chuyen-may.sh "$@" ;;
   psql)            shift; exec psql "$@" ;;
   gen-secrets)     shift; exec /bin/sh /app/scripts/gen-secrets.sh "${1:-/run/secrets}" ;;
+  kiem-nghiem)     shift; exec pnpm --dir /app --silent kiem-nghiem "$@" ;;
   ban-cai)         shift; exec /bin/sh /app/scripts/ban-cai.sh /app "${1:?ban-cai: thiếu thư mục đích}" "${CSBH_IMAGE:-__IMAGE__}" ;;
   version)         echo "${APP_VERSION:-0.0.0-dev}" ;;
   help|-h|--help)  usage ;;

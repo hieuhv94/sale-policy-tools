@@ -35,6 +35,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { crc32, deflateSync } from 'node:zlib';
 import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
+import { pdfMau } from './api-khach.js';
 import { MAU_MAC_DINH } from '../services/document/src/contracts/bootstrap-mau.js';
 
 if (process.env.NODE_ENV === 'production') {
@@ -1727,27 +1728,7 @@ function anhMau(rong = 264, cao = 184): Buffer {
 }
 
 /** PDF một trang tối thiểu nhưng HỢP LỆ — trình xem mở được, không phải chỉ qua được phép kiểm byte đầu. */
-function pdfMau(dongChu: string): Buffer {
-  const noi = `BT /F1 14 Tf 72 760 Td (${dongChu}) Tj ET`;
-  const vat = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${noi.length} >>\nstream\n${noi}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  let ra = '%PDF-1.4\n';
-  const vt: number[] = [];
-  vat.forEach((v, i) => {
-    vt.push(ra.length);
-    ra += `${i + 1} 0 obj\n${v}\nendobj\n`;
-  });
-  const xref = ra.length;
-  ra += `xref\n0 ${vat.length + 1}\n0000000000 65535 f \n`;
-  for (const o of vt) ra += `${String(o).padStart(10, '0')} 00000 n \n`;
-  ra += `trailer\n<< /Size ${vat.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  return Buffer.from(ra, 'latin1');
-}
+// `pdfMau` dời sang `./api-khach.ts` (`0270`) — `kiem-nghiem.ts` dùng chung.
 
 /**
  * Bình luận mẫu (`0265`) — đủ để người xem demo thấy mọi dạng của khối: nhắc tên, liên

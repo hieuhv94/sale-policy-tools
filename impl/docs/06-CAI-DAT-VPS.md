@@ -13,7 +13,7 @@ cũ) · [05-VAN-HANH.md](05-VAN-HANH.md) (sao lưu · phục hồi · chuyển m
 
 | Cần | Ghi chú |
 | --- | --- |
-| **VPS** Ubuntu 22.04/24.04 hoặc Debian 12, **4 CPU · 8 GB RAM · 50 GB đĩa** trở lên | quyền `sudo`. Có ổ thứ hai thì dùng cho bản sao lưu |
+| **VPS** Ubuntu 22.04/24.04 hoặc Debian 12, **4 CPU · 8 GB RAM · 50 GB đĩa** trở lên | quyền `sudo`. Có ổ thứ hai thì dùng cho bản sao lưu. Lượt kiểm nghiệm cần **2,5 GB RAM trống** lúc chạy (lúc cập nhật, hai chồng cùng chạy vài phút) |
 | **Tên miền** (vd. `csbh.congty.vn`) và bản ghi **A trỏ về IP của VPS** | làm TRƯỚC khi cài — bộ cài kiểm điều này, và Let's Encrypt khoá theo tuần nếu xin chứng chỉ hỏng nhiều lần |
 | **Máy chủ SMTP**: địa chỉ, cổng, tài khoản, mật khẩu | thư mời kích hoạt là đường duy nhất để người dùng có mật khẩu |
 | Tên miền gửi thư có **SPF · DKIM · DMARC** | thiếu thì thư mời rơi vào spam |
@@ -72,11 +72,18 @@ sudo ./cai-dat.sh
 Bộ cài không hỏi gì. Màn hình hiện từng bước, `▶` khi bắt đầu, `✔` khi xong:
 
 ```text
-[1/12] ▶ Kiểm máy chủ: quyền root, hệ điều hành…
-[1/12] ✔ Kiểm máy chủ: quyền root, hệ điều hành  (0 giây)
-[2/12] ▶ Kiểm tệp cấu hình /etc/csbh/csbh.env…
+[1/14] ▶ Kiểm máy chủ: quyền root, hệ điều hành…
+[1/14] ✔ Kiểm máy chủ: quyền root, hệ điều hành  (0 giây)
+[2/14] ▶ Kiểm tệp cấu hình /etc/csbh/csbh.env…
 …
-[12/12] ✔ Kiểm khói: HTTPS và máy chủ thư (không ghi dữ liệu)  (6 giây)
+[10/14] ▶ Kiểm nghiệm đủ chức năng trên chồng kiểm riêng (dữ liệu giả, dọn sạch sau)…
+        ✔ [Tài khoản] Thư mời tới hộp thư, kích hoạt bằng liên kết trong thư, đăng nhập được
+        ✔ [Hồ sơ] Sale Admin dựng bản mềm qua Gotenberg và lưu vào hồ sơ
+        …
+        KIEM_NGHIEM 21/21
+[10/14] ✔ Kiểm nghiệm đủ chức năng trên chồng kiểm riêng (dữ liệu giả, dọn sạch sau)  (87 giây)
+…
+[14/14] ✔ Kiểm khói: HTTPS và máy chủ thư (không ghi dữ liệu)  (6 giây)
 ```
 
 | Bước | Làm gì |
@@ -90,11 +97,14 @@ Bộ cài không hỏi gì. Màn hình hiện từng bước, `▶` khi bắt đ
 | 7 | Kéo ảnh phần mềm — **chỉ khi máy chưa có** |
 | 8 | Cài chương trình đi kèm ảnh vào `/opt/csbh/releases/<bản>` |
 | 9 | Sinh mật khẩu nội bộ |
-| 10 | Chạy migration CSDL và dựng các service |
-| 11 | Tạo tài khoản Quản trị đầu tiên (chỉ khi CSDL chưa có tài khoản nào) |
-| 12 | Cài lịch sao lưu tự động (cron) và tác tử vận hành (systemd) · kiểm HTTPS và kết nối tới máy chủ thư |
+| 10 | **Kiểm nghiệm** (chỉ lần cài đầu): dựng một chồng thứ hai từ CÙNG ảnh, tách biệt hẳn (dữ liệu riêng, không mở cổng, thư vào hộp thư giả), chạy 21 ca đủ chức năng với dữ liệu giả — tài khoản & thư mời, danh mục, khách hàng, hồ sơ đi đủ mười bước, bản mềm, hợp đồng, bình luận, phân quyền, báo cáo, nhật ký — rồi **xoá sạch**, dù xanh hay đỏ, kể cả khi bị ngắt giữa chừng. **Đỏ thì dừng**: hệ thật chưa được dựng |
+| 11 | Chạy migration CSDL và dựng các service của hệ thật — **hệ thật không bao giờ chứa dữ liệu giả** |
+| 12 | Tạo tài khoản Quản trị đầu tiên (chỉ khi CSDL chưa có tài khoản nào) |
+| 13 | Cài lịch sao lưu tự động (cron) và tác tử vận hành (systemd) |
+| 14 | Kiểm khói: HTTPS và kết nối tới máy chủ thư (không ghi dữ liệu) |
 
-Toàn bộ đầu ra được ghi kèm vào `<workspace>/logs/cai-dat/<giờ>.log`.
+Toàn bộ đầu ra được ghi kèm vào `<workspace>/logs/cai-dat/<giờ>.log`; báo cáo đầy đủ của lượt kiểm
+nghiệm ở `<workspace>/logs/kiem-nghiem/<giờ>.txt`.
 
 ### 2.4 Việc còn lại sau khi cài
 
@@ -133,6 +143,7 @@ Sao lưu cả máy = sao lưu `/etc/csbh/` và `<CSBH_WORKSPACE>/`. Chuyển san
 | Xem log | `csbh log [service]` |
 | Phiên bản đang chạy | `csbh phien-ban` |
 | Sao lưu ngay | `csbh sao-luu` (cron đã tự chạy theo lịch đặt trên trang *Vận hành*) |
+| Kiểm nghiệm lại bất cứ lúc nào | `csbh kiem-nghiem` — chồng kiểm riêng, không đụng dữ liệu thật |
 | Đổi cấu hình (SMTP, tên miền…) | sửa `/etc/csbh/csbh.env` rồi `sudo ./cai-dat.sh` — **không đụng dữ liệu** |
 | Dừng / bật lại | `csbh xuong` · `csbh len` |
 
@@ -143,7 +154,9 @@ sudo csbh cap-nhat
 ```
 
 Hỏi registry có bản mới không (không kéo gì nếu đã mới nhất) → **sao lưu** → giữ ảnh cũ làm đường
-lùi → kéo bản mới → migration → dựng lại. Mỗi bước hiện `▶` / `✔`. Máy **không bao giờ tự đổi
+lùi → kéo bản mới → **kiểm nghiệm bản mới trên chồng kiểm riêng** (21 ca, dữ liệu giả, xoá sạch sau)
+→ migration → dựng lại. Mỗi bước hiện `▶` / `✔`. **Kiểm nghiệm đỏ thì dừng và trả ảnh cũ** — lúc ấy
+hệ thật chưa khởi động lại và CSDL chưa chạy migration mới, nên không có gì phải lùi. Máy **không bao giờ tự đổi
 bản** — `csbh len`, khởi động lại máy hay chạy lại bộ cài đều dùng ảnh đã có.
 
 Lùi về bản trước (chỉ được khi bản mới chưa thêm migration — lệnh tự kiểm và nói ra):
@@ -165,8 +178,9 @@ xong được bỏ qua.
 | 5 | DNS chưa trỏ, hoặc tên miền đứng sau proxy Cloudflare (cam) / NAT | đợi DNS; đứng sau proxy thì `sudo ./cai-dat.sh --bo-kiem-dns` |
 | 6 | sai `REGISTRY_USER` / `REGISTRY_TOKEN` | tạo lại token Read-only |
 | 9 | có dữ liệu CSDL cũ mà mất thư mục `secrets/` | chép lại `secrets/` của lượt cài trước; không có gì đáng giữ thì xoá `<workspace>/data/postgres` |
-| 10 | cấu hình thư sai làm service không khởi động | `csbh log notification`, sửa tệp cấu hình |
-| 12 | HTTPS chưa lên (chứng chỉ) | `csbh log caddy` — thường là DNS hoặc cổng 80 bị chặn |
+| 10 | một ca kiểm nghiệm đỏ, hoặc thiếu RAM | đọc ca đỏ trong `<workspace>/logs/kiem-nghiem/<giờ>.txt` và gửi cho bên giao phần mềm — hệ thật chưa bị đụng. Thiếu RAM: nâng VPS |
+| 11 | cấu hình thư sai làm service không khởi động | `csbh log notification`, sửa tệp cấu hình |
+| 14 | HTTPS chưa lên (chứng chỉ) | `csbh log caddy` — thường là DNS hoặc cổng 80 bị chặn |
 
 Đổi `CSBH_WORKSPACE` sau khi đã cài: bộ cài **dừng và hướng dẫn dời** dữ liệu, không tự dời và không
 dựng một hệ trống mới.

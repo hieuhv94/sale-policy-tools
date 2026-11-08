@@ -22,7 +22,7 @@ Tới `0269` là mười ba bước tay. Từ `0270`:
 | --- | --- | --- | --- |
 | 1 | Chốt sáu thứ ở [mục 1](#1-chuẩn-bị) và **trỏ DNS** về IP máy chủ | — | bộ cài kiểm DNS trước khi Caddy xin chứng chỉ; Let's Encrypt khoá theo tuần nếu hỏng nhiều lần |
 | 2 | Giải nén bộ cài, chạy lần đầu, **điền** tệp cấu hình | `sudo ./cai-dat.sh` · `sudo nano /etc/csbh/csbh.env` | lần đầu bộ cài chỉ tạo tệp từ mẫu rồi dừng |
-| 3 | Chạy lại bộ cài | `sudo ./cai-dat.sh` | mười hai bước, mỗi bước in `▶`/`✔`; hỏng ở đâu thì nói việc phải làm |
+| 3 | Chạy lại bộ cài | `sudo ./cai-dat.sh` | mười bốn bước, mỗi bước in `▶`/`✔`; bước 10 **kiểm nghiệm đủ chức năng trên một chồng kiểm riêng với dữ liệu giả rồi xoá sạch** — đỏ thì dừng trước khi dựng hệ thật |
 | 4 | Đăng nhập, **đổi mật khẩu**, tạo một tài khoản thật và kiểm thư mời tới | *(trên màn hình)* | cho tới khi đổi mật khẩu, mọi đường API trả 403; thư đầu-cuối là bước hay hỏng nhất |
 
 Sau đó: khai danh mục (§5) và nghiệm thu (§6).

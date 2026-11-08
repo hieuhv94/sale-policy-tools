@@ -13,6 +13,7 @@
     "seed:admin": "tsx scripts/seed-admin.ts",
     "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "nap-danh-muc": "tsx scripts/nap-danh-muc.ts",
+    "kiem-nghiem": "tsx scripts/kiem-nghiem.ts",
     "build:web": "pnpm --filter @csbh/web build"
   },
   "devDependencies": {

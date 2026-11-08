@@ -323,7 +323,7 @@ Máy chạy thẻ **`-latest`** của bốn ảnh phần mềm (`0270`). Cập n
 ./csbh cap-nhat
 ```
 
-Màn hình in từng bước `[i/6] ▶ …` lúc bắt đầu và `[i/6] ✔ … (N giây)` lúc xong
+Màn hình in từng bước `[i/7] ▶ …` lúc bắt đầu và `[i/7] ✔ … (N giây)` lúc xong
 (`✘` khi hỏng, `–` khi bỏ qua):
 
 1. **Hỏi registry có bản mới không — KHÔNG kéo.** Trùng bản đang chạy thì dừng ở
@@ -331,8 +331,13 @@ Màn hình in từng bước `[i/6] ▶ …` lúc bắt đầu và `[i/6] ✔ �
 2. **Sao lưu CSDL** bằng ảnh đang chạy. Hỏng → dừng, hệ chưa bị đụng.
 3. **Giữ đường lùi**: ảnh đang chạy được gắn thêm thẻ `-truoc-cap-nhat` (chỉ trên máy).
 4. **Kéo ảnh mới.** Hỏng → ảnh cũ được trả lại, hệ vẫn chạy bản cũ.
-5. **Migration CSDL.**
-6. **Dựng lại** và chờ mọi service khoẻ.
+5. **Kiểm nghiệm bản mới** trên một chồng kiểm riêng (`0270`): cùng ảnh mới, dữ liệu giả, không mở
+   cổng, thư vào hộp thư giả; 21 ca đủ chức năng; xoá sạch dù xanh hay đỏ. **Đỏ → trả ảnh cũ, dừng**:
+   hệ thật chưa khởi động lại, CSDL chưa đổi. Báo cáo ở `<workspace>/logs/kiem-nghiem/`.
+6. **Migration CSDL.**
+7. **Dựng lại** và chờ mọi service khoẻ.
+
+Chạy tay một lượt kiểm nghiệm bất cứ lúc nào (không đụng dữ liệu thật): `csbh kiem-nghiem`.
 
 `./csbh phien-ban` đọc số phiên bản **từ chính ảnh đang chạy**. Không lệnh nào khác
 kéo ảnh: `./csbh len`, khởi động lại máy hay chạy lại bộ cài đều dùng ảnh đã có, nên

@@ -23,6 +23,9 @@ import { describe, expect, it } from 'vitest';
 const REPO = process.cwd();
 
 const DOCKER_GIA = `#!/bin/sh
+# \`csbh\` gọi compose của chồng kiểm qua \`env -i\` (môi trường SẠCH, \`0270\`), nên biến của ca
+# kiểm không tới được đây qua môi trường — bản giả nạp chúng từ tệp cạnh nó.
+. "$(dirname "$0")/env.sh"
 echo "$*" >> "$NHAT_KY"
 ra=""; bm=""; prev=""
 for a in "$@"; do
@@ -46,6 +49,12 @@ case "$*" in
   *" ops bootstrap-admin"*)
     [ -f "$CSBH_WORKSPACE/secrets/admin_mat_khau.txt" ] && cat "$CSBH_WORKSPACE/secrets/admin_mat_khau.txt" > "$NHAT_KY.admin"
     exit 0 ;;
+  # Chồng kiểm (\`0270\`): bộ kiểm nghiệm in dòng tổng kết; KIEM_DO=1 → một ca đỏ.
+  *" ops kiem-nghiem"*)
+    if [ "\${KIEM_DO:-0}" = 1 ]; then echo "  ✘ [Hồ sơ] giả hỏng"; echo "KIEM_NGHIEM 20/21"; exit 1; fi
+    echo "KIEM_NGHIEM 21/21"; exit 0 ;;
+  *"-p csbh-kiem"*" ops migrate"*) exit 0 ;;
+  *"-p csbh-kiem"*"up -d --wait"*) exit 0 ;;
   *" ops migrate"*) [ "\${MIGRATE_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
   # Postgres thật ghi thư mục dữ liệu ngay ở lần dựng đầu — lần cài sau nhận ra "đã có dữ liệu".
   *"up -d --wait"*) mkdir -p "$CSBH_WORKSPACE/data/postgres"; echo 16 > "$CSBH_WORKSPACE/data/postgres/PG_VERSION" ;;
@@ -112,6 +121,8 @@ function caiDat(o: { env?: string | ((ws: string) => string); thamSo?: string[];
   o.truoc?.(d, ws);
   const nhatKy = join(d, 'goi.log');
   writeFileSync(nhatKy, '');
+  const bien: Record<string, string> = { NHAT_KY: nhatKy, TRANG_THAI: join(d, 'anh-da-keo'), REPO, ...o.dat };
+  writeFileSync(join(d, 'gia', 'env.sh'), Object.entries(bien).map(([k, v]) => `export ${k}='${v}'`).join('\n') + '\n');
   const env = {
     ...process.env,
     PATH: `${join(d, 'gia')}:${process.env.PATH}`,
@@ -165,7 +176,7 @@ describe('`0270` cai-dat.sh — tệp cấu hình', () => {
     expect(r.loi).toContain('SITE_ADDRESS: còn giá trị mẫu');
     expect(r.loi).toContain('2 chỗ phải sửa');
     expect(r.goi).toBe('');
-    expect(r.ra).toMatch(/\[2\/12\] ✘ Kiểm tệp cấu hình/);
+    expect(r.ra).toMatch(/\[2\/14\] ✘ Kiểm tệp cấu hình/);
   });
 
   for (const [ten, sua, can] of [
@@ -188,7 +199,7 @@ describe('`0270` cai-dat.sh — tệp cấu hình', () => {
   it('hệ điều hành không hỗ trợ → dừng ở bước 1', async () => {
     const r = await caiDat({ env: ENV_DU, truoc: (d) => writeFileSync(join(d, 'os-release'), 'ID=centos\nVERSION_ID=7\n') });
     expect(r.ma).toBe(1);
-    expect(r.ra).toMatch(/\[1\/12\] ✘/);
+    expect(r.ra).toMatch(/\[1\/14\] ✘/);
   });
 });
 
@@ -210,12 +221,17 @@ describe('`0270` cai-dat.sh — lần cài đầu đi hết đường', () => {
     for (const tp of ['service', 'web', 'ops', 'minio']) expect(r.goi).toContain(`pull kho/csbh:${tp}-latest`);
   });
 
-  it('mỗi bước hiện ▶ lúc chạy và ✔ lúc xong, đủ 12 bước', async () => {
+  it('mỗi bước hiện ▶ lúc chạy và ✔ lúc xong, đủ 14 bước — và KHÔNG bước nào vượt tổng', async () => {
     const r = await caiDat({ env: ENV_DU });
-    for (let i = 1; i <= 12; i++) {
-      expect(r.ra, `bước ${i}`).toMatch(new RegExp(`\\[${i}/12\\] ▶ `));
-      expect(r.ra, `bước ${i}`).toMatch(new RegExp(`\\[${i}/12\\] (✔|–) `));
+    for (let i = 1; i <= 14; i++) {
+      expect(r.ra, `bước ${i}`).toMatch(new RegExp(`\\[${i}/14\\] ▶ `));
+      expect(r.ra, `bước ${i}`).toMatch(new RegExp(`\\[${i}/14\\] (✔|–) `));
     }
+    // Tổng khai báo phải bằng số bước thật: bản P308 khai 12 mà chạy 13 bước, in ra `[13/12]` —
+    // ca cũ chỉ hỏi 1…12 nên không thấy.
+    const so = [...r.ra.matchAll(/^\[(\d+)\/(\d+)\] ▶/gm)].map((m) => [Number(m[1]), Number(m[2])]);
+    expect(so.length).toBe(14);
+    expect(so.every(([i, n]) => i! <= n!), JSON.stringify(so)).toBe(true);
     // Bước con của `csbh len` thụt vào trong bước cha.
     expect(r.ra).toMatch(/^ {4}\[3\/3\] ✔ Dựng các service/m);
   });
@@ -269,7 +285,7 @@ describe('`0270` cai-dat.sh — lần cài đầu đi hết đường', () => {
     const r = await caiDat({ env: ENV_DU });
     const tep = /Nhật ký lượt cài: (\S+)/.exec(r.ra)?.[1];
     expect(tep).toBeDefined();
-    expect(readFileSync(tep!, 'utf8')).toContain('[12/12] ✔');
+    expect(readFileSync(tep!, 'utf8')).toContain('[12/14] ✔');
   });
 
   it('chưa có tài khoản csbh → tạo, và cho vào nhóm docker', async () => {
@@ -288,6 +304,51 @@ describe('`0270` cai-dat.sh — lần cài đầu đi hết đường', () => {
     const tat = await caiDat({ env: ENV_DU });
     expect(tat.goi).not.toContain('ufw allow');
     expect(tat.goi).not.toMatch(/^ufw .*\benable\b/m);
+  });
+});
+
+describe('`0270` cai-dat.sh — kiểm nghiệm trên chồng kiểm riêng (bước 10)', () => {
+  it('lần cài đầu: chồng kiểm dựng, chạy bộ kiểm nghiệm và DỌN — tất cả TRƯỚC khi chồng thật được dựng', async () => {
+    const r = await caiDat({ env: ENV_DU });
+    expect(r.ma, r.loi + r.ra).toBe(0);
+    const iKiem = r.goi.indexOf(' ops kiem-nghiem');
+    const iDon = r.goi.indexOf('-p csbh-kiem', iKiem);
+    // Lượt migrate/up của CHỒNG THẬT là lượt KHÔNG mang `-p csbh-kiem`.
+    const dong = r.goi.split('\n');
+    const iThat = dong.findIndex((d, i) => i > 0 && d.includes(' ops migrate') && !d.includes('-p csbh-kiem'));
+    expect(iKiem, 'không chạy bộ kiểm nghiệm').toBeGreaterThan(-1);
+    expect(iDon, 'không dọn chồng kiểm sau khi chạy').toBeGreaterThan(iKiem);
+    expect(r.goi.indexOf(dong[iThat]!), 'chồng thật dựng TRƯỚC khi kiểm nghiệm xong').toBeGreaterThan(iKiem);
+    expect(r.goi).toMatch(/-p csbh-kiem .*down -v --remove-orphans/);
+    expect(r.ra).toContain('Kiểm nghiệm XANH: 21/21');
+  });
+
+  it('chồng kiểm dùng compose.kiem.yml và KHÔNG dùng compose.du-lieu.yml (dữ liệu giả không chạm data/)', async () => {
+    const r = await caiDat({ env: ENV_DU });
+    const kiem = r.goi.split('\n').filter((d) => d.includes('-p csbh-kiem'));
+    expect(kiem.length).toBeGreaterThan(0);
+    for (const d of kiem) {
+      expect(d).toContain('compose.kiem.yml');
+      expect(d).not.toContain('compose.du-lieu.yml');
+    }
+  });
+
+  it('kiểm nghiệm ĐỎ → DỪNG: không dựng chồng thật, không tạo Quản trị, vẫn DỌN chồng kiểm', async () => {
+    const r = await caiDat({ env: ENV_DU, dat: { KIEM_DO: '1' } });
+    expect(r.ma).not.toBe(0);
+    expect(r.ra).toMatch(/\[10\/14\] ✘ Kiểm nghiệm/);
+    expect(r.goi).toMatch(/-p csbh-kiem .*down -v --remove-orphans/);
+    expect(r.goi.split('\n').some((d) => d.includes(' ops migrate') && !d.includes('-p csbh-kiem'))).toBe(false);
+    expect(r.goi).not.toMatch(/^(?!.*csbh-kiem).* ops bootstrap-admin/m);
+    expect(r.loi + r.ra).toContain('KIỂM NGHIỆM ĐỎ: 20/21');
+  });
+
+  it('không phải lần cài đầu → bỏ qua bước kiểm nghiệm, NÓI ra cách chạy tay', async () => {
+    const x = chuanBi();
+    await caiDat({ d: x, env: ENV_DU });
+    const r2 = await caiDat({ d: x, dat: { SO_TK: '1' } });
+    expect(r2.goi).not.toContain(' ops kiem-nghiem');
+    expect(r2.ra).toMatch(/\[10\/14\] – .*csbh kiem-nghiem/);
   });
 });
 
@@ -325,7 +386,7 @@ describe('`0270` cai-dat.sh — chạy lại, chốt chặn', () => {
     expect(lech.goi).not.toContain('login');
     const bo = await caiDat({ env: ENV_DU, dat: { IP_TEN: '9.9.9.9' }, thamSo: ['--bo-kiem-dns'] });
     expect(bo.ma, bo.loi).toBe(0);
-    expect(bo.ra).toMatch(/\[5\/12\] – .*bỏ qua: --bo-kiem-dns/);
+    expect(bo.ra).toMatch(/\[5\/14\] – .*bỏ qua: --bo-kiem-dns/);
   });
 
   it('DNS chưa phân giải → dừng, nói trỏ bản ghi A', async () => {
@@ -349,15 +410,16 @@ describe('`0270` cai-dat.sh — chạy lại, chốt chặn', () => {
     const r = await caiDat({ env: ENV_DU, dat: { LOGIN_HONG: '1' } });
     expect(r.ma).toBe(1);
     expect(r.loi).toContain('REGISTRY_USER');
-    expect(r.ra).toMatch(/\[6\/12\] ✘ Đăng nhập registry — HỎNG/);
+    expect(r.ra).toMatch(/\[6\/14\] ✘ Đăng nhập registry — HỎNG/);
     expect(r.goi).not.toMatch(/^pull /m);
   });
 
   it('migration hỏng → dừng ở bước dựng hệ, không tạo Quản trị, không cài tác tử', async () => {
     const r = await caiDat({ env: ENV_DU, dat: { MIGRATE_HONG: '1' } });
     expect(r.ma).not.toBe(0);
-    expect(r.ra).toMatch(/\[10\/12\] ✘ Dựng hệ thống/);
-    expect(r.goi).not.toContain('bootstrap-admin');
+    expect(r.ra).toMatch(/\[11\/14\] ✘ Dựng hệ thống/);
+    // `bootstrap-admin` của CHỒNG KIỂM có (bước 10); của chồng THẬT thì không.
+    expect(r.goi.split('\n').some((d) => d.includes('bootstrap-admin') && !d.includes('-p csbh-kiem'))).toBe(false);
     expect(r.goi).not.toContain('systemctl restart');
   });
 

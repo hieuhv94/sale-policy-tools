@@ -114,7 +114,15 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P308** (`0270`): **`sudo ./cai-dat.sh` cài cả hệ, KHÔNG hỏi gì, đọc MỘT tệp `/etc/csbh/csbh.env`**
+Chặng gần nhất **P309** (`0270`): **kiểm nghiệm đủ chức năng trên CHỒNG KIỂM RIÊNG** ở lần cài đầu (bước 10/14,
+đỏ thì không dựng chồng thật) và mỗi `cap-nhat` (bước 5/7, sau kéo ảnh, TRƯỚC migration; đỏ thì trả ảnh cũ) —
+`compose.kiem.yml` (dự án `csbh-kiem`, volume thường, không cổng, hộp thư giả bí danh `mailpit`, cờ
+`CSBH_KIEM_NGHIEM=1` mở chốt thư theo CẢ HAI chiều), compose chạy qua **`env -i`** (biến của chồng thật thắng
+`--env-file`), `scripts/kiem-nghiem.ts` 21 ca qua gateway thật, dọn theo nhãn dự án dù xanh hay đỏ. Chạy thật:
+21/21 · 87 giây · dọn 0/0/0; **SIGINT từng làm rò cả chồng** (`dash` không chạy trap EXIT khi chết vì tín hiệu
+→ `trap 'exit 130' INT` ở `lib-buoc.sh`). **Chưa dựng trên VPS thật.** **3418/3418 xanh.**
+
+Trước đó **P308** (`0270`): **`sudo ./cai-dat.sh` cài cả hệ, KHÔNG hỏi gì, đọc MỘT tệp `/etc/csbh/csbh.env`**
 (12 bước `▶`/`✔`, gom lỗi cấu hình một lần, tự cài Docker, kiểm DNS, login qua stdin, Quản trị đầu từ env rồi xoá
 mật khẩu, cron + tác tử). **Ba chỗ**: chương trình `/opt/csbh/releases/<bản>` + `current` (bung TỪ ẢNH ops bằng
 `scripts/ban-cai.sh` — một danh sách cho gói lẫn `cap-nhat`) · cấu hình `/etc/csbh/csbh.env` · workspace

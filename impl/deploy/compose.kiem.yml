@@ -1,0 +1,58 @@
+# =============================================================================
+# CHỒNG KIỂM NGHIỆM (`0270`) — lớp phủ trên compose.yml + compose.prod.yml.
+#
+# Mỗi lượt cài đầu và mỗi lượt `csbh cap-nhat` dựng một chồng production THỨ HAI từ
+# CÙNG ảnh sắp chạy thật, chạy bộ kiểm nghiệm (`scripts/kiem-nghiem.ts`) với dữ liệu giả,
+# rồi `down -v` xoá sạch — dù xanh hay đỏ. `csbh kiem-nghiem` là người gọi duy nhất:
+#
+#   docker compose -p csbh-kiem --env-file <tmp>/kiem.env \
+#     -f compose.yml -f compose.prod.yml -f compose.kiem.yml
+#
+# KHÔNG có `compose.du-lieu.yml`: dữ liệu giả nằm trong volume Docker thường của dự án
+# `csbh-kiem` — tên dự án riêng nghĩa là volume, mạng, container riêng, và về mặt vật lý
+# không với tới `data/` hay gateway của chồng thật.
+#
+# Ba khác biệt so với production, mỗi cái một lý do:
+#   * `caddy` TẮT — không cổng nào mở ra ngoài (SEC-10 quét cả tệp này), không xin chứng chỉ;
+#   * hộp thư GIẢ — người dùng giả nhận thư mời thật, bộ kiểm đọc liên kết kích hoạt từ đó;
+#   * cờ `CSBH_KIEM_NGHIEM=1` — chỉ khai ở TỆP NÀY (có ca quét). Nó mở chốt "production
+#     không được trỏ vào hộp thư giả" ở `mail-config.ts`, và đóng chiều ngược lại: cờ bật mà
+#     trỏ vào SMTP thật thì service DỪNG.
+# =============================================================================
+
+services:
+  caddy:
+    profiles: ["khong-dung"]
+
+  # Hộp thư giả. `compose.prod.yml` tắt service `mailpit` bằng `profiles` và compose
+  # GỘP danh sách chứ không thay (bài học `0105`), nên lớp phủ không bật lại nó được —
+  # dựng service RIÊNG mang bí danh mạng `mailpit`: `MAIL_HOST=mailpit` là tên DUY NHẤT
+  # vừa qua được `isFakeRelay` vừa phân giải được trong mạng của chồng kiểm.
+  hop-thu-gia:
+    image: axllent/mailpit:v1.20.7@sha256:7eef0f38dbc85e4e264f2edf5d70fbb694826791e05cb2cae4fc9e3282f968f5
+    restart: "no"
+    healthcheck:
+      test: ["CMD","/mailpit","readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      internal:
+        aliases: [mailpit]
+
+  identity:
+    environment:
+      CSBH_KIEM_NGHIEM: "1"
+    depends_on:
+      hop-thu-gia: { condition: service_healthy }
+
+  notification:
+    environment:
+      CSBH_KIEM_NGHIEM: "1"
+    depends_on:
+      hop-thu-gia: { condition: service_healthy }
+
+  # `ops` chạy `kiem-nghiem` — script từ chối khi thiếu cờ.
+  ops:
+    environment:
+      CSBH_KIEM_NGHIEM: "1"

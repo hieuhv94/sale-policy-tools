@@ -110,6 +110,25 @@ export function assertSafeMailConfig(env: MailEnv): void {
   const host = (env.MAIL_HOST ?? 'mailpit').trim();
   const prod = env.NODE_ENV === 'production';
 
+  /*
+   * CHỒNG KIỂM NGHIỆM (`0270`) — ngoại lệ DUY NHẤT của chốt dưới, và nó chặn cả HAI chiều.
+   *
+   * Mỗi lượt cài/cập nhật dựng một chồng production thứ hai (`compose.kiem.yml`) từ CÙNG
+   * ảnh để chạy bộ kiểm nghiệm với dữ liệu giả; thư của người dùng giả phải vào Mailpit
+   * để bộ kiểm đọc được liên kết kích hoạt. Cờ chỉ khai ở `compose.kiem.yml` (có ca quét).
+   * Và vế ngược lại là vế quan trọng hơn: cờ bật mà trỏ vào SMTP THẬT thì DỪNG — một
+   * lượt kiểm nghiệm không bao giờ được gửi thư tới hộp thư người thật.
+   */
+  if (env.CSBH_KIEM_NGHIEM === '1') {
+    if (isExternalRelay(host)) {
+      throw new UnsafeMailConfigError(
+        `Chồng kiểm nghiệm trỏ vào SMTP thật "${host}" — dữ liệu giả sẽ gửi thư tới người thật. ` +
+          'CSBH_KIEM_NGHIEM=1 chỉ đi cùng MAIL_HOST=mailpit.',
+      );
+    }
+    return;
+  }
+
   if (prod && isFakeRelay(host)) {
     throw new UnsafeMailConfigError(
       `Production trỏ vào hộp thư giả "${host}" — mọi thông báo sẽ rơi vào hư vô ` +

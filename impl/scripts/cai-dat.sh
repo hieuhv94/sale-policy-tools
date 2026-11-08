@@ -87,7 +87,7 @@ HET
   exit 0
 fi
 
-buoc_tong 12
+buoc_tong 14
 
 # =============================================================================
 buoc "Kiểm máy chủ: quyền root, hệ điều hành"
@@ -154,6 +154,10 @@ kiem_env
 
 WS="$(doc_env CSBH_WORKSPACE)"
 DU_AN="$(doc_env COMPOSE_PROJECT_NAME)"
+# LẦN CÀI ĐẦU = chưa có dữ liệu CSDL. Đo MỘT lần ở đây, trước khi bước 4 tạo thư mục rỗng:
+# nó quyết định cả lượt kiểm nghiệm (bước 10) lẫn việc bắt buộc khai ADMIN_* (bước 2).
+LAN_DAU=1
+[ -n "$(ls -A "$WS/data/postgres" 2> /dev/null)" ] && LAN_DAU=0
 KHO="$(doc_env CSBH_IMAGE)"
 SITE="$(doc_env SITE_ADDRESS)"
 
@@ -338,6 +342,20 @@ else
 fi
 # Hai bí mật người dùng khai (mật khẩu SMTP, secret Google) → secrets/ — `csbh len`
 # làm việc này ở bước đầu của nó.
+
+# =============================================================================
+buoc "Kiểm nghiệm đủ chức năng trên chồng kiểm riêng (dữ liệu giả, dọn sạch sau)"
+# =============================================================================
+# Yêu cầu 08/11: hệ production khi dựng lên phải qua một lượt kiểm thử đủ chức năng với
+# dữ liệu giả, rồi dọn sạch dù xanh hay đỏ. Chạy trên CHỒNG KIỂM RIÊNG (`csbh kiem-nghiem`,
+# dự án `csbh-kiem`) TRƯỚC khi chồng thật được dựng — nên chồng thật chưa bao giờ chứa một
+# dòng dữ liệu giả, và "trạng thái như lần khởi chạy đầu" được bảo đảm bằng cấu trúc.
+# Đỏ thì DỪNG: không dựng chồng thật, không tạo Quản trị.
+if [ "$LAN_DAU" = 1 ]; then
+  csbh_ kiem-nghiem 2>&1 | sed 's/^/    /'
+else
+  buoc_bo "không phải lần cài đầu — chạy tay khi cần: csbh kiem-nghiem"
+fi
 
 # =============================================================================
 buoc "Dựng hệ thống (migration + các service)"

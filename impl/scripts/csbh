@@ -542,6 +542,116 @@ tra_anh_cu() {
 }
 
 # Migration mới nhất CSDL đã chạy (tên tệp), để `lui-lai` biết có lùi ảnh được không.
+# --- Chồng kiểm nghiệm (`0270`) ------------------------------------------------------
+#
+# Một chồng production THỨ HAI từ CÙNG ảnh `-latest` đang có trên máy (ở `cap-nhat`: ảnh MỚI
+# vừa kéo) và CÙNG compose của bản cài (`$CT`), cộng `compose.kiem.yml`. Dự án `csbh-kiem`:
+# volume, mạng, container riêng; không `compose.du-lieu.yml` (dữ liệu giả ở volume thường);
+# không cổng; thư vào hộp thư giả. Chạy `scripts/kiem-nghiem.ts`, rồi DỌN SẠCH dù xanh hay
+# đỏ — kể cả khi bị Ctrl-C (`BUOC_KHI_THOAT`, một trap EXIT duy nhất với phần hiển thị bước).
+#
+# MÔI TRƯỜNG SẠCH (`env -i`): `csbh` đã xuất các biến của chồng THẬT (`SITE_URL`,
+# `MAIL_PASSWORD_FILE`, `CSBH_WORKSPACE`…) và biến môi trường THẮNG `--env-file` — để chúng
+# lọt vào là chồng kiểm gắn `secrets/` của hệ thật. Nên compose của chồng kiểm chỉ nhận
+# đúng những biến khai dưới đây.
+DU_AN_KIEM=csbh-kiem
+KIEM_DIR=""
+
+dc_kiem() {
+  env -i PATH="$PATH" HOME="${HOME:-/root}" \
+    CSBH_WORKSPACE="$KIEM_DIR" CSBH_LOG_DIR="$KIEM_DIR/logs" CSBH_LOG_ARCHIVE="$KIEM_DIR/logarchive" \
+    CSBH_BACKUP_MIRROR="$KIEM_DIR/mirror" MAIL_PASSWORD_FILE="" GOOGLE_CLIENT_SECRET_FILE="" \
+    docker compose -p "$DU_AN_KIEM" --env-file "$KIEM_DIR/kiem.env" \
+      -f "$CT/deploy/compose.yml" -f "$CT/deploy/compose.prod.yml" -f "$CT/deploy/compose.kiem.yml" "$@"
+}
+
+# Gỡ MỌI thứ mang nhãn dự án `csbh-kiem` — theo NHÃN chứ không theo tệp compose, nên dọn
+# được cả tàn dư của một lượt chết dở mà thư mục tạm đã mất.
+don_kiem() {
+  [ -n "$KIEM_DIR" ] && [ -f "$KIEM_DIR/kiem.env" ] && dc_kiem down -v --remove-orphans > /dev/null 2>&1 || true
+  for x in $(docker ps -aq --filter "label=com.docker.compose.project=$DU_AN_KIEM" 2> /dev/null); do docker rm -f "$x" > /dev/null 2>&1 || true; done
+  for x in $(docker volume ls -q --filter "label=com.docker.compose.project=$DU_AN_KIEM" 2> /dev/null); do docker volume rm -f "$x" > /dev/null 2>&1 || true; done
+  for x in $(docker network ls -q --filter "label=com.docker.compose.project=$DU_AN_KIEM" 2> /dev/null); do docker network rm "$x" > /dev/null 2>&1 || true; done
+  # Tệp container ghi (log, bí mật) thuộc root — xoá qua một container, không xoá thẳng.
+  if [ -n "$KIEM_DIR" ] && [ -d "$KIEM_DIR" ]; then
+    docker run --rm --entrypoint sh -v "$(dirname "$KIEM_DIR"):/t" "$(kho_anh):ops-latest" \
+      -c "rm -rf /t/$(basename "$KIEM_DIR")" > /dev/null 2>&1 || rm -rf "$KIEM_DIR" 2> /dev/null || true
+  fi
+}
+
+# Đếm thứ còn sót của dự án `csbh-kiem` (container + volume + mạng). Phải ra 0.
+con_sot_kiem() {
+  { docker ps -aq --filter "label=com.docker.compose.project=$DU_AN_KIEM"
+    docker volume ls -q --filter "label=com.docker.compose.project=$DU_AN_KIEM"
+    docker network ls -q --filter "label=com.docker.compose.project=$DU_AN_KIEM"; } 2> /dev/null | grep -c . || true
+}
+
+# kiem_nghiem_chay — trả 0 khi XANH HẾT. In từng việc con thụt vào; báo cáo đầy đủ ghi ở
+# `<workspace>/logs/kiem-nghiem/<giờ>.txt` (tệp log, không phải dữ liệu hệ thống).
+kiem_nghiem_chay() {
+  k="$(kho_anh)"
+  echo "    ▸ dọn tàn dư của lượt kiểm nghiệm trước (nếu có)"
+  KIEM_DIR=""; don_kiem
+  # Thư mục tạm của lượt chết dở: tệp do container ghi thuộc root — xoá qua container.
+  for d in "$WS/tmp"/kiem-*; do [ -d "$d" ] && { KIEM_DIR="$d"; don_kiem; KIEM_DIR=""; }; done
+  # Hai chồng cùng chạy (ở `cap-nhat`) — thiếu RAM thì DỪNG và nói con số, không để máy
+  # chủ thật bị OOM giữa lượt kiểm.
+  con="$(free -m 2> /dev/null | awk '/^Mem:/ {print $NF}')"
+  can="${CSBH_KIEM_RAM_MB:-2500}"
+  case "$con" in ''|*[!0-9]*) ;; *)
+    [ "$con" -ge "$can" ] || { echo "  RAM trống ${con} MB — chồng kiểm nghiệm cần ${can} MB. Nâng RAM VPS hoặc tắt bớt thứ khác." >&2; return 1; } ;;
+  esac
+  KIEM_DIR="$WS/tmp/kiem-$(date +%Y%m%d%H%M%S)"
+  BUOC_KHI_THOAT="${BUOC_KHI_THOAT:+$BUOC_KHI_THOAT; }don_kiem"
+  mkdir -p "$KIEM_DIR/secrets" "$KIEM_DIR/logs" "$KIEM_DIR/logarchive" "$KIEM_DIR/mirror" "$WS/logs/kiem-nghiem"
+  cat > "$KIEM_DIR/kiem.env" <<HET
+COMPOSE_PROJECT_NAME=$DU_AN_KIEM
+CSBH_IMAGE=$k
+SITE_ADDRESS=:80
+SITE_URL=http://kiem.local
+ACME_EMAIL=kiem@kiem.test
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_FROM=csbh@kiem.test
+MAIL_ALLOWLIST=kiem.test
+MAIL_USER=
+MAIL_SECURE=
+MAIL_STARTTLS=false
+HET
+  echo "    ▸ sinh bí mật RIÊNG cho chồng kiểm"
+  docker run --rm --user "$NGUOI" -v "$KIEM_DIR/secrets:/run/secrets" "$k:ops-latest" gen-secrets /run/secrets > /dev/null || return 1
+  mk="Kn$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')9"
+  ( umask 077; printf '%s' "$mk" > "$KIEM_DIR/secrets/admin_mat_khau.txt" )
+  echo "    ▸ dựng chồng kiểm (dự án $DU_AN_KIEM, không cổng, thư vào hộp thư giả)"
+  dc_kiem run --rm -T ops migrate > "$KIEM_DIR/dung.log" 2>&1 || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
+  dc_kiem up -d --wait >> "$KIEM_DIR/dung.log" 2>&1 || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
+  dc_kiem run --rm -T -e ADMIN_USERNAME=admin -e ADMIN_EMAIL=admin@kiem.test -e "ADMIN_FULL_NAME=Quản trị kiểm nghiệm" \
+    -e ADMIN_PASSWORD_FILE=/run/secrets/admin_mat_khau.txt ops bootstrap-admin >> "$KIEM_DIR/dung.log" 2>&1 \
+    || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
+  echo "    ▸ chạy bộ kiểm nghiệm"
+  bao_cao="$WS/logs/kiem-nghiem/$(date +%Y%m%d-%H%M%S).txt"
+  set +e
+  dc_kiem run --rm -T -e KIEM_ADMIN=admin -e "KIEM_ADMIN_MAT_KHAU=$mk" -e KIEM_MIEN_THU=kiem.test \
+    -e GATEWAY_URL=http://gateway:3000 -e MAILPIT_URL=http://mailpit:8025 ops kiem-nghiem 2>&1 \
+    | tee "$bao_cao" | sed 's/^/      /'
+  set -e
+  # `sh` không có PIPESTATUS: đọc kết quả từ CHÍNH dòng tổng kết của báo cáo.
+  dong="$(grep -E '^KIEM_NGHIEM [0-9]+/[0-9]+$' "$bao_cao" | tail -1)"
+  xanh="$(echo "$dong" | sed -E 's/^KIEM_NGHIEM ([0-9]+)\/([0-9]+)$/\1/')"
+  tong="$(echo "$dong" | sed -E 's/^KIEM_NGHIEM ([0-9]+)\/([0-9]+)$/\2/')"
+  echo "    ▸ dọn sạch chồng kiểm (dữ liệu giả, volume, mạng, thư mục tạm)"
+  don_kiem; KIEM_DIR=""
+  sot="$(con_sot_kiem)"
+  [ "${sot:-0}" = 0 ] || { echo "  DỌN KHÔNG SẠCH: còn $sot container/volume/mạng của dự án $DU_AN_KIEM — xem: docker ps -a; docker volume ls" >&2; return 3; }
+  echo "    Báo cáo: $bao_cao"
+  [ -n "$dong" ] || { echo "  Bộ kiểm nghiệm không chạy tới dòng tổng kết — xem báo cáo." >&2; return 1; }
+  if [ "$xanh" != "$tong" ]; then
+    echo "  KIỂM NGHIỆM ĐỎ: $xanh/$tong ca xanh." >&2
+    return 1
+  fi
+  echo "    Kiểm nghiệm XANH: $xanh/$tong ca."
+}
+
 migration_cuoi() {
   q_ops "SELECT filename FROM sys.schema_migration ORDER BY filename DESC LIMIT 1"
 }
@@ -751,7 +861,7 @@ case "${1:-help}" in
     #      chưa bị đụng; kéo hỏng thì trả thẻ cũ và DỪNG;
     #   5. migration rồi dựng lại.
     k="$(kho_anh)"
-    buoc_tong 6
+    buoc_tong 7
     buoc "Hỏi registry có bản mới không"
     cu="$(phien_ban_may)"
     moi_co=""
@@ -798,6 +908,15 @@ case "${1:-help}" in
       CT="$GOC_CT/releases/$so"; dat_workspace
     fi
 
+    # KIỂM NGHIỆM ẢNH MỚI trên chồng kiểm riêng (`0270`) — TRƯỚC migration: tới đây chồng
+    # thật chưa khởi động lại, CSDL chưa chạy migration mới nào. Đỏ thì trả ảnh cũ và DỪNG.
+    buoc "Kiểm nghiệm bản mới trên chồng kiểm riêng (dữ liệu giả, dọn sạch sau)"
+    kiem_nghiem_chay || {
+      tra_anh_cu || true
+      echo "  Bản mới KHÔNG qua kiểm nghiệm. Đã trả ảnh cũ; hệ vẫn chạy bản ${cu}, chưa bị đụng." >&2
+      exit 1
+    }
+
     buoc "Chạy migration CSDL"
     dong_bo_bi_mat
     $DC run --rm -T ops migrate || {
@@ -817,6 +936,13 @@ case "${1:-help}" in
     echo "  Xong: ${cu} → $(phien_ban_may)."
     echo "  Lùi lại (khi cần, chỉ được khi bản mới chưa thêm migration): ./csbh lui-lai"
     ;;
+
+  kiem-nghiem)
+    # Chạy tay một lượt kiểm nghiệm trên chồng kiểm riêng (`0270`) — với ảnh đang có trên máy.
+    buoc_tong 1
+    buoc "Kiểm nghiệm đủ chức năng trên chồng kiểm riêng"
+    kiem_nghiem_chay
+    buoc_xong ;;
 
   lui-lai)
     # Về ảnh `-truoc-cap-nhat`. MIGRATION KHÔNG LÙI ĐƯỢC: nếu lượt cập nhật đã chạy

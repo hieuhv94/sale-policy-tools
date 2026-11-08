@@ -22252,3 +22252,79 @@ Tài liệu: **`impl/docs/06-CAI-DAT-VPS.md`** (mới — hướng dẫn một t
 `${CSBH_LOG_DIR:-../logs}` / `CSBH_LOG_DIR=../logs`; sửa theo dạng mới, chạy lại tệp ấy 23/23.
 
 **3397/3397 xanh.**
+
+## P309 — `0270` Kiểm nghiệm đủ chức năng trên CHỒNG KIỂM RIÊNG ở lần cài đầu và mỗi lượt cập nhật
+
+Chặng cuối của kế hoạch VPS. Yêu cầu 08/11: *"hệ production khi dựng lên phải trải qua một lượt chạy bộ
+test đủ chức năng với data fake; xong — pass hay fail — phải dọn sạch, trả về trạng thái như lúc khởi chạy
+đầu"*. Chốt khi hỏi: chồng kiểm RIÊNG (không phải chạy trên chồng thật rồi xoá) · đỏ thì dọn rồi DỪNG ·
+thư vào hộp thư giả · chạy ở lần cài đầu và mỗi `cap-nhat`.
+
+**Vì sao chồng riêng, không chạy trên chồng thật rồi xoá**: "trạng thái như lần đầu" được bảo đảm bằng
+CẤU TRÚC — chồng thật chưa bao giờ chứa một dòng dữ liệu giả — chứ không bằng một lượt xoá có thể sót
+bảng. Và chỉ cách này dùng được ở `cap-nhat`, nơi chồng thật đã có dữ liệu.
+
+**Chồng kiểm** = `compose.yml` + `compose.prod.yml` + **`compose.kiem.yml`**, dự án `csbh-kiem`, KHÔNG
+`compose.du-lieu.yml` (volume thường — `down -v` là hết), cùng ảnh `-latest` sắp chạy thật (ở `cap-nhat`
+là ảnh MỚI vừa kéo) và cùng compose của bản cài. Ba khác biệt: `caddy` tắt (không cổng); hộp thư giả là
+một service RIÊNG mang **bí danh mạng `mailpit`** — vì `compose.prod.yml` tắt `mailpit` bằng `profiles`
+và compose GỘP danh sách nên lớp phủ không bật lại được; và cờ **`CSBH_KIEM_NGHIEM=1`** cho đúng
+`identity` · `notification` · `ops`.
+
+**Cờ mở chốt thư theo CẢ HAI CHIỀU** (`mail-config.ts`): có cờ thì production được trỏ vào hộp thư giả,
+VÀ có cờ mà trỏ vào SMTP thật thì DỪNG — kiểm nghiệm không bao giờ gửi thư tới người thật. Chỉ đúng
+`"1"` mới là cờ. Cờ chỉ được khai ở `compose.kiem.yml` (ca quét mọi compose khác).
+
+**`env -i` là chốt cách ly quan trọng nhất**: `csbh` đã XUẤT biến của chồng thật (`CSBH_WORKSPACE`,
+`SITE_URL`, `MAIL_PASSWORD_FILE`…) và biến môi trường THẮNG `--env-file` — để chúng lọt vào là chồng kiểm
+gắn `secrets/` của hệ thật. `dc_kiem` chạy compose trong môi trường sạch với đúng những biến nó khai; ca
+kiểm ghi môi trường compose của chồng kiểm thấy và đòi workspace là thư mục tạm, `SITE_URL` rỗng.
+
+**Bộ kiểm nghiệm `scripts/kiem-nghiem.ts`** (ảnh `ops`, lệnh `csbh-ops kiem-nghiem`): 21 ca qua gateway
+thật, mỗi ca một dòng ✔/✘ — Quản trị đổi mật khẩu bắt buộc → tạo đủ năm vai trò → **kích hoạt bằng
+liên kết đọc từ Mailpit** → danh mục + Excel mẫu → khách hàng + MST trùng + hồ sơ pháp lý lên MinIO → hồ sơ
+đi đủ mười bước kèm một vòng trả lại → thư luồng duyệt tới TBP → bản mềm qua Gotenberg → bản scan → hợp
+đồng PDF → hiệu lực → phiên bản mới rồi xoá → bình luận nhắc tên ra chuông → phân quyền (403/401) →
+read-model báo cáo → nhật ký kiểm toán → trang Vận hành. Ca phụ thuộc một ca đỏ thì BỎ QUA, không đỏ dây
+chuyền. Từ chối chạy thiếu cờ. Tên tài khoản mang hậu tố ngẫu nhiên — chạy lại được trên CSDL đã có lượt
+trước (cách mình chạy thử trên chồng demo). `pdfMau` dời sang `scripts/api-khach.ts`, `seed-demo` dùng chung.
+
+**Ba chỗ nối**: `csbh kiem-nghiem` (tay) · `cap-nhat` bước 5/7 — SAU kéo ảnh và bung chương trình, TRƯỚC
+migration; đỏ thì trả ảnh cũ, `current` không đổi, chồng thật chưa khởi động lại · `cai-dat.sh` bước 10/14
+— chỉ lần cài đầu (`LAN_DAU` đo MỘT lần trước khi bước 4 tạo thư mục rỗng), đỏ thì không dựng chồng thật.
+Thiếu RAM (`CSBH_KIEM_RAM_MB`, mặc định 2500) → dừng trước khi dựng gì. Dọn theo NHÃN dự án (dọn được cả
+tàn dư không còn thư mục tạm), thư mục tạm xoá QUA CONTAINER (tệp container ghi thuộc root), rồi TỰ KIỂM
+còn 0 container/volume/mạng — sót thì mã 3.
+
+**Lệch so với kế hoạch, có chủ ý**: kế hoạch ghi *"đối chiếu bảng kê chồng thật trước/sau ở `cap-nhat`"*
+— bỏ: chồng thật đang phục vụ người dùng thì bảng kê ĐỔI thật trong mấy phút kiểm nghiệm, và phép so ấy
+sẽ đỏ giả ở mọi lượt cập nhật giữa giờ làm việc. Cách ly được bảo đảm bằng dự án/volume/mạng riêng + `env -i`
++ ca quét `compose.kiem.yml` không bind dữ liệu. Và kế hoạch đòi chạy `kiem-nghiem.ts` trong `make test`
+— thay bằng chạy THẬT (dưới) vì bộ kiểm gọi thẳng service, không qua gateway + Mailpit như chồng kiểm.
+
+**CHẠY THẬT, và nó tìm ra lỗi mà bộ kiểm không thể tìm** (ảnh `1.3.0` dựng tại máy, `-latest` gắn cục
+bộ, chương trình bung bằng `ban-cai.sh`, workspace tạm, song song với demo đang bật):
+- trên chồng demo trước: hai lỗi của chính kịch bản — `discount-rules` bắt buộc `effectiveFrom`,
+  `current-price` bắt buộc `priceType` — rồi 21/21;
+- chồng kiểm thật: **21/21 trong 87 giây**, dọn còn 0 container · 0 volume · 0 mạng, thư mục tạm trống;
+- **NGẮT GIỮA CHỪNG (SIGINT) LÀM RÒ CẢ CHỒNG KIỂM** — 3 container, 2 volume, 2 mạng nằm lại. `dash`
+  KHÔNG chạy trap EXIT khi tiến trình chết vì tín hiệu. Sửa ở `lib-buoc.sh`: `trap 'exit 130' INT;
+  trap 'exit 143' TERM` — `exit` từ trong trap tín hiệu thì trap EXIT có chạy. Đo lại: ✘ hiện đúng, 0/0/0.
+  Ca kiểm của lỗi này phải giết CẢ NHÓM tiến trình (`detached` + `kill(-pid)`) như Ctrl-C thật làm:
+  `dash` hoãn trap tới khi lệnh con ở tiền cảnh xong.
+
+**Lỗi có sẵn của P308 tìm ra kèm**: `cai-dat.sh` khai `buoc_tong 12` mà có **13** bước — in `[13/12]`;
+ca cũ chỉ hỏi bước 1…12. Giờ 14 bước, và ca đòi số dòng `▶` bằng đúng tổng và không bước nào vượt tổng.
+
+**Mẹo bộ kiểm đáng nhớ**: compose của chồng kiểm chạy qua `env -i`, nên `docker` giả mất cả biến điều
+khiển của ca kiểm — bản giả nạp biến từ một `env.sh` nằm cạnh nó.
+
+**Phá lại bảy lượt, bảy đỏ**: cờ bật mà SMTP thật vẫn chạy (1) · chồng kiểm không `env -i` (1) · `cap-nhat`
+bỏ kiểm nghiệm (2) · cài đầu bỏ kiểm nghiệm (3) · bỏ trap INT (1) · `kiem-nghiem.ts` bỏ chốt cờ (1) · đỏ mà
+vẫn báo xanh (2).
+
+Còn lại ngoài tầm chặng (đã nêu): **chưa dựng trên một VPS thật** (Ubuntu trắng: nhánh cài Docker, `runuser`,
+quyền thư mục, Let's Encrypt) — cần một VPS và tên miền thử. Trên máy phát triển, thẻ `-latest` của bốn ảnh
+`hieuhv94/nutricare-csbh` đang trỏ tới bản `1.3.0` vừa dựng (CHỈ cục bộ, chưa đẩy).
+
+`make typecheck` sạch (một lỗi kiểu ở ca kiểm mới, đã sửa) · `make test` **3418/3418 xanh.**
