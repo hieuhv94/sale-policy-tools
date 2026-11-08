@@ -646,6 +646,25 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
 in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 
+> **Từ `1.1.0` lên `1.3.0`** `mới 08/11`. Bản này gói `P277`–`P305`: chuyển máy, trang
+> *Vận hành*, giao diện mới, bình luận trên hồ sơ, nội dung từng khoản CPBH. **Có chín
+> migration (`0124`–`0132`)** — `nang-cap` tự chạy chúng sau lượt sao lưu, không có
+> migration nào dừng vì dữ liệu cũ. Nhưng **`nang-cap` chỉ đổi ảnh**, nên phải chép tay từ
+> bộ cài `1.3.0` (giữ nguyên `.env` và `secrets/` của máy):
+>
+> - **`deploy/compose.yml`, `deploy/compose.prod.yml`, `deploy/postgres/postgresql.conf` và
+>   tệp `csbh`** — thiếu tệp compose mới thì service thứ 11 **`van-hanh` không chạy** (trang
+>   *Vận hành* lỗi), không có tệp log riêng từng service (`0249`), và Postgres vẫn bật WAL.
+>   Đọc thêm hai đoạn `0250`, `0251` ngay dưới — cùng một lượt chép.
+> - **Thêm `CSBH_LOG_DIR=../logs` vào `.env`** (mẫu ở `.env.mau`); bỏ trống thì compose
+>   dùng đúng giá trị ấy.
+> - **Cài lại cron** (§7) và **cài tác tử vận hành** (`deploy/systemd/csbh-tac-tu.service`,
+>   cách cài ở `05-VAN-HANH.md` §2) — thiếu tác tử thì nút *Sao lưu ngay*, trạng thái
+>   container và cỡ ổ trên trang *Vận hành* không có số liệu.
+>
+> Rồi chạy `./csbh nang-cap 1.3.0`. Kiểm sau khi xong: `./csbh phien-ban` ra `1.3.0`, chân
+> trang web ghi `1.3.0`, trang *Vận hành* của Quản trị mở được.
+
 > **Bản có `0251` (lịch sao lưu cấu hình được)** `mới 06/11`. Migration `0124` tạo schema
 > `ops` với lịch mặc định (CSDL 01:15, kho tệp 02:00, giữ 7 bản). **Phải cài lại cron**:
 > `sudo cp deploy/cron.mau /etc/cron.d/csbh` (rồi sửa đường dẫn như §cron) — tệp cũ gọi

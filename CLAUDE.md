@@ -97,7 +97,7 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (06/11/2026)
+## Trạng thái hiện tại (08/11/2026)
 
 Đã xong **trang Vận hành** cho Quản trị (P280–P286) — kế hoạch + quyết định đã chốt ở `agents/KE-HOACH-VAN-HANH.md`, mockup
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
@@ -114,7 +114,10 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P304** (`0268`): **nội dung từng khoản CPBH** — `pol.policy_line.cpbh_noi_dung text[]` song song
+Chặng gần nhất **P306**: **`VERSION` → `1.3.0`** (gói `P277`–`P305`; chín migration `0124`–`0132` từ `1.1.0`, phải chép
+tay compose/`postgresql.conf`/`csbh` + cài cron và tác tử — `04-TRIEN-KHAI` §8). **Chưa dựng/đẩy ảnh.**
+
+Trước đó **P304** (`0268`): **nội dung từng khoản CPBH** — `pol.policy_line.cpbh_noi_dung text[]` song song
 với `cpbh` (migration `0132`, ràng buộc không dài hơn), căn mảng ở `upsertLine` (thiếu đệm, thừa
 `CPBH_NOI_DUNG_LECH`); dấu `?` cạnh đúng con số; KHÔNG in bản mềm, KHÔNG vào phép so *Chỉnh sửa*, đi theo khoản sang
 phiên bản mới. Kèm: luật dính đáy ngăn trượt chỉ áp hàng có nút gửi (`:has(button[type="submit"])`) — dải *Thêm

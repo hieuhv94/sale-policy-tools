@@ -22112,3 +22112,23 @@ nào — chỗ duy nhất hai đường đọc nói khác nhau, có chủ ý. Ph
 mới. Typecheck xanh; `tests/web`:
 
 **1166/1166 xanh.**
+
+## P306 — Phiên bản `1.3.0`
+
+`VERSION` `1.1.0` → **`1.3.0`**, theo yêu cầu (không qua `1.2.0` — số do khách hàng chọn). Gói `P277`–`P305`:
+chuyển máy, trang *Vận hành* + service `van-hanh`, thiết kế lại giao diện, bình luận trên hồ sơ, nội dung
+từng khoản CPBH.
+
+Đo trước khi viết hướng dẫn nâng cấp (`04-TRIEN-KHAI` §8, đoạn *"Từ `1.1.0` lên `1.3.0`"*): khác `1.1.0`,
+lượt này **CÓ chín migration** (`0124`–`0132`), không cái nào dừng vì dữ liệu cũ. Phía triển khai đổi
+`compose.yml`, `compose.prod.yml` (service `van-hanh`, bind mount `CSBH_LOG_DIR`, gỡ `pgarchive`, MinIO kéo
+từ kho của ta), `postgresql.conf` (`archive_mode = off`), `env.mau` (`CSBH_LOG_DIR`), cron, và thêm unit
+systemd của tác tử. Hệ quả phải viết ra: `nang-cap` chỉ đổi ẢNH, nên **không chép tệp compose mới thì
+service thứ 11 không chạy** và trang *Vận hành* hỏng — trong khi migration của nó đã chạy. Đoạn mới gom
+danh sách chép tay ở một chỗ và trỏ xuống hai đoạn `0250`/`0251` đã có thay vì chép lại.
+
+Kiểm khi demo bật: ảnh rời `csbh-test` `--network none` — `tests/version.test.ts`,
+`tests/web/phien-ban.test.tsx`, `tests/http/tai-lieu.test.ts` 12/12. `make test` đầy đủ chưa chạy (demo bật;
+lượt này chỉ đổi `VERSION` và tài liệu). Chưa dựng/đẩy ảnh `1.3.0` — `make dong-goi` / `make day-anh` chờ lệnh.
+
+**12/12 xanh.**
