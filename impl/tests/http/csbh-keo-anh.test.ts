@@ -36,7 +36,7 @@ case "$*" in
     if [ "\${KIEM_DO:-0}" = 1 ]; then echo "KIEM_NGHIEM 20/21"; exit 1; fi
     echo "KIEM_NGHIEM 21/21"; exit 0 ;;
   *"-p csbh-kiem"*" ops migrate"*) exit 0 ;;
-  *"-p csbh-kiem"*"up -d --wait"*) exit 0 ;;
+  *"-p csbh-kiem"*"up -d --wait"*) [ "\${KIEM_UP_HONG:-0}" = 1 ] && { echo "container csbh-kiem-customer-1 is unhealthy"; exit 1; }; exit 0 ;;
   *"buildx imagetools inspect --format {{json .Manifest.Digest}}"*)
     [ "\${KHO_HONG:-0}" = 1 ] && exit 1
     echo "\\"\${DIGEST_KHO:-sha256:moi}\\"" ;;
@@ -199,6 +199,24 @@ describe('`0270` csbh kiem-nghiem — chồng kiểm riêng, dọn sạch dù xa
       expect(d, 'chồng kiểm gắn workspace của chồng thật').toMatch(/CSBH_WORKSPACE=\S*\/tmp\/kiem-\d+ /);
       expect(d, 'SITE_URL của chồng thật lọt sang chồng kiểm').toMatch(/SITE_URL=$/);
     }
+  });
+
+  it('ĐỎ → GIỮ log của chồng kiểm (container, healthcheck, log từng service) TRƯỚC khi dọn', async () => {
+    const r = await csbh(['kiem-nghiem'], { KIEM_DO: '1' });
+    expect(r.loi).toMatch(/Đã giữ log của chồng kiểm để gỡ lỗi: .*\/logs\/kiem-nghiem\/\d{8}-\d{6}-loi/);
+    // `ps -a` của chồng kiểm chạy TRƯỚC lượt `down -v`.
+    expect(r.goi.indexOf('-p csbh-kiem')).toBeGreaterThan(-1);
+    const iPs = r.goi.search(/-p csbh-kiem .* ps -a/);
+    const iDown = r.goi.search(/-p csbh-kiem .*down -v/);
+    expect(iPs, 'không chụp trạng thái container').toBeGreaterThan(-1);
+    expect(iPs, 'chụp trạng thái SAU khi đã dọn').toBeLessThan(iDown);
+  });
+
+  it('dựng chồng kiểm HỎNG (service không khoẻ) → giữ log, rồi vẫn dọn', async () => {
+    const r = await csbh(['kiem-nghiem'], { KIEM_UP_HONG: '1' });
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('Đã giữ log của chồng kiểm');
+    expect(r.goi).toMatch(/-p csbh-kiem .*down -v --remove-orphans/);
   });
 
   it('thiếu RAM → dừng TRƯỚC khi dựng gì, nói con số', async () => {

@@ -586,6 +586,27 @@ con_sot_kiem() {
     docker network ls -q --filter "label=com.docker.compose.project=$DU_AN_KIEM"; } 2> /dev/null | grep -c . || true
 }
 
+# GIỮ CHỨNG CỨ trước khi dọn (`0270`, hỏi 08/11 khi bước 10 đỏ trên VPS): lượt dọn xoá cả
+# log của từng service trong chồng kiểm — đúng thứ cần để gỡ lỗi. Nên khi một bước của chồng
+# kiểm hỏng, chép ra `logs/kiem-nghiem/<giờ>-loi/`: log dựng, trạng thái container, healthcheck
+# của container không khoẻ, và đuôi log của MỌI service. Đó là tệp log trong thư mục log, không
+# phải dữ liệu hệ thống — hệ vẫn "sạch". Không chứa mật khẩu: bí mật nằm ở tệp, không in ra log.
+giu_log_kiem() {
+  noi="$WS/logs/kiem-nghiem/$(date +%Y%m%d-%H%M%S)-loi"
+  mkdir -p "$noi"
+  [ -f "$KIEM_DIR/dung.log" ] && cp "$KIEM_DIR/dung.log" "$noi/dung.log"
+  dc_kiem ps -a > "$noi/container.txt" 2>&1 || true
+  for c in $(docker ps -aq --filter "label=com.docker.compose.project=$DU_AN_KIEM" 2> /dev/null); do
+    ten="$(docker inspect -f '{{.Name}}' "$c" 2> /dev/null | tr -d /)"
+    docker logs --timestamps --tail 400 "$c" > "$noi/$ten.log" 2>&1 || true
+    docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restart={{.RestartCount}}{{if .State.Health}} health={{.State.Health.Status}}{{range .State.Health.Log}}
+  {{.Start}} -> {{.ExitCode}}: {{.Output}}{{end}}{{end}}' "$c" > "$noi/$ten.trang-thai.txt" 2>&1 || true
+  done
+  free -m > "$noi/may.txt" 2>&1 || true; df -h "$WS" >> "$noi/may.txt" 2>&1 || true
+  echo "  Đã giữ log của chồng kiểm để gỡ lỗi: $noi" >&2
+  [ -f "$noi/dung.log" ] && tail -20 "$noi/dung.log" >&2
+}
+
 # kiem_nghiem_chay — trả 0 khi XANH HẾT. In từng việc con thụt vào; báo cáo đầy đủ ghi ở
 # `<workspace>/logs/kiem-nghiem/<giờ>.txt` (tệp log, không phải dữ liệu hệ thống).
 kiem_nghiem_chay() {
@@ -623,11 +644,11 @@ HET
   mk="Kn$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')9"
   ( umask 077; printf '%s' "$mk" > "$KIEM_DIR/secrets/admin_mat_khau.txt" )
   echo "    ▸ dựng chồng kiểm (dự án $DU_AN_KIEM, không cổng, thư vào hộp thư giả)"
-  dc_kiem run --rm -T ops migrate > "$KIEM_DIR/dung.log" 2>&1 || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
-  dc_kiem up -d --wait >> "$KIEM_DIR/dung.log" 2>&1 || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
+  dc_kiem run --rm -T ops migrate > "$KIEM_DIR/dung.log" 2>&1 || { giu_log_kiem; return 1; }
+  dc_kiem up -d --wait >> "$KIEM_DIR/dung.log" 2>&1 || { giu_log_kiem; return 1; }
   dc_kiem run --rm -T -e ADMIN_USERNAME=admin -e ADMIN_EMAIL=admin@kiem.test -e "ADMIN_FULL_NAME=Quản trị kiểm nghiệm" \
     -e ADMIN_PASSWORD_FILE=/run/secrets/admin_mat_khau.txt ops bootstrap-admin >> "$KIEM_DIR/dung.log" 2>&1 \
-    || { tail -20 "$KIEM_DIR/dung.log" >&2; return 1; }
+    || { giu_log_kiem; return 1; }
   echo "    ▸ chạy bộ kiểm nghiệm"
   bao_cao="$WS/logs/kiem-nghiem/$(date +%Y%m%d-%H%M%S).txt"
   set +e
@@ -639,6 +660,9 @@ HET
   dong="$(grep -E '^KIEM_NGHIEM [0-9]+/[0-9]+$' "$bao_cao" | tail -1)"
   xanh="$(echo "$dong" | sed -E 's/^KIEM_NGHIEM ([0-9]+)\/([0-9]+)$/\1/')"
   tong="$(echo "$dong" | sed -E 's/^KIEM_NGHIEM ([0-9]+)\/([0-9]+)$/\2/')"
+  # Đỏ (hoặc không tới được dòng tổng kết) thì giữ log service TRƯỚC khi dọn — câu lỗi của một
+  # ca chỉ nói mã HTTP, nguyên nhân nằm trong log của service.
+  if [ -z "$dong" ] || [ "$xanh" != "$tong" ]; then giu_log_kiem; fi
   echo "    ▸ dọn sạch chồng kiểm (dữ liệu giả, volume, mạng, thư mục tạm)"
   don_kiem; KIEM_DIR=""
   sot="$(con_sot_kiem)"

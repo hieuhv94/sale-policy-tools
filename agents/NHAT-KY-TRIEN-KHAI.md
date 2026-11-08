@@ -22328,3 +22328,25 @@ quyền thư mục, Let's Encrypt) — cần một VPS và tên miền thử. Tr
 `hieuhv94/nutricare-csbh` đang trỏ tới bản `1.3.0` vừa dựng (CHỈ cục bộ, chưa đẩy).
 
 `make typecheck` sạch (một lỗi kiểu ở ca kiểm mới, đã sửa) · `make test` **3418/3418 xanh.**
+
+## P310 — `0271` Kiểm nghiệm đỏ thì GIỮ log của chồng kiểm trước khi dọn
+
+Lượt cài đầu trên VPS thật đỏ ở bước 10/14: chồng kiểm dựng lên, `csbh-kiem-customer-1 is unhealthy`, và
+**không còn gì để tra** — lượt dọn (`0270`) xoá luôn log của từng service, đúng thứ cần để gỡ lỗi; người vận
+hành chỉ có 20 dòng cuối của `compose up`. "Dọn sạch" là dọn DỮ LIỆU giả, không phải xoá chứng cứ.
+
+`giu_log_kiem` chép ra `<workspace>/logs/kiem-nghiem/<giờ>-loi/` TRƯỚC lượt dọn: log dựng, `compose ps -a`,
+`docker logs --tail 400` của MỌI container dự án `csbh-kiem`, trạng thái (exit code, OOMKilled, số lần khởi
+động lại, healthcheck kèm đầu ra từng lần thử), `free -m` + `df -h`. Gọi ở cả ba chỗ dựng hỏng (migrate · up
+· bootstrap) và khi bộ kiểm có ca đỏ / không tới được dòng tổng kết. Không chứa mật khẩu (bí mật ở tệp).
+
+Bẫy dính lúc viết ca kiểm: chèn `\\${` vào `DOCKER_GIA` (template literal) — `\\` ra một backslash rồi `${`
+MỞ nội suy, tệp không dịch được và vitest báo `Tests: no tests` cho tệp ấy; lượt chạy gộp hai tệp chỉ in
+**34 ca** thay vì 62, và chỉ vì đọc SỐ CA mới thấy (bài học P257).
+
+Nguyên nhân `customer` không khoẻ trên VPS **CHƯA biết** — cần log của chính lượt ấy.
+
+`tests/http/csbh-keo-anh.test.ts` + `cai-dat.test.ts` + `kiem-nghiem.test.ts` 73/73 (chỉ `scripts/csbh` và
+ca kiểm đổi; `make test` đầy đủ chưa chạy lại ở chặng này).
+
+**73/73 xanh.**
