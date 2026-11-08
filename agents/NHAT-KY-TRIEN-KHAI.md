@@ -22350,3 +22350,48 @@ Nguyên nhân `customer` không khoẻ trên VPS **CHƯA biết** — cần log 
 ca kiểm đổi; `make test` đầy đủ chưa chạy lại ở chặng này).
 
 **73/73 xanh.**
+
+## P311 — `0272` Healthcheck RabbitMQ nói dối: `ping` báo khoẻ khi cổng AMQP còn đóng
+
+Lượt cài đầu trên VPS thật đỏ ở bước kiểm nghiệm (10/14) với `container csbh-kiem-customer-1 is unhealthy`.
+Nhờ `0271` (giữ log trước khi dọn) lần này có chứng cứ: **10/10 service Node đều chết cùng một lỗi** —
+`connect ECONNREFUSED <rabbitmq>:5672` — mà không phải chỉ `customer`; `restart=1` ở tất cả, và RabbitMQ
+cùng lúc `health=healthy`. Không có lỗi thứ hai bị che (đã quét mọi log).
+
+**Cơ chế**: healthcheck là `rabbitmq-diagnostics -q ping`, chỉ hỏi "máy ảo Erlang có sống không". Nó báo
+khoẻ khi ứng dụng RabbitMQ còn đang chạy các bước khởi động và cổng 5672 chưa mở. Mười service có
+`depends_on: rabbitmq: service_healthy` nên khởi động đúng vào khoảng hở ấy, `Bus.channel()` (`amqp.connect`)
+không thử lại, lời hứa bị từ chối không ai bắt → `triggerUncaughtException` → tiến trình chết. Docker khởi
+động lại chúng (`restart: unless-stopped`) nên hệ vẫn tự lên, nhưng `up -d --wait` coi container đang khởi
+động lại là hỏng.
+
+**Vì sao bộ kiểm và demo chưa bao giờ thấy**: khoảng hở đo được trên máy phát triển là ~2,2 giây (ping khoẻ
+lúc 4,95s, cổng mở lúc 7,15s, 3/3 lần) và chồng kiểm nghiệm 21/21 vẫn xanh vì các service kịp thử lại qua
+vòng khởi động lại. Trên VPS: `ping` ok lúc :20, cổng vẫn từ chối lúc :26 — hở >6 giây. **Một lỗi chỉ lộ ra ở
+máy chậm hơn** (cùng lớp `0106`: tệp compose không được bộ kiểm động tới).
+
+**Đo cho chắc — và hai phép đo hỏng của chính tôi**: (1) vòng lặp giới hạn theo SỐ VÒNG (200) mà lệnh thử
+thất bại tức thì nên hết vòng trong vài giây, trước khi RabbitMQ kịp lên → mọi số trống; (2) gọi
+`rabbitmq-diagnostics` MỖI GIÂY từ giây đầu làm RabbitMQ KHÔNG BAO GIỜ lên (40 giây liền `ping_chua`), trong
+khi một lệnh `ping` sau 25 giây thì thành công — gọi CLI trước khi image tạo xong cookie Erlang phá khởi
+động. Đo đúng: cho Docker tự chạy healthcheck mỗi giây (`--health-start-period 4s`, như `interval: 5s` thật)
+và **ngay lúc trạng thái đổi sang `healthy` thì thử kết nối cổng**: `ping` → ĐÓNG 3/3; `check_port_connectivity`
+→ MỞ 3/3; `nc -z localhost 5672` → MỞ 3/3. Chọn `check_port_connectivity` (lệnh chính thức, không dựa vào
+`nc` có trong image).
+
+**Sửa**: một dòng ở `deploy/compose.yml` (dùng chung dev · kiểm · demo · production), kèm chú thích giải
+thích tại chỗ. **Dựng thật qua compose** (dự án riêng, `up -d --wait rabbitmq` rồi thử cổng ngay): bản mới
+cổng MỞ 3/3; **bản cũ tái hiện lỗi — ĐÓNG 1/3**.
+
+Ca kiểm `tests/http/compose-suc-khoe.test.ts` (4 ca): khối rabbitmq rút được; không phải `ping`; có
+`check_port_connectivity`; mọi service chờ bằng `service_healthy` chứ không `service_started`. **Phá lại**:
+trả về `ping` → 2 đỏ đúng chỗ.
+
+**Chưa sửa, đã nêu**: `Bus.channel()` vẫn không thử lại kết nối. Healthcheck đúng thu hẹp khoảng hở về 0 lúc
+khởi động nhưng RabbitMQ khởi động lại GIỮA CHỪNG vẫn kéo sập cả mười service (Docker dựng lại chúng). Thêm
+vòng thử lại có giới hạn vào `Bus.channel()` là bước cứng hoá hợp lý, nhưng nó đụng mã chạy của mọi service —
+làm riêng, có ca kiểm riêng, khi được yêu cầu.
+
+**Việc người dùng phải làm để lỗi này biến mất trên VPS**: `deploy/compose.yml` nằm trong ảnh `ops`
+(`ban-cai`), nên phải **dựng lại và đẩy ảnh** (`make dong-goi` rồi `make day-anh`) rồi chạy lại `cai-dat.sh`
+— bộ cài bung chương trình từ ảnh `ops` nên tự lấy tệp compose mới.

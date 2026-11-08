@@ -87,7 +87,21 @@ services:
     image: rabbitmq:3.13.7-management-alpine@sha256:606d8c0d6b3c18d1da9afc53bc7cdb2a8d5486df91b5a9830e9e07626c9ae281
     restart: unless-stopped
     healthcheck:
-      test: ["CMD","rabbitmq-diagnostics","-q","ping"]
+      # `check_port_connectivity`, KHÔNG phải `ping` (`0272`).
+      #
+      # `ping` chỉ hỏi "máy ảo Erlang có sống không" — nó báo khoẻ khi ứng dụng RabbitMQ còn
+      # đang chạy các bước khởi động và CỔNG AMQP CHƯA MỞ. Đo 08/11 bằng cách cho Docker tự
+      # chạy healthcheck mỗi giây rồi thử kết nối cổng 5672 ngay lúc trạng thái đổi sang
+      # `healthy`: `ping` → cổng ĐÓNG ở 3/3 lần; `check_port_connectivity` và `nc -z` → MỞ 3/3.
+      # Khoảng hở ~2 giây trên máy phát triển, và >6 giây trên VPS thật.
+      #
+      # Mười service Node có `depends_on: rabbitmq: service_healthy` nên khởi động đúng vào
+      # khoảng hở ấy, nhận `ECONNREFUSED`, và `Bus.channel()` không thử lại — tiến trình chết
+      # vì lời hứa bị từ chối không ai bắt. Docker khởi động lại chúng (`restart:
+      # unless-stopped`) nên hệ vẫn tự lên, nhưng `up -d --wait` coi container đang khởi động
+      # lại là hỏng: lượt cài đầu trên VPS đỏ ở bước kiểm nghiệm với "container ... is
+      # unhealthy", trong khi trên máy phát triển khoảng hở hẹp nên chưa bao giờ lộ ra.
+      test: ["CMD","rabbitmq-diagnostics","-q","check_port_connectivity"]
       interval: 5s
       timeout: 5s
       retries: 30
