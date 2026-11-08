@@ -14,6 +14,22 @@
  * Tên cột vốn là DỮ LIỆU, không phải giao diện. Đưa nó ra khỏi tệp component là
  * trả nó về đúng chỗ, và ca kiểm đối chiếu đọc thẳng được hằng thật thay vì
  * chép lại một bản sao thứ ba.
+ *
+ * ---------------------------------------------------------------------------
+ * `0267` (khách hàng chốt 07/11/2026): BỘ CỘT CỦA WEB TÁCH KHỎI BẢN IN
+ * ---------------------------------------------------------------------------
+ *
+ * *"Bảng sản phẩm có quá nhiều cột, người dùng phải lăn chuột ngang liên tục"*.
+ * Bảng web giờ có thứ tự RIÊNG: *Tên sản phẩm* (mã sản phẩm là dòng chữ nhỏ
+ * ngay dưới tên) đứng đầu và là cột GHIM duy nhất, *Ngày áp dụng* ngay sau và
+ * cuộn theo bảng; cột *Mã sản phẩm* và cột *Ghi chú* RỜI khỏi bảng web (ghi chú
+ * thành một biểu tượng cạnh tên).
+ *
+ * BẢN MỀM KHÔNG ĐỔI — chốt cùng lúc, nói thẳng: *"những thay đổi này không ảnh
+ * hưởng đến các bảng trong bản mềm, tất cả chỉ là thay đổi hiển thị trên web"*.
+ * Nên luật *"màn hình và bản in khớp THỨ TỰ cột không ngoại lệ"* của `0231` chỉ
+ * còn áp cho bản in; vế còn nguyên giữa hai bên là TÊN: cột nào có ở cả hai thì
+ * mang đúng một tên (`tests/http/tieu-de-cot.test.ts`).
  */
 
 /**
@@ -30,21 +46,22 @@
  */
 export const COT_TRUOC = [
   /*
-   * `0230` đưa *Tên sản phẩm* lên ĐẦU bảng màn hình và ghim nó; `0231` (khách
-   * hàng 29/09, cùng ngày) trả về thứ tự cũ và bỏ ghim — hai bảng lại xếp cột
-   * giống hệt nhau, không miễn trừ nào.
-   */
-  /*
-   * NGÀY ÁP DỤNG — cột ĐẦU TIÊN, bên trái *Mã sản phẩm* (`0180`).
+   * TÊN SẢN PHẨM — cột ĐẦU và là cột GHIM duy nhất khi cuộn ngang (`0267`).
    *
-   * Khách hàng chốt 07/09 từng chữ: *"cột ngày áp dụng để bên trái mã sản
-   * phẩm"*. Từ lượt này ngày áp dụng là thuộc tính của DÒNG chứ không của hồ sơ
-   * — ô *Ngày áp dụng* ở khối thông tin đầu trang biến mất cùng lúc — nên nó
-   * phải đứng ở chỗ mắt đọc trước khi đọc tới mặt hàng.
+   * Lịch sử: `0180` đặt *Ngày · Mã · Tên*; `0230` đưa tên lên đầu và ghim; `0231`
+   * (khách hàng 29/09, cùng ngày) lùi cả hai vì màn hình phải xếp cột giống hệt
+   * bản in. `0267` đưa tên lên đầu lần nữa, và lần này đứng được vì khách hàng
+   * TÁCH hai bảng: thứ tự của bản in không còn ràng màn hình.
+   *
+   * Ô tên mang thêm MÃ SẢN PHẨM ở dòng dưới — cột *Mã sản phẩm* bỏ khỏi web, mã
+   * vẫn đọc được ngay cạnh thứ nó định danh.
+   */
+  { khoa: 'productName', nhan: 'Tên sản phẩm' },
+  /*
+   * NGÀY ÁP DỤNG — ngay SAU tên, KHÔNG ghim (`0267`). `0180` đặt nó đầu bảng vì
+   * ngày là thuộc tính của DÒNG; nó vẫn là cột riêng, chỉ thôi đứng trước tên.
    */
   { khoa: 'ngayApDung', nhan: 'Ngày áp dụng' },
-  { khoa: 'productCode', nhan: 'Mã sản phẩm' },
-  { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
   { khoa: 'wholesalePrice', nhan: 'Giá bán buôn' },
   /*
@@ -113,13 +130,16 @@ export const COT_SAU = [
    */
   { khoa: 'trangThai', nhan: 'Trạng thái' },
   /*
-   * Ghi chú của người lập cho riêng dòng này (`0027`).
+   * GHI CHÚ — THÔI LÀ MỘT CỘT của bảng web (`0267`).
    *
-   * ĐỨNG CUỐI vì nó là cột chữ duy nhất giữa một bảng số: xen vào giữa thì mọi
-   * cột tiền bên phải nó mất thế thẳng hàng, và bảng tiền mà không đọc được
-   * theo cột dọc là bảng không kiểm được.
+   * Cột này (`0027`) đứng cuối, xuống dòng ở 28 ký tự. Đo trên demo: 2 trên 453
+   * dòng có ghi chú — một cột gần như luôn trống chiếm chỗ ngang của một bảng
+   * vốn đã phải cuộn, và một ghi chú 500 ký tự kéo cả hàng cao mười tám dòng.
+   * Khách hàng `0215` cũng đã chốt ghi chú không phải trường để so sánh. Nên ghi
+   * chú thành một BIỂU TƯỢNG cạnh tên sản phẩm (cột ghim — cuộn tới đâu cũng
+   * thấy dòng nào có ghi chú), rê chuột hoặc chạm để đọc cả đoạn. Bản in và bố
+   * cục thẻ trên điện thoại vẫn bày nguyên văn.
    */
-  { khoa: 'note', nhan: 'Ghi chú' },
 ] as const;
 
 /**

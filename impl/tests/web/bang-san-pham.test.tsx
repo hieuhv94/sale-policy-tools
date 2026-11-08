@@ -113,28 +113,106 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
 });
 
 /**
- * `0231` — thứ tự về *Ngày áp dụng · Mã · Tên* (`0180`); cột tên vẫn NỔI và là
- * ô `cot-khoa` DUY NHẤT của mỗi hàng.
+ * `0267` (khách hàng chốt 07/11/2026) — cột tên ĐẦU bảng, ô ghim DUY NHẤT của mỗi
+ * hàng; mã sản phẩm là dòng dưới tên; *Ngày áp dụng* ngay sau; cột *Mã sản
+ * phẩm* và *Ghi chú* RỜI bảng web (bản in giữ nguyên).
  *
  * Đọc DOM chứ không quét mã nguồn: ở `0230` ca quét XANH khi lớp `cot-khoa` bị
- * gắn thêm vào ô mã — lượt phá lại tìm ra, và ca này ra đời vì thế.
+ * gắn thêm vào ô mã — lượt phá lại tìm ra, và ca kiểu này ra đời vì thế.
  */
-describe('`0231` cột tên đứng thứ ba, và là ô nổi duy nhất của hàng', () => {
-  it('ở tiêu đề lẫn mỗi hàng: đúng MỘT ô `cot-khoa`, ở vị trí thứ ba, mang tên sản phẩm', () => {
+describe('`0267` cột tên đứng đầu, mang mã ở dòng dưới, là ô ghim duy nhất', () => {
+  it('ở tiêu đề lẫn mỗi hàng: đúng MỘT ô `cot-khoa`, ở vị trí ĐẦU', () => {
     const ds = [dong(), dong({ id: 'd2', productCode: 'SP-02', productName: 'Sữa B' })];
     render(<BangSanPham dong={ds} suaDong={() => undefined} xoaDong={() => undefined} />);
     const bang = screen.getByRole('table');
     for (const hang of bang.querySelectorAll('tr')) {
       const khoa = hang.querySelectorAll('.cot-khoa');
       expect(khoa).toHaveLength(1);
-      expect(hang.children[2]).toBe(khoa[0]);
+      expect(hang.children[0]).toBe(khoa[0]);
     }
-    const hangThan = [...bang.querySelectorAll('tbody tr')];
-    expect(hangThan.map((h) => h.children[2]!.textContent)).toEqual([
+    expect(bang.querySelector('thead .cot-khoa')!.textContent).toBe('Tên sản phẩm');
+  });
+
+  it('ô tên mang TÊN rồi MÃ ở dòng riêng; không còn ô mã nào khác trên hàng', () => {
+    const ds = [dong(), dong({ id: 'd2', productCode: 'SP-02', productName: 'Sữa B' })];
+    render(<BangSanPham dong={ds} />);
+    const bang = screen.getByRole('table');
+    const hang = [...bang.querySelectorAll('tbody tr')];
+    expect(hang.map((h) => h.querySelector('.cot-khoa .ten-dong')!.textContent)).toEqual([
       'Nutricare Gold Đặc Biệt',
       'Sữa B',
     ]);
-    expect(bang.querySelector('thead .cot-khoa')!.textContent).toBe('Tên sản phẩm');
+    expect(hang.map((h) => h.querySelector('.cot-khoa .ma-sp')!.textContent)).toEqual(['SP-01', 'SP-02']);
+    // Mã xuất hiện ĐÚNG MỘT lần trên hàng — một ô mã sót lại là cột cũ chưa gỡ.
+    for (const h of hang) {
+      const ma = h.querySelector('.ma-sp')!.textContent!;
+      expect([...h.querySelectorAll('td, th')].filter((o) => o.textContent!.includes(ma))).toHaveLength(1);
+    }
+  });
+
+  it('tiêu đề: *Tên sản phẩm* · *Ngày áp dụng* đứng đầu; KHÔNG có cột *Mã sản phẩm* lẫn *Ghi chú*', () => {
+    render(<BangSanPham dong={[dong({ note: 'x' })]} />);
+    const tieuDe = within(screen.getByRole('table'))
+      .getAllByRole('columnheader')
+      .map((t) => t.textContent);
+    expect(tieuDe.slice(0, 2)).toEqual(['Tên sản phẩm', 'Ngày áp dụng']);
+    expect(tieuDe).not.toContain('Mã sản phẩm');
+    expect(tieuDe).not.toContain('Ghi chú');
+  });
+});
+
+/**
+ * `0267` — CỘT TÊN VỪA KHÍT, CÓ TRẦN 18rem, và BÓNG chỉ khi đã cuộn.
+ *
+ * jsdom không đo bề rộng (mọi khung bao là 0), nên ca giả khung bao theo lớp
+ * phần tử — đo được đúng thứ cần: phép đo đọc bề rộng CẢ Ô tên (cột tự giãn bằng
+ * nội dung dài nhất khi cấm xuống dòng), chặn ở 18rem + lề, và không đặt gì khi
+ * đo ra 0. jsdom không nạp CSS nên lề trong là 0 ở đây.
+ */
+describe('`0267` bề rộng cột tên đo từ nội dung', () => {
+  const doBeRong = (rong: Record<string, number>) =>
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const w = Object.entries(rong).find(([lop]) => this.classList.contains(lop))?.[1] ?? 0;
+      return { width: w, height: 20, top: 0, left: 0, right: w, bottom: 20, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('tên ngắn: cột rộng ĐÚNG bằng ô tên lúc không xuống dòng', () => {
+    doBeRong({ 'cot-khoa': 170, 'ten-dong': 150 });
+    render(<BangSanPham dong={[dong()]} />);
+    expect(screen.getByRole('table').style.getPropertyValue('--rong-ten')).toBe('170px');
+  });
+
+  it('tên dài hơn trần: cột dừng ở 18rem (288px), tên xuống dòng', () => {
+    doBeRong({ 'cot-khoa': 500 });
+    render(<BangSanPham dong={[dong()]} />);
+    expect(screen.getByRole('table').style.getPropertyValue('--rong-ten')).toBe('288px');
+  });
+
+  it('đo ra 0 (chưa dựng bố cục) thì KHÔNG đặt biến — CSS rơi về sàn/trần', () => {
+    render(<BangSanPham dong={[dong()]} />);
+    expect(screen.getByRole('table').style.getPropertyValue('--rong-ten')).toBe('');
+  });
+
+  it('lớp `dang-do-ten` chỉ tồn tại TRONG lượt đo', () => {
+    doBeRong({ 'cot-khoa': 150 });
+    render(<BangSanPham dong={[dong()]} />);
+    expect(screen.getByRole('table').classList.contains('dang-do-ten')).toBe(false);
+  });
+
+  it('khung đã cuộn thì mang `da-cuon` (bóng mép cột ghim), cuộn về đầu thì gỡ', () => {
+    render(<BangSanPham dong={[dong()]} />);
+    const khung = screen.getByRole('region', { name: 'Bảng sản phẩm' });
+    khung.scrollLeft = 120;
+    act(() => {
+      khung.dispatchEvent(new Event('scroll'));
+    });
+    expect(khung.classList.contains('da-cuon')).toBe(true);
+    khung.scrollLeft = 0;
+    act(() => {
+      khung.dispatchEvent(new Event('scroll'));
+    });
+    expect(khung.classList.contains('da-cuon')).toBe(false);
   });
 });
 
@@ -256,6 +334,38 @@ describe('sửa một dòng đã có', () => {
 
     expect(nutSua.parentElement).toBe(nutXoa.parentElement);
     expect(nutSua.parentElement?.className).toContain('nhom-nut-hang');
+  });
+});
+
+/**
+ * `0267` — ở BẢNG, *Sửa* / *Xoá* là hai nút BIỂU TƯỢNG (bút, thùng rác); tên nút
+ * giữ đúng chữ *Sửa* / *Xoá*. Ở THẺ điện thoại vẫn là nút CHỮ.
+ */
+describe('`0267` thao tác của dòng: biểu tượng ở bảng, chữ ở thẻ', () => {
+  it('ở bảng: hai nút không mang chữ nhìn thấy được, mỗi nút một SVG, có title', () => {
+    render(<BangSanPham dong={[dong()]} suaDong={() => undefined} xoaDong={() => undefined} />);
+    const bang = screen.getByRole('table');
+    for (const [ten, title] of [['Sửa', 'Sửa dòng'], ['Xoá', 'Xoá dòng']] as const) {
+      const nut = within(bang).getByRole('button', { name: ten });
+      expect(nut.textContent, `${ten}: còn chữ`).toBe('');
+      expect(nut.querySelector('svg')).not.toBeNull();
+      expect(nut.getAttribute('title')).toBe(title);
+      expect(nut.classList.contains('nut-bieu-tuong')).toBe(true);
+    }
+    expect(within(bang).getByRole('button', { name: 'Xoá' }).classList.contains('nut-bt-xoa')).toBe(true);
+  });
+
+  it('ở thẻ điện thoại: nút CHỮ như cũ', () => {
+    render(<BangSanPham dong={[dong()]} suaDong={() => undefined} xoaDong={() => undefined} />);
+    const the = document.querySelector('.the-san-pham .the') as HTMLElement;
+    expect(within(the).getByRole('button', { name: 'Sửa' }).textContent).toBe('Sửa');
+    expect(within(the).getByRole('button', { name: 'Xoá' }).textContent).toBe('Xoá');
+  });
+
+  it('xoá đang chạy thì thùng rác TẮT', () => {
+    render(<BangSanPham dong={[dong()]} xoaDong={() => undefined} dangXoa="d1" />);
+    const nut = within(screen.getByRole('table')).getByRole('button', { name: 'Xoá' }) as HTMLButtonElement;
+    expect(nut.disabled).toBe(true);
   });
 });
 
@@ -512,34 +622,78 @@ describe('0027 dấu ? giải thích lý do', () => {
 });
 
 /**
- * 0027 — cột Ghi chú.
+ * `0267` — GHI CHÚ thôi là một cột của bảng web: một BIỂU TƯỢNG cạnh tên (cột
+ * ghim), rê chuột hoặc chạm để đọc. Bố cục thẻ trên điện thoại vẫn bày nguyên văn
+ * (`0027`), và bản in vẫn có cột *Ghi chú*.
  */
-describe('0027 cột Ghi chú của dòng sản phẩm', () => {
-  it('nằm trong danh sách cột chuẩn và đứng CUỐI', () => {
-    const ds = [dong()];
-    const nhan = cotCho(ds).map((c) => c.nhan);
-    expect(nhan.at(-1)).toBe('Ghi chú');
-    render(<BangSanPham dong={ds} />);
-    const bang = screen.getByRole('table');
-    expect(within(bang).getAllByRole('columnheader').map((t) => t.textContent)).toEqual(nhan);
+describe('`0267` ghi chú là biểu tượng cạnh tên sản phẩm', () => {
+  const hangCo = (ma: string) =>
+    [...screen.getByRole('table').querySelectorAll('tbody tr')].find(
+      (r) => r.querySelector('.ma-sp')?.textContent === ma,
+    ) as HTMLElement;
+
+  it('dòng CÓ ghi chú: biểu tượng nằm TRONG ô tên, tên nút mang nguyên văn', () => {
+    render(
+      <BangSanPham
+        dong={[dong({ note: 'Giá theo thoả thuận tháng 8' }), dong({ id: 'd2', productCode: 'SP-02', note: null })]}
+      />,
+    );
+    const nut = within(hangCo('SP-01')).getByRole('button', { name: 'Ghi chú: Giá theo thoả thuận tháng 8' });
+    expect(nut.closest('.cot-khoa')).not.toBeNull();
+    expect(nut.querySelector('svg')).not.toBeNull();
+    // Dòng KHÔNG ghi chú thì không có dấu — dấu là tín hiệu "dòng này có ghi chú".
+    expect(hangCo('SP-02').querySelector('.dau-ghi-chu')).toBeNull();
   });
 
-  it('hiện nguyên văn ghi chú trong bảng', () => {
-    render(<BangSanPham dong={[dong({ note: 'Giá theo thoả thuận tháng 8' })]} />);
-    const bang = screen.getByRole('table');
-    expect(within(bang).getByText('Giá theo thoả thuận tháng 8')).toBeDefined();
+  it('chuỗi rỗng không phải ghi chú — không bày dấu', () => {
+    render(<BangSanPham dong={[dong({ note: '' })]} />);
+    expect(screen.getByRole('table').querySelector('.dau-ghi-chu')).toBeNull();
   });
 
-  it('không có ghi chú thì ô để TRỐNG, không phải dấu gạch', () => {
-    const ds = [dong({ note: null })];
-    render(<BangSanPham dong={ds} />);
-    const hang = screen
-      .getAllByRole('row')
-      .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
-    expect(within(hang).getAllByRole('cell').at(-1)?.textContent).toBe('');
+  it('BẤM thì hiện ô chữ mang nguyên văn, bấm lại thì đóng', async () => {
+    render(<BangSanPham dong={[dong({ note: 'Đóng thùng 12' })]} />);
+    const nut = within(hangCo('SP-01')).getByRole('button', { name: /^Ghi chú:/ });
+    expect(nut.querySelector('.ghi-chu-noi')).toBeNull();
+    await userEvent.click(nut);
+    expect(nut.querySelector('.ghi-chu-noi')?.textContent).toBe('Đóng thùng 12');
+    expect(nut.getAttribute('aria-expanded')).toBe('true');
+    await userEvent.click(nut);
+    expect(nut.querySelector('.ghi-chu-noi')).toBeNull();
   });
 
-  it('bố trí THẺ chỉ hiện Ghi chú khi có', () => {
+  it('CHUỘT: rê vào thì hiện; bấm thì GHIM (không đóng); rời chuột không đóng ô đã ghim', async () => {
+    /*
+     * Lỗi của chính bản đầu `0267`: rê vào mở ô, cú bấm ngay sau lại ĐÓNG nó —
+     * người dùng chuột bấm-để-đọc thì ghi chú biến mất đúng lúc vừa hiện.
+     */
+    const nguoi = userEvent.setup();
+    render(<BangSanPham dong={[dong({ note: 'Đóng thùng 12' })]} />);
+    const nut = within(hangCo('SP-01')).getByRole('button', { name: /^Ghi chú:/ });
+    await nguoi.hover(nut);
+    expect(nut.querySelector('.ghi-chu-noi'), 'rê vào không hiện').not.toBeNull();
+    await nguoi.unhover(nut);
+    expect(nut.querySelector('.ghi-chu-noi'), 'chưa ghim mà rời chuột vẫn còn').toBeNull();
+    await nguoi.hover(nut);
+    await nguoi.click(nut);
+    expect(nut.querySelector('.ghi-chu-noi'), 'bấm sau khi rê vào lại ĐÓNG ô').not.toBeNull();
+    await nguoi.unhover(nut);
+    expect(nut.querySelector('.ghi-chu-noi'), 'ô đã ghim mà rời chuột lại đóng').not.toBeNull();
+  });
+
+  it('chạm ra ngoài (pointerdown, KHÔNG qua tiêu điểm) thì đóng', async () => {
+    render(<BangSanPham dong={[dong({ note: 'Đóng thùng 12' })]} />);
+    const nut = within(hangCo('SP-01')).getByRole('button', { name: /^Ghi chú:/ });
+    await userEvent.click(nut);
+    expect(nut.querySelector('.ghi-chu-noi')).not.toBeNull();
+    // Bắn thẳng pointerdown, không đụng tiêu điểm — đường của iOS Safari (`0216`).
+    expect(document.activeElement).toBe(nut);
+    act(() => {
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(nut.querySelector('.ghi-chu-noi')).toBeNull();
+  });
+
+  it('bố trí THẺ vẫn bày nguyên văn ghi chú, và chỉ khi có', () => {
     render(<BangSanPham dong={[dong({ note: null })]} />);
     const the = document.querySelector('.the-san-pham .the') as HTMLElement;
     expect(within(the).queryByText('Ghi chú')).toBeNull();

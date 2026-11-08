@@ -2529,41 +2529,117 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    khổ (`0228`), rồi khoá MỘT cột tên (`0230`), rồi BỎ HẲN (`0231`) — ngay dưới. */
 
 /* =========================================================================
-   CỘT TÊN — KHÔNG GHIM, KHÔNG MÀU RIÊNG — bảng sản phẩm (`0230` → `0233`)
+   CỘT TÊN — ĐẦU BẢNG, GHIM KHI CUỘN NGANG, VỪA KHÍT TÊN (`0267`)
    =========================================================================
 
-   `0230` (khách hàng 29/09) đưa *Tên sản phẩm* lên đầu, ghim khi cuộn ngang và
-   làm nổi (nền nhạt màu thương hiệu, chữ đậm, bóng mép phải). Cùng ngày khách
-   hàng xem trên demo và lùi cả ba vế: `0231` bỏ ghim và trả thứ tự về *Ngày áp
-   dụng · Mã · Tên*, `0233` trả MÀU về như cũ — nền như mọi ô (dòng rê chuột tô
-   được cả ô này), tiêu đề xám như mọi tiêu đề, độ đậm là mặc định của `<th>`.
+   Khách hàng chốt 07/11: bảng web có quá nhiều cột, phải lăn ngang liên tục.
+   *Tên sản phẩm* về đầu bảng và là cột GHIM DUY NHẤT; mã sản phẩm thành dòng chữ
+   nhỏ dưới tên; ghi chú thành biểu tượng cạnh tên. CHỈ WEB — bản in giữ nguyên.
 
-   Còn lại đúng phần BỀ RỘNG: sàn và trần — tên ngắn vẫn đủ chỗ, tên dài xuống
-   dòng chứ không nong bảng. */
+   Lịch sử để không ai đề xuất lại theo lối cũ: `0230` ghim + tô nổi, `0231` bỏ
+   ghim (vì khi ấy màn hình phải xếp cột giống bản in), `0233` bỏ màu riêng.
+   `0267` ghim lại vì khách hàng TÁCH hai bảng; vế MÀU của `0233` VẪN GIỮ — ô ghim
+   chỉ mang nền của CHÍNH HÀNG (`--mau-nen`, rê chuột thì `--mau-nen-hover`), thứ
+   bắt buộc để chữ cuộn qua bên dưới không lộ ra, không phải một màu nổi.
+
+   BỀ RỘNG do phép đo ở `BangSanPham.tsx` đặt vào `--rong-ten` (tên dài nhất, tối
+   đa 18rem); thiếu biến (jsdom, trước khi đo) thì rơi về sàn 12rem / trần 18rem
+   cũ. Tên dài hơn trần thì xuống dòng.
+
+   Viền mép phải LUÔN có (một vạch như mọi đường kẻ của bảng); BÓNG chỉ khi bảng
+   đã cuộn (`.da-cuon` trên khung) — ở trạng thái nghỉ bảng trông như mọi bảng. */
 .bang-san-pham .cot-khoa {
-  min-width: 12rem;
-  max-width: 18rem;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--mau-nen);
+  box-shadow: inset -1px 0 0 var(--mau-vien);
+  width: var(--rong-ten, auto);
+  min-width: var(--rong-ten, 12rem);
+  max-width: var(--rong-ten, 18rem);
   white-space: normal;
   overflow-wrap: break-word;
 }
+.bang-san-pham thead .cot-khoa { z-index: 2; }
+.bang-san-pham tbody tr:hover > .cot-khoa { background-color: var(--mau-nen-hover); }
+.khung-cuon.da-cuon .bang-san-pham .cot-khoa { box-shadow: inset -1px 0 0 var(--mau-vien-dam), var(--bong-cot-ghim); }
+/* Lượt ĐO: tạm cấm xuống dòng và gỡ sàn/trần để đọc bề rộng tự nhiên của ô tên.
+   Dòng mã GIỮ `display: block` — đặt nó thành nội dòng là nó đứng cùng hàng với
+   tên lúc đo, và cột ra bằng tên + mã (đo được 312px thay vì ~225px). */
+.bang-san-pham.dang-do-ten .cot-khoa { white-space: nowrap; width: auto; min-width: 0; max-width: none; }
 
-/* CỘT THAO TÁC — luôn hiện (`0228`), THÔI GHIM mép phải (`0230`, *"không cần
-   cố định cột thao tác này"*): nó đứng cuối bảng như mọi cột.
+/* Mã sản phẩm dưới tên — chữ nhỏ, nhạt, độ đậm thường (ô là `<th>` nên mặc định
+   đậm). Vẫn chọn/chép được như mọi chữ. */
+.bang-san-pham .ma-sp {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--chu-nho);
+  font-weight: 400;
+  color: var(--mau-chu-nhat);
+}
 
-   *"Nhìn không bị quá chật"*: hai nút cỡ THƯỜNG chứ không cỡ gọn của
-   `.nhom-nut-gon` (chữ nhỏ, đệm `--k1`), cách nhau `--k3`, và ô đệm ngang
-   rộng. Bộ chọn dài hơn `.nhom-nut-gon .nut` nên thắng mà không phải nới lớp
-   ấy — danh sách thẻ trên điện thoại vẫn dùng nó. */
+/* Dấu ghi chú cạnh tên — cùng cỡ chữ với tên, màu thương hiệu để đọc ra là
+   "bấm được". Ô chữ `position: fixed` (toạ độ đặt bằng JS) để không bị
+   `.khung-cuon` cắt — xem docstring `DauGhiChu`. */
+.dau-ghi-chu {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -0.2em;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-left: var(--k1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--bo-goc-nho);
+  background: none;
+  color: var(--mau-thuong-hieu);
+  cursor: help;
+}
+.dau-ghi-chu svg { width: 1rem; height: 1rem; }
+.dau-ghi-chu:hover, .dau-ghi-chu.dau-mo { background: var(--mau-thuong-hieu-nhat); }
+.dau-ghi-chu:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 1px; }
+.ghi-chu-noi {
+  position: fixed;
+  z-index: 30;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: var(--k2) var(--k3);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  box-shadow: var(--bong-menu);
+  color: var(--mau-chu);
+  font-size: var(--chu-nho);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
+}
+
+/* CỘT THAO TÁC — luôn hiện (`0228`), KHÔNG ghim (`0230`): đứng cuối bảng.
+
+   `0267` — hai nút BIỂU TƯỢNG (bút, thùng rác) thay hai nút chữ cỡ thường của
+   `0230`: cột hẹp từ 166px xuống ~100px. Không viền, không nền ở trạng thái nghỉ
+   để một cột mười dòng không thành hai mươi ô vuông; rê chuột mới hiện nền.
+   Thùng rác rê vào thì đỏ — cùng nghĩa với nút chữ *Xoá* viền đỏ trước đây.
+   Nút *Thêm lại* của dòng đã rút vẫn là nút CHỮ (`.nut`) — một nút lẻ, hiếm. */
 .bang-san-pham .o-thao-tac-dong {
-  padding-left: var(--k4);
-  padding-right: var(--k4);
+  padding-left: var(--k3);
+  padding-right: var(--k3);
   vertical-align: middle;
 }
-.bang-san-pham .o-thao-tac-dong .nhom-nut { gap: var(--k3); }
+.bang-san-pham .o-thao-tac-dong .nhom-nut { gap: var(--k1); }
 .bang-san-pham .o-thao-tac-dong .nhom-nut .nut {
   padding: var(--k2) var(--k4);
   font-size: var(--chu-thuong);
 }
+.nut-bt-dong { border-color: transparent; background: transparent; }
+.nut-bt-dong svg { width: 1.125rem; height: 1.125rem; }
+.nut-bt-dong:hover { border-color: var(--mau-vien); }
+.nut-bt-xoa:hover { border-color: transparent; background: var(--mau-loi-nen); color: var(--mau-loi); }
+.nut-bt-dong:disabled { opacity: 0.5; cursor: default; }
 
 /* =========================================================================
    Từ 1024px — máy tính: đủ 10 cột
@@ -3333,6 +3409,10 @@ tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
    việc ấy một mình (tới `0227` nút *Thêm lại* vẫn mờ): `opacity` của ô cha nhân
    lên mọi thứ bên trong, con không tự sáng hơn cha được. */
 .dong-da-xoa > .o-thao-tac-dong { opacity: 1; }
+/* `0267` — ô tên GHIM lại, nên quay về lý lẽ `0228`: ô ghim có nền đặc để che
+   phần đang cuộn; mờ cả ô là phần ấy lộ qua. Mờ NỘI DUNG của ô thay vì ô. */
+.dong-da-xoa > .cot-khoa { opacity: 1; }
+.dong-da-xoa > .cot-khoa > * { opacity: 0.55; }
 
 /* Gạch ngang tên sản phẩm — dấu hiệu thứ hai, cho người không phân biệt được
    sắc độ. Chỉ tên, không cả hàng: gạch ngang chồng lên một cột số làm con số

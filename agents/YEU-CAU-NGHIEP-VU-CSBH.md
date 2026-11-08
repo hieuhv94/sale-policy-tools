@@ -882,7 +882,7 @@ tìm lượt bấm ấy ở màn hình *Nhật ký* (nơi cột mã tra cứu đ
 | CPBH tổng | Tổng mọi khoản CPBH của dòng đó. Dòng không có khoản nào thì tổng bằng 0 |
 | Giá thu về | `Giá bán buôn − CPBH tổng` |
 | Tỷ lệ CK | `(Giá bán Công ty − Giá thu về) / Giá bán Công ty`, tính theo phần trăm |
-| Ghi chú | `mới 16/08` Chữ tự do người lập gõ cho **riêng dòng ấy**, tối đa 500 ký tự. Không tham gia phép tính nào, hiện thành cột cuối của bảng dòng sản phẩm và **in ra bản CSBH A4**. Để trống thì ô trống — không có ghi chú mặc định nào |
+| Ghi chú | `mới 16/08` Chữ tự do người lập gõ cho **riêng dòng ấy**, tối đa 500 ký tự. Không tham gia phép tính nào. **In ra bản CSBH A4** ở cột cuối bảng dòng sản phẩm; **trên màn hình** là một **biểu tượng cạnh tên sản phẩm**, rê chuột hoặc chạm để đọc `sửa 07/11`. Để trống thì ô trống — không có ghi chú mặc định nào |
 
 **Làm tròn** — tiền là số nguyên đồng; tỷ lệ CK làm tròn **hai chữ số thập phân**. Con số hiển thị
 và con số dùng để so ngưỡng phải là một: so sánh **sau khi** đã làm tròn.
@@ -3061,6 +3061,20 @@ phiên bản (`sửa 05/11` — người không đăng nhập được cần đ�
 mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
 mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**
 cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi.
+
+**BẢNG SẢN PHẨM TRÊN WEB: GHIM CỘT TÊN, MÃ DƯỚI TÊN, GHI CHÚ THÀNH BIỂU TƯỢNG** `sửa 07/11` —
+*"bảng sản phẩm đang có quá nhiều cột, khiến cho người dùng khó so sánh, phải lăn chuột ngang liên
+tục"*. Chốt trên mockup (tám điểm): **Tên sản phẩm** cột đầu và là **cột ghim duy nhất**, **rộng vừa
+tên dài nhất** (trần ~18rem, quá mới xuống dòng) · **mã sản phẩm** thành dòng chữ nhỏ dưới tên, cột
+*Mã* bỏ · **Ngày áp dụng** ngay sau tên, không ghim · cột **Ghi chú** bỏ, thay bằng **biểu tượng** cạnh
+tên · các cột còn lại giữ thứ tự · *Sửa*/*Xoá* thành **biểu tượng** bút và thùng rác, cột thao tác
+không ghim · **nhãn trạng thái dòng giữ nguyên** (xem bốn kiểu khác, chọn giữ). **CHỈ HIỂN THỊ TRÊN WEB**
+— *"không ảnh hưởng đến các bảng trong bản mềm"*: bản in giữ *Ngày · Mã · Tên* và cột *Ghi chú*.
+
+> **Đảo hai mục `29/09` ngay dưới** — *"không cột nào ghim"* và *"thứ tự khớp bản in không ngoại lệ"*
+> — vì khách hàng TÁCH hai bảng. Vế **màu** của `29/09` (cột tên không tô nổi) giữ; vế **tên cột** khớp
+> bản in cũng giữ cho những cột có ở cả hai bên. Đo trên demo: bảng của một hồ sơ 8 dòng hẹp từ 1536px
+> xuống 1323px, cột ghim 230px.
 
 **BAN LÃNH ĐẠO KHÔNG NHẬN THÔNG BÁO NÀO** `mới 07/11` — hỏi *"ban lãnh đạo có nhận được thông báo gì
 không"*, trả lời *không*, khách hàng chốt *"giữ nguyên, đảm bảo ban lãnh đạo sẽ không nhận bất kỳ thông

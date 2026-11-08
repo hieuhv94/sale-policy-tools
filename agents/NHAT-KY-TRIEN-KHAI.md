@@ -21978,3 +21978,69 @@ nhật* ra **0**. Chưa điều tra. Chưa làm: chữ nhãn biểu đồ Thốn
 `make test` đầy đủ không chạy (demo bật; chặng chỉ đụng CSS). Typecheck xanh; `tests/web` + `tests/http/tai-lieu`:
 
 **1148/1148 xanh.**
+
+## P303 — `0267` Bảng sản phẩm trên web: ghim cột tên, mã dưới tên, ghi chú và thao tác thành biểu tượng
+
+Khách hàng: *"bảng sản phẩm đang có quá nhiều cột, khiến cho người dùng khó so sánh, phải lăn chuột ngang
+liên tục"*. Đi qua mockup bốn vòng (https://claude.ai/artifact/HbAVvphMfvv1u3qn3Yti9E, nguồn
+`artifacts/bang-san-pham-mockup.html`) rồi chốt tám điểm. **CHỈ GIAO DIỆN WEB** — khách hàng nói thẳng
+*"những thay đổi này không ảnh hưởng đến các bảng trong bản mềm"*; máy chủ, `document`, mẫu `.docx` không
+đổi một dòng.
+
+**Đo trước**: bảng của một hồ sơ 8 dòng, 1 khoản CPBH rộng **1536px** trong khung 1041 · 1115 · **1198px**
+(1366 · 1440 · 1920) — màn 1920 cũng cuộn vì cả trang chặn ở 1200px. Cột thao tác 166px, cột tên đứng
+đúng **192px** (sàn 12rem) ở cả ba khổ: bảng rộng hơn khung thì trình duyệt ép mọi cột về sàn, nên tên
+dài gãy làm hai dù còn chỗ.
+
+**Đảo hai chốt `29/09`** (`0231` — *"không cột nào ghim"*, *"thứ tự khớp bản in không ngoại lệ"*) vì khách
+hàng TÁCH hai bảng. Vế màu của `0233` GIỮ: ô ghim chỉ mang nền của chính hàng (`--mau-nen`, rê chuột
+`--mau-nen-hover`) — bắt buộc để chữ cuộn qua không lộ, không phải màu nổi; ca kiểm đổi từ *"cấm
+`background`"* sang *"chỉ cho hai giá trị ấy"*. Vế TÊN cột khớp bản in cũng giữ cho cột có ở cả hai bên;
+`ma_san_pham` và `ghi_chu` sang `CHI_MOT_BEN` kèm lý do.
+
+**Bộ cột web** ở `lib/bang-cot.ts`: *Tên* (mã ở dòng dưới) · *Ngày áp dụng* · … · *Trạng thái*; cột *Mã* và
+*Ghi chú* rời bảng web. Bố cục thẻ dưới 640px không đổi — vẫn đủ mã, ghi chú nguyên văn, nút chữ.
+
+**CỘT TÊN VỪA KHÍT, CÓ TRẦN** — CSS thuần không nói được *"rộng bằng nội dung, tối đa X"* cho cột của một
+bảng đang bị ép, nên `useLayoutEffect` đo: tạm cấm xuống dòng (`dang-do-ten`), đọc bề rộng Ô tên, đặt
+`--rong-ten` = min(nó, 18rem + lề). **Hai lỗi của chính bản đầu, chỉ demo thật tìm ra**:
+1. Đo `<span>` chữ rồi đặt số ấy làm bề rộng ô → 4/8 tên VẪN xuống dòng: mọi ô là `border-box`, bề rộng
+   đặt cho ô gồm 24px lề mà phép đo chữ không có. Sửa: đo CẢ Ô.
+2. Lượt đo đặt dòng mã `inline-block` → mã đứng CÙNG HÀNG với tên lúc đo, cột ra **312px** (chạm trần)
+   thay vì ~230px. Sửa: lượt đo không đụng tới dòng mã; có ca CSS cấm lượt đo đổi `display`.
+Cả hai đều xanh trong jsdom (mọi khung bao là 0 — ca kiểm giả khung bao theo lớp, nên chỉ canh được LOGIC
+chặn trần và không-đặt-khi-0, không canh được hình học). Đây là chỗ một ca stub chỉ đúng nhờ phép đo thật.
+
+**Dấu ghi chú** (`DauGhiChu`): ô chữ `position: fixed`, toạ độ tính lúc mở — `.khung-cuon` cắt CẢ HAI chiều,
+một ghi chú dài ở hàng đầu/cuối sẽ bị cắt nếu neo tuyệt đối (`DauDoi` né được vì giá trị cũ vừa một dải
+ngang; một đoạn 500 ký tự thì không). Rê chuột chỉ tính `pointerType === 'mouse'` (cú chạm cũng bắn
+`pointerenter`). **Lỗi thứ ba của bản đầu, do ca kiểm bắt**: rê vào mở ô, cú bấm ngay sau lại ĐÓNG nó —
+với chuột, con trỏ luôn tới dấu trước khi bấm, nên bấm-để-đọc thì ghi chú biến mất. Sửa bằng `boi`: ô mở
+vì rê chuột thì cú bấm GHIM nó. Đóng: bấm lại · `pointerdown` ngoài (đường iOS, `0216`) · Esc · cuộn
+(toạ độ lỗi thời) · rời chuột khi chưa ghim.
+
+**Thao tác**: ở bảng là `.nut-bieu-tuong` bút/thùng rác (`aria-label` GIỮ chữ *Sửa*/*Xoá* — trình đọc màn
+hình đọc kèm `th scope="row"`; `title` *Sửa dòng*/*Xoá dòng*), cột 166 → **116px**. Ở thẻ giữ nút chữ.
+*Thêm lại* của dòng đã rút vẫn là nút chữ.
+
+**Bóng mép cột ghim chỉ khi đã cuộn**: lớp `da-cuon` đổi thẳng trên DOM trong `onScroll`, không qua state
+(cuộn bắn mỗi khung hình). Token mới `--bong-cot-ghim` ở cả ba bảng màu. Dòng đã rút: ô ghim có nền đặc
+nên không `opacity` cả ô (phần cuộn qua lộ ra) — mờ NỘI DUNG của ô (lối `0228`).
+
+**Đo lại trên demo** (hai hồ sơ, 1366 · 1440 · 1920 · 820 cảm ứng): không tên nào xuống dòng; cột tên 230px
+/ 197px; bảng 1536 → **1323px**; sau khi cuộn hết cỡ ô tên vẫn sát mép trái khung, khung mang `da-cuon`;
+thân trang không cuộn ngang. Ghi chú: rê chuột hiện đúng chữ, nằm trọn trong màn hình; bấm rồi rời chuột
+vẫn mở; chạm ở 820 cảm ứng hiện đúng chữ. Ảnh soát: cột ghim, bóng mép, biểu tượng, ô ghi chú. Hàng cao
+93px **có sẵn** (đo trên bản đã commit cũng 93px), không phải của chặng này.
+
+**Phá lại mười lượt, mười đỏ**: bỏ `sticky` · bỏ nền ô ghim · tô nền thương hiệu · bỏ trần 18rem · đặt
+biến khi đo ra 0 · bấm sau rê lại đóng (3 ca) · bỏ `pointerdown` · nút chữ ở bảng · trả cột *Mã* về web
+(6 ca) · bỏ `da-cuon`. **Lượt phá ĐẦU KHÔNG CHẠY CA NÀO**: dấu `|` trong lệnh lọt qua lớp nháy của
+`chay.sh` nên vitest chưa từng được gọi, mười lượt in `sh: ^: not found` — đúng bẫy *"một phá lại không
+chạy trông giống một phá lại xanh"*; làm lại, lọc kết quả ở NGOÀI container, có mốc đối chứng 132/132.
+
+Đồng bộ: HDSD (*Sửa hồ sơ*, *Cột Ngày áp dụng*, *Cột Ghi chú*, luật rê chuột), YCNV (thân bài mục ghi chú
++ Phụ lục B). `make test` đầy đủ không chạy (demo bật; chặng chỉ đụng giao diện). Typecheck xanh;
+`tests/web` + `tests/http/{tieu-de-cot,o-ban-truoc,tai-lieu}`:
+
+**1175/1175 xanh.**

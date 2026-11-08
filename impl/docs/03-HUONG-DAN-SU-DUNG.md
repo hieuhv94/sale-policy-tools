@@ -908,8 +908,8 @@ việc khác nhau.
 > điện thoại thì nút hiện sẵn, vì ở đó không có thao tác rê chuột nào.
 >
 > Luật này áp cho các bảng có cột thao tác: sản phẩm, nhóm sản phẩm, chiết khấu, văn bản mẫu, người
-> dùng, thư hỏng. **Riêng bảng sản phẩm trong hồ sơ CSBH thì nút luôn hiện** `sửa 29/09` — xem *Sửa
-> hồ sơ*.
+> dùng, thư hỏng. **Riêng bảng sản phẩm trong hồ sơ CSBH thì nút luôn hiện, dưới dạng biểu tượng bút
+> và thùng rác** `sửa 07/11` — xem *Sửa hồ sơ*.
 
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ — nhưng chỉ **từ lúc bấm Gửi duyệt**.
@@ -969,7 +969,8 @@ ngưỡng nào để đối chiếu: cột *Tỷ lệ CK* vẫn tính đủ, ch�
 ### Cột Ngày áp dụng `mới 07/09`
 
 **Mỗi sản phẩm có ngày áp dụng của riêng nó.** Ô đầu tiên trong hộp thoại *Thêm sản phẩm* — trước cả
-ô chọn sản phẩm — và cột đầu tiên của bảng, ngay bên trái *Mã sản phẩm*.
+ô chọn sản phẩm. Trên màn hình nó là cột **ngay sau *Tên sản phẩm*** `sửa 07/11`; trên bản in nó vẫn
+là cột đầu tiên, bên trái *Mã sản phẩm*.
 
 Ô ấy đứng trước ô chọn sản phẩm vì **giá bán Công ty và ngưỡng chiết khấu tra theo chính ngày này**:
 gõ ngày rồi mới chọn sản phẩm thì con số hiện ra bên dưới đúng là con số sẽ được lưu.
@@ -1070,8 +1071,13 @@ sửa dòng đó. Chỉ làm được khi hồ sơ còn ở **Nháp** hoặc **Y
 Ô chữ tự do cho **riêng một dòng sản phẩm** — "giá theo thoả thuận tháng 8", "khách yêu cầu đóng
 thùng 12". Nhập trong hộp thoại thêm hoặc sửa dòng, tối đa 500 ký tự.
 
-- Ghi chú **in ra bản CSBH A4**, ở cột cuối của bảng dòng sản phẩm. Người duyệt và người ký đều đọc
-  được nó.
+- **Trên màn hình, ghi chú là một biểu tượng bong bóng chữ cạnh tên sản phẩm**, không còn là một cột
+  `sửa 07/11`. Rê chuột vào biểu tượng là đọc được cả đoạn; bấm (hoặc chạm, trên máy tính bảng) thì ô
+  chữ ở lại cho tới khi bấm lần nữa, bấm ra ngoài hoặc nhấn Esc. Dòng không có ghi chú thì không có
+  biểu tượng. Trên điện thoại, ghi chú vẫn hiện nguyên văn trong thẻ của dòng.
+
+- Ghi chú **in ra bản CSBH A4**, ở cột cuối của bảng dòng sản phẩm — **bản in không đổi**. Người duyệt
+  và người ký đều đọc được nó.
 - **Xoá sạch ô rồi Lưu là xoá ghi chú.** Hộp thoại sửa dòng gửi lên toàn bộ nội dung dòng, nên bỏ
   trống ô nghĩa là bạn vừa bỏ ghi chú đi.
 - Ghi chú **đi theo dòng sang phiên bản mới** của hồ sơ, trừ khi chính dòng ấy được nhập lại.
@@ -1172,14 +1178,24 @@ văn bản mẫu nào để chọn.
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
 
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
-có thêm cột **Thao tác** ở cuối bảng, với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần
-rê chuột `sửa 29/09`. Cột này đứng cuối như mọi cột, không ghim: bảng rộng thì kéo sang phải tới nó.
+có thêm cột **Thao tác** ở cuối bảng, với hai nút **biểu tượng** ở từng dòng `sửa 07/11`: **bút** là
+*Sửa*, **thùng rác** là *Xoá* (rê chuột vào thì hiện chữ; thùng rác đổi đỏ). Hai nút **luôn hiện**,
+không cần rê chuột. Cột này đứng cuối như mọi cột, không ghim: bảng rộng thì kéo sang phải tới nó.
 
-> **Thứ tự cột: *Ngày áp dụng* · *Mã sản phẩm* · *Tên sản phẩm* · …**, giống hệt bản in. Tên dài thì
-> xuống dòng trong ô. **Không cột nào
-> đứng yên khi cuộn ngang** `sửa 29/09` — bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang
-> phải xem số, cả bảng trôi theo. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
-người duyệt trả lại.
+> **Bảng sản phẩm trên màn hình** `sửa 07/11` — **chỉ là cách hiển thị trên web, bản in (bản mềm)
+> không đổi**:
+>
+> - **Tên sản phẩm** là cột **đầu tiên** và **đứng yên khi cuộn ngang** — kéo sang phải xem giá, tỷ lệ
+>   chiết khấu mà vẫn thấy dòng ấy là sản phẩm nào. Đây là cột duy nhất đứng yên.
+> - **Mã sản phẩm** là dòng chữ nhỏ **ngay dưới tên**, không còn là một cột riêng.
+> - Cột tên **rộng vừa đúng tên dài nhất** trong bảng, nên tên nằm gọn một dòng; tên dài quá khoảng
+>   35 ký tự thì mới xuống dòng.
+> - Thứ tự còn lại: **Ngày áp dụng** · Giá bán Công ty · Giá bán buôn · CPBH · từng khoản CPBH · Giá thu
+>   về · Tỷ lệ CK · Tỷ lệ CK cũ · QĐCK · Trạng thái — **Ghi chú** thành biểu tượng cạnh tên (xem *Cột
+>   Ghi chú*).
+>
+> Bản in giữ nguyên thứ tự *Ngày áp dụng* · *Mã sản phẩm* · *Tên sản phẩm* · … và đủ cột *Ghi chú*.
+> Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ người duyệt trả lại.
 
 > **Sửa thông tin khách hàng ngay trên trang hồ sơ** `mới 28/09`. Cũng ở hai trạng thái ấy, khối
 > *Thông tin chung* có nút **Sửa** ở **ngang hàng tiêu đề, bên phải** `sửa 29/09` — mở đúng biểu mẫu của trang Khách hàng (tên,

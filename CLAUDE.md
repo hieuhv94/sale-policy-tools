@@ -114,7 +114,13 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P302** (`0266`, CHỈ CSS): **màn hình cảm ứng** — khối `@media (pointer: coarse)` ở CUỐI `app.css`:
+Chặng gần nhất **P303** (`0267`, CHỈ GIAO DIỆN WEB): **bảng sản phẩm của hồ sơ** — *Tên* đầu bảng, cột GHIM
+DUY NHẤT, rộng vừa tên dài nhất (đo CẢ Ô trong `useLayoutEffect`, trần 18rem + lề); mã là dòng dưới tên; *Ngày áp
+dụng* ngay sau; cột *Mã*/*Ghi chú* rời bảng web (ghi chú = `DauGhiChu`, ô chữ `position: fixed`); Sửa/Xoá = biểu
+tượng. **Bản mềm KHÔNG đổi** — luật *"web khớp thứ tự bản in"* (`0231`) chỉ còn áp cho bản in; tên cột chung vẫn
+khớp. Mockup chốt: https://claude.ai/artifact/HbAVvphMfvv1u3qn3Yti9E. **`tests/web` 1175/1175.**
+
+Trước đó **P302** (`0266`, CHỈ CSS): **màn hình cảm ứng** — khối `@media (pointer: coarse)` ở CUỐI `app.css`:
 ô nhập `1rem` (Safari iPhone tự phóng to trang khi chạm ô dưới 16px), vùng chạm `--vung-cham` — nút có chỗ thì phóng
 to thật, dấu/chữ giữa dòng thì chỉ nới vùng nhận chạm bằng lớp `::after` trong suốt (trong ô bảng CHẶN ở lề ô, kẻo
 `.khung-cuon` mọc thanh cuộn lẻ). Thêm một nút biểu tượng nhỏ hơn 44px thì phải phóng lại nó trong khối ấy —

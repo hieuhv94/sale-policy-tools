@@ -638,66 +638,86 @@ describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () =>
 });
 
 /**
- * `0228` → `0230` → `0231` — bảng sản phẩm của hồ sơ: KHÔNG CỘT NÀO GHIM khi
- * cuộn ngang (ba cột của `0228`, rồi cột tên của `0230`, đều gỡ); cột tên KHÔNG
- * còn màu riêng (`0233`); nút Sửa/Xoá LUÔN HIỆN, cột thao tác không ghim.
+ * `0267` (khách hàng chốt 07/11/2026) — bảng sản phẩm của hồ sơ trên WEB: cột
+ * tên ĐẦU bảng và là cột GHIM DUY NHẤT; nút Sửa/Xoá là BIỂU TƯỢNG; cột thao tác
+ * KHÔNG ghim. Bản in không đổi.
  *
- * jsdom không tính bố cục, nên thứ đo được là luật CSS: không `sticky` trên bất
- * kỳ bộ chọn nào của `.bang-san-pham`, và không nền/màu/độ đậm trên cột tên.
+ * Đảo `0231` (*"không cột nào ghim"*) — khi ấy màn hình phải xếp cột giống bản
+ * in, giờ khách hàng tách hai bảng. Vế MÀU của `0233` GIỮ: ô ghim chỉ được mang
+ * nền của chính hàng (thứ bắt buộc để chữ cuộn qua không lộ), không màu nổi.
+ *
+ * jsdom không tính bố cục, nên thứ đo được là luật CSS.
  */
-describe('`0231` · `0233` bảng sản phẩm: không cột nào ghim, cột tên không màu riêng', () => {
-  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+describe('`0267` bảng sản phẩm: chỉ cột tên ghim, không màu riêng, thao tác bằng biểu tượng', () => {
+  // Gỡ chú thích: chúng đứng ngay trước bộ chọn và lọt vào phần bắt được.
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
   /**
-   * Khối RIÊNG của một bộ chọn — khối CUỐI CÙNG khớp (bài học `0228`: khối gộp
-   * nhiều bộ chọn cũng kết thúc bằng cùng chuỗi).
+   * Khối RIÊNG của một bộ chọn — bộ chọn đứng ĐẦU DÒNG (khối có tiền tố như
+   * `.khung-cuon.da-cuon .bang-san-pham …` không tính), lấy khối CUỐI khớp.
    */
   const luat = (sel: string) => {
     const tat = [
-      ...css.matchAll(new RegExp(`\\.bang-san-pham ${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`, 'g')),
+      ...css.matchAll(new RegExp(`(?:^|\\n)\\.bang-san-pham ${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`, 'g')),
     ];
     expect(tat.length, `thiếu luật .bang-san-pham ${sel}`).toBeGreaterThan(0);
     return tat[tat.length - 1]![1]!;
   };
 
-  it('KHÔNG luật nào của bảng sản phẩm dùng `sticky` — cột tên cuộn theo như mọi cột', () => {
-    // Quét MỌI khối có bộ chọn bắt đầu bằng `.bang-san-pham`, không riêng
-    // `.cot-khoa`: `0228` ghim bằng ba lớp khác tên, và một lớp mới mang
-    // `sticky` là đúng cái lượt này gỡ.
+  it('CHỈ cột tên dùng `sticky` — mọi luật ghim khác của bảng sản phẩm là lỗi', () => {
+    // Quét MỌI khối có `.bang-san-pham`: `0228` ghim bằng ba lớp khác tên.
     const khoi = [...css.matchAll(/([^{}]*\.bang-san-pham[^{}]*)\{([^}]*)\}/g)];
     const ghim = khoi.filter((m) => /position:\s*sticky/.test(m[2]!)).map((m) => m[1]!.trim());
-    expect(ghim).toEqual([]);
+    expect(ghim).toEqual(['.bang-san-pham .cot-khoa']);
+    expect(luat('.cot-khoa')).toMatch(/left:\s*0;/);
   });
 
-  it('`0233` cột tên KHÔNG mang màu riêng — nền, màu chữ, độ đậm như mọi ô', () => {
-    // Quét MỌI khối có `.cot-khoa` của bảng sản phẩm (tiêu đề lẫn thân): `0230`
-    // tô bằng hai khối, và sót khối nào là cột ấy vẫn khác màu.
+  it('`0233` vẫn giữ: ô ghim chỉ mang NỀN CỦA HÀNG, không màu chữ, không độ đậm riêng', () => {
     const khoi = [...css.matchAll(/([^{}]*\.bang-san-pham[^{}]*\.cot-khoa[^{}]*)\{([^}]*)\}/g)];
     expect(khoi.length).toBeGreaterThan(0);
     for (const [, sel, than] of khoi) {
-      expect(than, sel!.trim()).not.toMatch(/(?:^|[;\s])(?:background|color|font-weight):/);
+      expect(than, sel!.trim()).not.toMatch(/(?:^|[;\s])(?:color|font-weight):/);
+      for (const nen of than!.matchAll(/background(?:-color)?:\s*([^;]+);/g)) {
+        expect(['var(--mau-nen)', 'var(--mau-nen-hover)'], `${sel!.trim()} tô nền ${nen[1]}`).toContain(nen[1]!.trim());
+      }
+    }
+    // Ô ghim CÓ nền đặc — thiếu nó là chữ của các cột cuộn qua bên dưới lộ ra.
+    expect(luat('.cot-khoa')).toMatch(/background-color:\s*var\(--mau-nen\)/);
+  });
+
+  it('bóng mép phải CHỈ khi khung đã cuộn; dòng đã rút mờ NỘI DUNG chứ không mờ ô ghim', () => {
+    expect(luat('.cot-khoa')).not.toMatch(/--bong-cot-ghim/);
+    expect(css).toMatch(/\.khung-cuon\.da-cuon \.bang-san-pham \.cot-khoa \{[^}]*var\(--bong-cot-ghim\)/);
+    expect(css).toMatch(/\.dong-da-xoa > \.cot-khoa \{ opacity: 1; \}/);
+    expect(css).toMatch(/\.dong-da-xoa > \.cot-khoa > \* \{ opacity: 0\.55; \}/);
+  });
+
+  it('lượt ĐO không đổi cách bày dòng mã — mã đứng cùng hàng với tên là cột ra bằng tên + mã', () => {
+    // Lỗi của chính bản đầu `0267`, đo trên demo: cột 312px thay vì ~230px.
+    const do_ = [...css.matchAll(/([^{}]*dang-do-ten[^{}]*)\{([^}]*)\}/g)];
+    expect(do_.length).toBeGreaterThan(0);
+    for (const [, sel, than] of do_) {
+      expect(sel, 'lượt đo chạm tới dòng mã').not.toMatch(/ma-sp/);
+      expect(than).not.toMatch(/display:/);
     }
   });
 
-  it('lớp `cot-khoa` nằm trên CỘT TÊN, ở cả tiêu đề lẫn thân bảng; ba lớp của `0228` không sót', () => {
-    expect(nguon).toMatch(/c\.khoa === 'productName' \? 'cot-khoa'/);
-    expect(nguon).toContain('<th scope="row" className="cot-khoa">');
-    expect(css).not.toMatch(/\.cot-dinh-\d/);
-    expect(nguon).not.toMatch(/className=\{?[`'"][^`'"]*cot-dinh/);
+  it('bề rộng cột tên đọc `--rong-ten`, rơi về sàn 12rem / trần 18rem khi chưa đo', () => {
+    const o = luat('.cot-khoa');
+    expect(o).toMatch(/min-width:\s*var\(--rong-ten, 12rem\)/);
+    expect(o).toMatch(/max-width:\s*var\(--rong-ten, 18rem\)/);
+    expect(o).toMatch(/white-space:\s*normal/);
   });
 
-  it('nút Sửa/Xoá LUÔN HIỆN, cột thao tác KHÔNG ghim, nút cỡ thường', () => {
+  it('nút Sửa/Xoá LUÔN HIỆN, là BIỂU TƯỢNG; cột thao tác KHÔNG ghim', () => {
     expect(nguon).not.toMatch(/className="o-thao-tac-re-chuot"/);
     expect(nguon).toMatch(/<th className="o-thao-tac-dong">Thao tác<\/th>/);
     expect(nguon).toMatch(/<td className="o-thao-tac-dong">/);
     const o = luat('.o-thao-tac-dong');
     expect(o).not.toMatch(/position:\s*sticky/);
     expect(o).not.toMatch(/opacity:\s*0\b/);
-    expect(css).not.toMatch(/\.o-thao-tac-dong\s*\{[^}]*position:\s*sticky/);
-    // "Không quá chật": nút KHÔNG mang cỡ chữ nhỏ của `.nhom-nut-gon`.
-    const nut = luat('.o-thao-tac-dong .nhom-nut .nut');
-    expect(nut).toMatch(/font-size:\s*var\(--chu-thuong\)/);
-    expect(luat('.o-thao-tac-dong .nhom-nut')).toMatch(/gap:\s*var\(--k3\)/);
+    expect(css).toMatch(/\.nut-bt-dong \{[^}]*background: transparent/);
+    expect(css).toMatch(/\.nut-bt-xoa:hover \{[^}]*color: var\(--mau-loi\)/);
   });
 });
 

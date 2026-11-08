@@ -1,0 +1,447 @@
+<title>Bảng sản phẩm ghim cột</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Bố cục: một trang tài liệu duyệt — dải điều khiển ở trên, rồi đúng khối "Sản phẩm" của trang hồ sơ CSBH, dựng lại bằng token thật của phần mềm. */
+:root {
+  --phong: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mau-thuong-hieu: #0b4da3;
+  --mau-thuong-hieu-nhat: #e8eff9;
+  --mau-nen: #ffffff;
+  --mau-nen-phu: #f4f6f9;
+  --mau-nen-hover: #f0f3f7;
+  --mau-vien: #e1e6ed;
+  --mau-vien-dam: #c6ceda;
+  --mau-chu: #121a26;
+  --mau-chu-phu: #4a566a;
+  --mau-chu-nhat: #7a8699;
+  --mau-tot: #136c33;
+  --mau-tot-nen: #e3f5e9;
+  --mau-canh-bao: #a15c00;
+  --mau-canh-bao-nen: #fdf3e2;
+  --mau-loi: #b3261e;
+  --mau-loi-nen: #fdeceb;
+  --mau-cho: #43539b;
+  --mau-cho-nen: #eceffa;
+  --bong-ghim: rgba(18, 26, 38, 0.14);
+  --chu-nho: 0.8125rem;
+  --chu-thuong: 0.875rem;
+  --bo-goc: 8px;
+  --bo-goc-nho: 6px;
+  --k1: 4px; --k2: 8px; --k3: 12px; --k4: 16px; --k6: 24px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mau-thuong-hieu: #7fb0f0; --mau-thuong-hieu-nhat: #17294a;
+    --mau-nen: #151b24; --mau-nen-phu: #0e131a; --mau-nen-hover: #1e2632;
+    --mau-vien: #263040; --mau-vien-dam: #36435a;
+    --mau-chu: #e6ebf2; --mau-chu-phu: #a7b2c3; --mau-chu-nhat: #76839a;
+    --mau-tot: #58d68d; --mau-tot-nen: #10331f;
+    --mau-canh-bao: #f0b352; --mau-canh-bao-nen: #382a11;
+    --mau-loi: #f28b82; --mau-loi-nen: #3b1b1a;
+    --mau-cho: #a5b4fc; --mau-cho-nen: #1e2542;
+    --bong-ghim: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --mau-thuong-hieu: #7fb0f0; --mau-thuong-hieu-nhat: #17294a;
+  --mau-nen: #151b24; --mau-nen-phu: #0e131a; --mau-nen-hover: #1e2632;
+  --mau-vien: #263040; --mau-vien-dam: #36435a;
+  --mau-chu: #e6ebf2; --mau-chu-phu: #a7b2c3; --mau-chu-nhat: #76839a;
+  --mau-tot: #58d68d; --mau-tot-nen: #10331f;
+  --mau-canh-bao: #f0b352; --mau-canh-bao-nen: #382a11;
+  --mau-loi: #f28b82; --mau-loi-nen: #3b1b1a;
+  --mau-cho: #a5b4fc; --mau-cho-nen: #1e2542;
+  --bong-ghim: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--mau-nen-phu);
+  color: var(--mau-chu);
+  font-family: var(--phong);
+  font-size: var(--chu-thuong);
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: var(--k6);
+}
+.trang { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--k6); }
+h1 { margin: 0; font-size: 1.375rem; font-weight: 700; text-wrap: balance; }
+h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+p { margin: 0; }
+.dan { color: var(--mau-chu-phu); max-width: 72ch; }
+
+/* --- Dải điều khiển ------------------------------------------------------ */
+.dieu-khien { display: flex; flex-wrap: wrap; gap: var(--k4) var(--k6); align-items: end; }
+.nhom-dk { display: flex; flex-direction: column; gap: var(--k1); }
+.nhom-dk > span { font-size: var(--chu-nho); color: var(--mau-chu-phu); font-weight: 500; }
+.cong-tac { display: inline-flex; border: 1px solid var(--mau-vien-dam); border-radius: var(--bo-goc-nho); overflow: hidden; background: var(--mau-nen); }
+.cong-tac button {
+  font: inherit; font-weight: 500; border: 0; background: none; color: var(--mau-chu-phu);
+  padding: 0 var(--k3); min-height: 2.375rem; cursor: pointer;
+}
+.cong-tac button + button { border-left: 1px solid var(--mau-vien-dam); }
+.cong-tac button[aria-pressed="true"] { background: var(--mau-thuong-hieu-nhat); color: var(--mau-thuong-hieu); }
+.cong-tac button:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: -2px; }
+.o-chon { display: inline-flex; align-items: center; gap: var(--k2); min-height: 2.375rem; cursor: pointer; }
+.o-chon input { width: 1rem; height: 1rem; accent-color: var(--mau-thuong-hieu); }
+
+/* --- Khối "Sản phẩm" như trên trang hồ sơ -------------------------------- */
+.khoi { background: var(--mau-nen); border: 1px solid var(--mau-vien); border-radius: var(--bo-goc); padding: var(--k4); display: flex; flex-direction: column; gap: var(--k3); min-width: 0; }
+.khoi-dau { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--k2); }
+.chi-so-do { font-size: var(--chu-nho); color: var(--mau-chu-phu); font-variant-numeric: tabular-nums; }
+.chi-so-do strong { color: var(--mau-chu); font-weight: 600; }
+.vung-khung { max-width: 100%; }
+.khung-cuon {
+  overflow-x: auto;
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  max-width: 100%;
+}
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
+th, td {
+  padding: var(--k3);
+  text-align: left;
+  border-bottom: 1px solid var(--mau-vien);
+  white-space: nowrap;
+  background: var(--mau-nen);
+}
+th { font-size: var(--chu-nho); font-weight: 600; color: var(--mau-chu-phu); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--mau-nen-hover); }
+
+/* GHIM: chỉ bật ở chế độ "Đề xuất". Nền ô ghim = nền dòng (không tô màu riêng — luật `0233`),
+   đường bóng mép phải chỉ hiện khi bảng đã cuộn, để ở trạng thái nghỉ bảng trông như cũ. */
+.ghim .cot-ghim { position: sticky; z-index: 1; }
+.ghim th.cot-ghim { z-index: 2; }
+.ghim .cot-ghim-cuoi { box-shadow: inset -1px 0 0 var(--mau-vien); }
+.ghim.da-cuon .cot-ghim-cuoi { box-shadow: inset -1px 0 0 var(--mau-vien-dam), 6px 0 8px -4px var(--bong-ghim); }
+
+/* Như phần mềm đang chạy: sàn 12rem, trần 18rem, được xuống dòng. */
+.ten-sp { white-space: normal; min-width: 12rem; max-width: 18rem; }
+/* Đề xuất: bề rộng do phép đo đặt (`--rong-ten` = tên dài nhất, tối đa 18rem). */
+.ghim .ten-sp { min-width: var(--rong-ten, 12rem); max-width: var(--rong-ten, 18rem); width: var(--rong-ten, auto); }
+.dang-do .ten-sp { white-space: nowrap; min-width: 0; max-width: none; width: auto; }
+.dang-do .dong-ten, .dang-do .ma-sp { display: inline-block; }
+.ma-sp { display: block; margin-top: 2px; font-size: var(--chu-nho); color: var(--mau-chu-nhat); letter-spacing: 0.01em; }
+.dau-ghi-chu {
+  display: inline-grid; place-items: center; vertical-align: -0.2em;
+  width: 1.375rem; height: 1.375rem; margin-left: var(--k1); padding: 0;
+  border: 0; border-radius: var(--bo-goc-nho); background: none;
+  color: var(--mau-thuong-hieu); cursor: help;
+}
+.dau-ghi-chu svg { width: 1rem; height: 1rem; }
+.dau-ghi-chu:hover { background: var(--mau-thuong-hieu-nhat); }
+.dau-ghi-chu:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 1px; }
+@media (pointer: coarse) { .dau-ghi-chu { position: relative; } .dau-ghi-chu::after { content: ''; position: absolute; inset: -11px; } }
+.ghi-chu-dong { white-space: pre-wrap; overflow-wrap: break-word; max-width: 28ch; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+th.cot-thao-tac { position: relative; }
+.so-am { color: var(--mau-loi); font-weight: 600; }
+
+/* Nhãn trạng thái dòng — MÀU giữ chốt `0188` (Đang áp dụng xanh · Chỉnh sửa hổ phách · Bổ sung chàm · Đã xoá xám),
+   giữ đúng kiểu đang chạy (khách hàng chốt 07/11 sau khi xem bốn kiểu khác). */
+.tt-ap-dung { --c: var(--mau-tot); --c-nen: var(--mau-tot-nen); }
+.tt-sua { --c: var(--mau-canh-bao); --c-nen: var(--mau-canh-bao-nen); }
+.tt-bo-sung { --c: var(--mau-cho); --c-nen: var(--mau-cho-nen); }
+.tt-xoa { --c: var(--mau-chu-nhat); --c-nen: var(--mau-nen-hover); }
+.tt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--chu-nho); line-height: 1.35; white-space: nowrap; }
+.tt-ky { display: none; }
+.tt-ky svg { width: 12px; height: 12px; display: block; }
+
+/* A · Hiện tại */
+[data-kieu="a"] .tt { padding: 2px 8px; border-radius: 999px; background: var(--c-nen); color: var(--c); font-weight: 500; }
+[data-kieu="a"] .tt::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+
+
+/* Dấu `?` (vượt ngưỡng / nguồn ngưỡng) và tam giác đổi so với bản trước (`0215`). */
+.dau-hoi {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.15em; height: 1.15em; margin-left: var(--k1); padding: 0;
+  border: 1px solid currentColor; border-radius: 50%; background: transparent;
+  color: inherit; font: inherit; font-size: 0.7em; font-weight: 700; line-height: 1; cursor: help;
+}
+.dau-doi { margin-left: var(--k1); font-size: 0.75em; cursor: help; }
+.dau-len { color: var(--mau-tot); }
+.dau-xuong { color: var(--mau-loi); }
+
+/* Thao tác — HIỆN TẠI: hai nút chữ cỡ thường. */
+.nhom-nut { display: flex; gap: var(--k2); }
+.nut {
+  font: inherit; font-weight: 500; min-height: 2.375rem; padding: 0 var(--k4);
+  border-radius: var(--bo-goc-nho); border: 1px solid var(--mau-vien-dam);
+  background: var(--mau-nen); color: var(--mau-chu); cursor: pointer;
+}
+.nut-canh-bao { color: var(--mau-loi); }
+/* Thao tác — ĐỀ XUẤT: biểu tượng bút và thùng rác, cùng vùng chạm 38px (44px trên màn cảm ứng). */
+.nut-bt {
+  display: inline-grid; place-items: center;
+  width: 2.375rem; height: 2.375rem; padding: 0;
+  border: 1px solid transparent; border-radius: var(--bo-goc-nho);
+  background: none; color: var(--mau-chu-phu); cursor: pointer;
+}
+.nut-bt:hover { background: var(--mau-nen-hover); border-color: var(--mau-vien); color: var(--mau-chu); }
+.nut-bt.xoa:hover { color: var(--mau-loi); background: var(--mau-loi-nen); border-color: transparent; }
+.nut-bt svg { width: 18px; height: 18px; }
+.nut:focus-visible, .nut-bt:focus-visible, .dau-hoi:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
+@media (pointer: coarse) { .nut-bt { width: 2.75rem; height: 2.75rem; } }
+
+/* Ô gợi ý (title chỉ hiện với chuột — dựng một ô chữ nhỏ cho mockup). */
+.goi-y { position: fixed; z-index: 10; max-width: min(24rem, calc(100vw - 16px)); white-space: pre-wrap; padding: 6px 10px; border-radius: var(--bo-goc-nho); background: var(--mau-chu); color: var(--mau-nen); font-size: var(--chu-nho); pointer-events: none; }
+
+/* --- Ghi chú so sánh ------------------------------------------------------ */
+.luoi-ghi { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--k4); }
+.ghi { background: var(--mau-nen); border: 1px solid var(--mau-vien); border-radius: var(--bo-goc); padding: var(--k4); display: flex; flex-direction: column; gap: var(--k2); }
+.ghi ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--k1); color: var(--mau-chu-phu); }
+.ghi .the-chu { font-size: var(--chu-nho); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--mau-chu-nhat); }
+.chot-cu { color: var(--mau-canh-bao); }
+.da-chot { align-self: flex-start; padding: 2px 10px; border-radius: 999px; background: var(--mau-tot-nen); color: var(--mau-tot); font-size: var(--chu-nho); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .ghim .cot-ghim-cuoi { transition: box-shadow 0.15s ease; } }
+</style>
+
+<div class="trang">
+  <header style="display:flex;flex-direction:column;gap:var(--k2)">
+    <h1>Bảng sản phẩm — ghim cột tên, thao tác bằng biểu tượng</h1>
+    <p class="da-chot">Đã chốt 07/11/2026 · chỉ đổi hiển thị trên web, bản mềm giữ nguyên</p>
+    <p class="dan">Dữ liệu thật của hồ sơ <strong>CSBH-2026-000112</strong> (phiên bản 7, đang <em>Yêu cầu chỉnh sửa</em>) trên bản demo. Bản đề xuất đưa <strong>Tên sản phẩm</strong> lên đầu và chỉ ghim cột ấy; cột rộng vừa đúng tên dài nhất (tối đa 18rem, quá mới xuống dòng); mã sản phẩm nằm ngay dưới tên; <strong>Ngày áp dụng</strong> đứng sau và cuộn theo bảng; cột <strong>Ghi chú</strong> thành biểu tượng cạnh tên — rê chuột hoặc chạm để đọc. Hai ghi chú lấy từ hai dòng khác trên demo (cả demo chỉ có 2/453 dòng có ghi chú). Nhãn trạng thái dòng và màu giữ nguyên như hiện tại. Đổi giữa <strong>Hiện tại</strong> và <strong>Đề xuất</strong>, chọn bề rộng khung theo màn hình, rồi cuộn ngang bảng.</p>
+  </header>
+
+  <div class="dieu-khien">
+    <div class="nhom-dk">
+      <span>Phương án</span>
+      <div class="cong-tac" role="group" aria-label="Phương án">
+        <button type="button" id="pa-cu" aria-pressed="false">Hiện tại</button>
+        <button type="button" id="pa-moi" aria-pressed="true">Đề xuất</button>
+      </div>
+    </div>
+    <div class="nhom-dk">
+      <span>Khung bảng như trên màn hình</span>
+      <div class="cong-tac" role="group" aria-label="Bề rộng màn hình">
+        <button type="button" data-rong="1041" aria-pressed="true">1366px</button>
+        <button type="button" data-rong="1115" aria-pressed="false">1440px</button>
+        <button type="button" data-rong="1198" aria-pressed="false">1920px</button>
+      </div>
+    </div>
+    <label class="o-chon" for="vi-du"><input type="checkbox" id="vi-du"> Thêm một dòng ví dụ có tên và ghi chú dài</label>
+  </div>
+
+
+  <section class="khoi" id="khoi-bang" data-kieu="a" aria-labelledby="tieu-de-bang">
+    <div class="khoi-dau">
+      <h2 id="tieu-de-bang">Sản phẩm</h2>
+      <p class="chi-so-do" id="chi-so-do"></p>
+    </div>
+    <div class="vung-khung" id="vung-khung">
+      <div class="khung-cuon" id="khung" tabindex="0" role="region" aria-label="Bảng sản phẩm, cuộn ngang được">
+        <table id="bang">
+          <thead><tr id="hang-dau"></tr></thead>
+          <tbody id="than"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="luoi-ghi">
+    <div class="ghi">
+      <span class="the-chu">Được gì</span>
+      <ul>
+        <li>Cuộn sang cột giá, tỷ lệ chiết khấu vẫn thấy dòng ấy là sản phẩm nào, kèm mã.</li>
+        <li>Bớt hai cột: mã sản phẩm gộp vào ô tên, ghi chú thành biểu tượng — cột hầu như luôn trống thôi chiếm chỗ.</li>
+        <li>Tên sản phẩm nằm gọn một dòng khi đủ chỗ; mọi dòng cao bằng nhau, kể cả dòng có ghi chú dài.</li>
+        <li>Chỉ một cột ghim — phần cuộn được rộng hơn hẳn bản ghim ba cột.</li>
+        <li>Cột thao tác hẹp từ <strong>166px</strong> xuống khoảng <strong>100px</strong>.</li>
+      </ul>
+    </div>
+    <div class="ghi">
+      <span class="the-chu">Mất gì</span>
+      <ul>
+        <li>Dò theo mã khó hơn một chút: mã thôi là một cột thẳng hàng, thành dòng chữ nhỏ dưới tên.</li>
+        <li>Ghi chú phải rê chuột hoặc chạm mới đọc được; không lướt mắt đọc hết ghi chú của cả bảng được nữa.</li>
+        <li>Một tên rất dài vẫn kéo cột ghim tới trần 18rem (288px).</li>
+        <li>Biểu tượng phải rê chuột (hoặc đọc nhãn) mới chắc nghĩa; chữ <em>Sửa</em>/<em>Xoá</em> thì đọc ngay.</li>
+      </ul>
+    </div>
+    <div class="ghi">
+      <span class="the-chu">Đảo quyết định đã chốt</span>
+      <ul class="chot-cu">
+        <li>P261–P262: khách hàng bỏ hẳn ghim cột, và chốt thứ tự <em>Ngày · Mã · Tên</em> khớp bản in không ngoại lệ.</li>
+        <li>P258/P260: nút <em>Sửa</em>/<em>Xoá</em> luôn hiện, cỡ thường.</li>
+        <li>P200 (<code>0172</code>): tên cột màn hình và bản in khớp từng chữ.</li>
+      </ul>
+      <p style="font-size:var(--chu-nho);color:var(--mau-chu-phu)"><strong style="color:var(--mau-chu)">Bản mềm không đổi.</strong> Mọi thay đổi ở đây chỉ là cách hiển thị trên web; bảng trong bản mềm vẫn giữ <em>Ngày áp dụng · Mã sản phẩm · Tên sản phẩm</em>, đủ cột như hiện nay. Màn hình và bản in được phép khác nhau có chủ ý.</p>
+    </div>
+  </div>
+</div>
+
+<div class="goi-y" id="goi-y" hidden></div>
+
+<script>
+(() => {
+  // Dữ liệu thật — hồ sơ CSBH-2026-000112 trên demo, lấy từ GET /policies/:id ngày 07/11/2026.
+  const DONG = [
+    { ngay: '2026-03-19', ma: 'NC-BAR-35', ten: 'Thanh dinh dưỡng 35g', gct: 22000, gbb: 18920, cpbh: [300], gtv: 18620, tl: 15.36, nguong: 23, vuot: false, qd: 'CK-THANH-DD', tt: 'DANG_AP_DUNG' },
+    { ngay: '2026-08-01', ma: 'NC-CAL-900', ten: 'Nutricare Canxi 900g', gct: 645000, gbb: 554700, cpbh: [12900], gtv: 541800, tl: 16.00, nguong: 15, vuot: true, qd: 'CK-CANXI', tt: 'DANG_AP_DUNG', note: 'Chờ duyệt ngoại lệ của Ban lãnh đạo' },
+    { ngay: '2026-03-19', ma: 'NC-CHAO-240', ten: 'Cháo dinh dưỡng 240g', gct: 28000, gbb: 24080, cpbh: [272], gtv: 23808, tl: 14.97, nguong: 21, vuot: false, qd: 'CK-CHAO', tt: 'DANG_AP_DUNG' },
+    { ngay: '2026-08-01', ma: 'NC-DAM-350', ten: 'Bột ăn dặm Metacare 350g', gct: 125000, gbb: 107500, cpbh: [2500], gtv: 105000, tl: 16.00, nguong: 16, vuot: false, qd: 'CK-BOT-AN-DAM', tt: 'BO_SUNG' },
+    { ngay: '2026-03-19', ma: 'NC-DRK-330', ten: 'Nước uống dinh dưỡng 330ml', gct: 26000, gbb: 22360, cpbh: [444], gtv: 21916, tl: 15.71, nguong: 24, vuot: false, qd: 'CK-NUOC-UONG', tt: 'DANG_AP_DUNG' },
+    { ngay: '2026-08-01', ma: 'NC-GOLD-900', ten: 'Nutricare Gold 900g', gct: 615000, gbb: 547000, cpbh: [16000], gtv: 531000, tl: 13.66, nguong: 18, vuot: false, qd: 'CK-SUA-L1', tt: 'CHINH_SUA', tlCu: 14.96, note: 'Khách đề nghị giữ giá tới hết quý',
+      cu: { gbb: 539000, gtv: 523000, tl: 14.96 } },
+    { ngay: '2026-03-19', ma: 'NC-NUOC-180', ten: 'Nutricare Gold nước 180ml', gct: 32000, gbb: 27520, cpbh: [614], gtv: 26906, tl: 15.92, nguong: 14, vuot: true, qd: 'CK-SUA-NUOC', tt: 'DANG_AP_DUNG' },
+    { ngay: '2026-03-19', ma: 'NC-OIL-250', ten: 'Dầu óc chó Nutricare 250ml', gct: 195000, gbb: 167700, cpbh: [1174], gtv: 166526, tl: 14.60, nguong: 22, vuot: false, qd: 'CK-DAU-AN', tt: 'DANG_AP_DUNG' },
+  ];
+  // DÒNG VÍ DỤ (bật bằng ô chọn) — không có trong demo: tên dài hơn trần và ghi chú dài, để xem cột tên xuống dòng và ô ghi chú.
+  const DONG_VI_DU = { ngay: '2026-08-01', ma: 'NC-VD-900', ten: 'Sữa bột Nutricare Gold Pro dành cho người cao tuổi, hộp thiếc 900g', gct: 680000, gbb: 584800, cpbh: [13600], gtv: 571200, tl: 16.00, nguong: 18, vuot: false, qd: 'CK-SUA-L1', tt: 'BO_SUNG',
+    note: 'Ví dụ ghi chú dài: khách cam kết sản lượng tối thiểu 120 thùng mỗi quý, giao tại hai điểm bán ở Hải Dương và Hưng Yên. Nếu sản lượng quý đầu không đạt, Trình dược viên đề xuất xem lại mức chiết khấu ở phiên bản sau.', viDu: true };
+  // Bốn trạng thái dòng; MÀU giữ đúng chốt `0188` (xanh · hổ phách · chàm · xám) — thứ đổi là HÌNH của nhãn.
+  const IC = {
+    'ap-dung': '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9"/></svg>',
+    'sua': '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9.5h2l5-5-2-2-5 5z"/></svg>',
+    'bo-sung': '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2.5v7M2.5 6h7"/></svg>',
+    'xoa': '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 6h7"/></svg>',
+  };
+  const TT = { DANG_AP_DUNG: ['Đang áp dụng', 'ap-dung'], CHINH_SUA: ['Chỉnh sửa', 'sua'], BO_SUNG: ['Bổ sung', 'bo-sung'], DA_XOA: ['Đã xoá', 'xoa'] };
+  const nhanTT = (tt) => `<span class="tt tt-${TT[tt][1]}"><span class="tt-ky" aria-hidden="true">${IC[TT[tt][1]]}</span><span class="tt-chu">${TT[tt][0]}</span></span>`;
+  const so = (n) => n.toLocaleString('vi-VN');
+  const pt = (n) => n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  const ngay = (s) => s.split('-').reverse().join('/');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const soCpbh = Math.max(...DONG.map((d) => d.cpbh.length));
+
+  const BUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  const GHI_CHU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7l-4 4v-4H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8 8.5h8M8 12h5"/></svg>';
+  const THUNG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>';
+
+  const dau = (cu, moi, dinhDang) => {
+    if (cu === undefined || cu === moi) return '';
+    const len = moi > cu;
+    return `<button type="button" class="dau-hoi dau-doi ${len ? 'dau-len' : 'dau-xuong'}" style="border:0;font-size:.75em" data-goi-y="Bản trước: ${esc(dinhDang(cu))}" aria-label="Bản trước: ${esc(dinhDang(cu))}">${len ? '▲' : '▼'}</button>`;
+  };
+
+  const COT = [
+    // ĐỀ XUẤT: tên đứng đầu và là cột ghim DUY NHẤT; mã sản phẩm xuống dòng dưới tên; ngày áp dụng ngay sau, không ghim.
+    // HIỆN TẠI: Ngày · Mã · Tên, không ghim — như phần mềm đang chạy.
+    // Ghi chú thôi là một cột: dòng nào có ghi chú thì có biểu tượng cạnh tên, rê chuột hoặc chạm để đọc.
+    { nhan: 'Tên sản phẩm', o: (d) => `<span class="dong-ten"><span class="ten-chu">${esc(d.ten)}</span>${d.note
+        ? `<button type="button" class="dau-ghi-chu" data-goi-y="${esc(d.note)}" aria-label="Ghi chú: ${esc(d.note)}">${GHI_CHU}</button>` : ''}</span><span class="ma-sp">${esc(d.ma)}${d.viDu ? ' · <em>dòng ví dụ</em>' : ''}</span>`,
+      ghim: true, lop: 'ten-sp', chiMoi: true },
+    { nhan: 'Ngày áp dụng', o: (d) => ngay(d.ngay) + dau(d.cu?.ngay, d.ngay, ngay), chiMoi: true },
+    { nhan: 'Ngày áp dụng', o: (d) => ngay(d.ngay), chiCu: true },
+    { nhan: 'Mã sản phẩm', o: (d) => esc(d.ma), chiCu: true },
+    { nhan: 'Tên sản phẩm', o: (d) => esc(d.ten), lop: 'ten-sp', chiCu: true },
+    { nhan: 'Giá bán Công ty', o: (d) => so(d.gct) },
+    { nhan: 'Giá bán buôn', o: (d) => so(d.gbb) + dau(d.cu?.gbb, d.gbb, so) },
+    { nhan: 'CPBH', o: (d) => so(d.cpbh.reduce((a, b) => a + b, 0)) },
+    ...Array.from({ length: soCpbh }, (_, i) => ({ nhan: `CPBH ${i + 1}`, o: (d) => (d.cpbh[i] === undefined ? '' : so(d.cpbh[i])) })),
+    { nhan: 'Giá thu về', o: (d) => so(d.gtv) + dau(d.cu?.gtv, d.gtv, so) },
+    { nhan: 'Tỷ lệ CK', o: (d) => {
+        const lyDo = d.vuot ? `Vượt ngưỡng: tỷ lệ chiết khấu ${pt(d.tl)} cao hơn ngưỡng ${pt(d.nguong)} của quy định ${d.qd}` : '';
+        return `<span class="${d.vuot ? 'so-am' : ''}">${pt(d.tl)}${d.vuot ? `<button type="button" class="dau-hoi" data-goi-y="${esc(lyDo)}" aria-label="${esc(lyDo)}">?</button>` : ''}</span>` + dau(d.cu?.tl, d.tl, pt);
+      } },
+    { nhan: 'Tỷ lệ CK cũ', o: (d) => (d.tlCu === undefined ? '' : pt(d.tlCu)) },
+    { nhan: 'QĐCK', o: (d) => `${esc(d.qd)} · ${pt(d.nguong)}` },
+    { nhan: 'Trạng thái', o: (d) => nhanTT(d.tt) },
+    { nhan: 'Ghi chú', o: (d) => `<div class="ghi-chu-dong">${esc(d.note ?? '')}</div>`, chiCu: true },
+    { nhan: 'Thao tác', thaoTac: true },
+  ];
+
+  const bang = document.getElementById('bang');
+  const khung = document.getElementById('khung');
+  const vung = document.getElementById('vung-khung');
+  let moi = true;
+  let rong = 1041;
+
+  function veThaoTac(d) {
+    if (moi) {
+      return `<div class="nhom-nut" style="gap:var(--k1)">
+        <button type="button" class="nut-bt" aria-label="Sửa dòng ${esc(d.ten)}" data-goi-y="Sửa dòng">${BUT}</button>
+        <button type="button" class="nut-bt xoa" aria-label="Xoá dòng ${esc(d.ten)}" data-goi-y="Xoá dòng">${THUNG}</button>
+      </div>`;
+    }
+    return `<div class="nhom-nut"><button type="button" class="nut">Sửa</button><button type="button" class="nut nut-canh-bao">Xoá</button></div>`;
+  }
+
+  function ve() {
+    const COT_HIEN = COT.filter((c) => (moi ? !c.chiCu : !c.chiMoi));
+    const soGhim = moi ? COT_HIEN.filter((c) => c.ghim).length : 0;
+    document.getElementById('hang-dau').innerHTML = COT_HIEN.map((c, i) =>
+      `<th scope="col" class="${c.ghim ? 'cot-ghim' : ''}${i === soGhim - 1 ? ' cot-ghim-cuoi' : ''}${c.thaoTac ? ' cot-thao-tac' : ''}">${c.thaoTac ? '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">Thao tác</span>' : c.nhan}</th>`).join('');
+    const dsDong = document.getElementById('vi-du').checked ? [...DONG, DONG_VI_DU] : DONG;
+    document.getElementById('than').innerHTML = dsDong.map((d) => '<tr>' + COT_HIEN.map((c, i) =>
+      `<td class="${c.ghim ? 'cot-ghim' : ''}${i === soGhim - 1 ? ' cot-ghim-cuoi' : ''}${c.thaoTac ? ' cot-thao-tac' : ''} ${c.lop ?? ''}">${c.thaoTac ? veThaoTac(d) : c.o(d)}</td>`).join('') + '</tr>').join('');
+    bang.classList.toggle('ghim', moi);
+    vung.style.width = rong + 'px';
+    doRongTen();
+    datViTriGhim();
+    capNhatDo();
+  }
+
+  // CỘT TÊN VỪA KHÍT, CÓ TRẦN: đo tên (kèm biểu tượng ghi chú) dài nhất khi KHÔNG xuống dòng, rồi đặt
+  // bề rộng cột bằng số ấy nhưng không quá TRAN_TEN. Tên ngắn hơn trần nằm gọn một dòng; dài hơn mới xuống dòng.
+  const TRAN_TEN = 288; // 18rem
+  function doRongTen() {
+    if (!moi) { bang.style.removeProperty('--rong-ten'); return; }
+    bang.classList.add('dang-do');
+    const dai = Math.max(...[...bang.querySelectorAll('.dong-ten, .ma-sp')].map((e) => e.getBoundingClientRect().width));
+    bang.classList.remove('dang-do');
+    bang.style.setProperty('--rong-ten', Math.ceil(Math.min(dai, TRAN_TEN)) + 'px');
+  }
+
+  // `left` của từng cột ghim = tổng bề rộng các cột ghim đứng trước — đo sau khi bảng dựng xong.
+  function datViTriGhim() {
+    const hang = [...bang.rows];
+    const dau = [...hang[0].cells];
+    let trai = 0;
+    dau.forEach((th, i) => {
+      const ghim = th.classList.contains('cot-ghim');
+      hang.forEach((r) => { r.cells[i].style.left = ghim && moi ? trai + 'px' : ''; });
+      if (ghim) trai += th.getBoundingClientRect().width;
+    });
+  }
+
+  function capNhatDo() {
+    const dau = [...bang.rows[0].cells];
+    const ghim = dau.filter((c) => c.classList.contains('cot-ghim')).reduce((a, c) => a + c.getBoundingClientRect().width, 0);
+    const tt = dau.find((c) => c.classList.contains('cot-thao-tac')).getBoundingClientRect().width;
+    const kh = khung.clientWidth;
+    document.getElementById('chi-so-do').innerHTML =
+      `Bảng <strong>${Math.round(bang.scrollWidth)}px</strong> · khung <strong>${kh}px</strong> · cột thao tác <strong>${Math.round(tt)}px</strong>` +
+      (moi ? ` · cột ghim <strong>${Math.round(ghim)}px</strong> (${Math.round((ghim / kh) * 100)}% khung)` : '');
+    cuon();
+  }
+
+  function cuon() {
+    bang.classList.toggle('da-cuon', khung.scrollLeft > 0);
+    bang.classList.toggle('het-phai', khung.scrollLeft + khung.clientWidth >= khung.scrollWidth - 1);
+  }
+  khung.addEventListener('scroll', cuon, { passive: true });
+
+  const nutPa = { cu: document.getElementById('pa-cu'), moi: document.getElementById('pa-moi') };
+  const chonPa = (laMoi) => { moi = laMoi; nutPa.moi.setAttribute('aria-pressed', String(laMoi)); nutPa.cu.setAttribute('aria-pressed', String(!laMoi)); ve(); };
+  nutPa.cu.addEventListener('click', () => chonPa(false));
+  nutPa.moi.addEventListener('click', () => chonPa(true));
+  document.querySelectorAll('[data-rong]').forEach((b) => b.addEventListener('click', () => {
+    rong = +b.dataset.rong;
+    document.querySelectorAll('[data-rong]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    ve();
+  }));
+  document.getElementById('vi-du').addEventListener('change', ve);
+
+  window.addEventListener('resize', () => { doRongTen(); datViTriGhim(); capNhatDo(); });
+
+  // Ô gợi ý cho biểu tượng, dấu hỏi và tam giác.
+  const goiY = document.getElementById('goi-y');
+  const hien = (el) => { const r = el.getBoundingClientRect(); goiY.textContent = el.dataset.goiY; goiY.hidden = false;
+    const w = goiY.offsetWidth; goiY.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; goiY.style.top = (r.bottom + 6) + 'px'; };
+  const an = () => { goiY.hidden = true; };
+  document.addEventListener('pointerover', (e) => { const el = e.target.closest('[data-goi-y]'); el ? hien(el) : an(); });
+  document.addEventListener('focusin', (e) => { const el = e.target.closest('[data-goi-y]'); el ? hien(el) : an(); });
+  document.addEventListener('focusout', an);
+  khung.addEventListener('scroll', an, { passive: true });
+
+  if (document.fonts?.ready) document.fonts.ready.then(() => { doRongTen(); datViTriGhim(); capNhatDo(); });
+  ve();
+})();
+</script>

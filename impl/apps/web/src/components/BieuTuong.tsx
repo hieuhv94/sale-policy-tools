@@ -193,6 +193,26 @@ export function BieuTuongBut() {
   );
 }
 
+/** Xoá một dòng (`0267`) — thùng rác, cùng nét với mọi icon. */
+export function BieuTuongThung() {
+  return (
+    <Hinh>
+      <path d="M4 7h16M10 11v6M14 11v6" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </Hinh>
+  );
+}
+
+/** Dòng có ghi chú (`0267`) — bong bóng chữ cạnh tên sản phẩm. */
+export function BieuTuongGhiChu() {
+  return (
+    <Hinh>
+      <path d="M5 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7l-4 4v-4H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+      <path d="M8 8.5h8M8 12h5" />
+    </Hinh>
+  );
+}
+
 export function BieuTuongDauTich() {
   return (
     <Hinh>

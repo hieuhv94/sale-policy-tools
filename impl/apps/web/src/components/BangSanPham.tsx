@@ -5,10 +5,11 @@
  * trí khác nhau, và điều quan trọng là chúng KHÔNG phải ba mức độ của cùng một
  * thứ:
  *
- *   - **≥1024px (`FE-05`)** — đủ mọi cột, không cắt chữ.
- *   - **640–1023px (`FE-04`)** — cuộn ngang TRONG KHUNG RIÊNG, cột Tên sản phẩm
- *     khoá cố định bên trái. Không có cột khoá thì cuộn sang phải là mất dấu
- *     đang đọc dòng nào — với bảng tiền thì đó là đọc nhầm số của sản phẩm khác.
+ *   - **≥640px (`FE-04`, `FE-05`)** — bảng, cuộn ngang TRONG KHUNG RIÊNG khi
+ *     không đủ chỗ; cột Tên sản phẩm đứng ĐẦU và GHIM bên trái (`0267`). Không
+ *     có cột ghim thì cuộn sang phải là mất dấu đang đọc dòng nào — với bảng tiền
+ *     thì đó là đọc nhầm số của sản phẩm khác. Mã sản phẩm nằm dưới tên, ghi chú
+ *     là biểu tượng cạnh tên — hai cột ấy chỉ còn ở bản in và ở bố cục thẻ.
  *   - **<640px (`FE-03`)** — mỗi dòng thành một THẺ. **Không cột nào biến mất.**
  *     Các ô CPBH gấp vào một dòng tổng, bấm mới mở.
  *
@@ -25,7 +26,8 @@
  * `window.innerWidth` thì xoay ngang điện thoại giữa lúc đang gõ sẽ tháo và dựng
  * lại ô nhập — mất nội dung và mất tiêu điểm (`FE-06`).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BieuTuongBut, BieuTuongGhiChu, BieuTuongThung } from './BieuTuong.js';
 import { ngay, tien, tyLe } from '../lib/format.js';
 import { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
 import {
@@ -344,6 +346,98 @@ function DauKhoan({ d, k }: { d: DongSanPham; k: number }) {
   return <DauDoi o="cpbh" nhan={nhanCpbh(k)} cu={cu ?? null} moi={moi ?? null} />;
 }
 
+/**
+ * DẤU GHI CHÚ cạnh tên sản phẩm (`0267`) — thay cho cột *Ghi chú* của bảng web.
+ *
+ * Ghi chú hiếm (2/453 dòng trên demo) nhưng có thể dài tới 500 ký tự, nên nó thôi
+ * chiếm một cột: dòng nào có ghi chú thì có một biểu tượng ngay cạnh tên, trong
+ * cột GHIM — cuộn tới đâu cũng thấy dòng nào có ghi chú.
+ *
+ * ĐỌC ĐƯỢC BẰNG BA ĐƯỜNG, cùng lý lẽ `DauDoi` (`0215`, `0216`): rê CHUỘT vào thì
+ * hiện, BẤM/CHẠM thì bật tắt, và `aria-label` mang nguyên văn cho trình đọc màn
+ * hình. Rê chuột chỉ tính con trỏ CHUỘT (`pointerType`): trên cảm ứng một cú chạm
+ * cũng bắn `pointerenter`, và để nó mở rồi `click` ngay sau đó đóng lại là nút
+ * không bao giờ mở được.
+ *
+ * Ô mở vì RÊ CHUỘT thì cú bấm GHIM nó lại chứ không đóng (`boi`): với chuột, con
+ * trỏ luôn tới dấu trước khi bấm, nên bấm-để-đọc mà lại đóng đúng ô vừa hiện là
+ * thứ đầu tiên người dùng chuột gặp. Ô đã ghim thì rời chuột không đóng; bấm lần
+ * nữa, bấm ra ngoài, Escape hay cuộn mới đóng.
+ *
+ * Ô chữ là `position: fixed`, toạ độ tính lúc mở: bảng nằm trong `.khung-cuon`,
+ * mà `overflow-x: auto` cắt CẢ HAI chiều — một ghi chú dài ở hàng đầu hay hàng
+ * cuối sẽ bị cắt cụt nếu neo tuyệt đối vào ô. `DauDoi` tránh được bằng cách nằm
+ * trong dải ngang của hàng vì giá trị cũ chỉ là một con số; một đoạn ghi chú thì
+ * không vừa một dải ấy. Cuộn (khung hay trang) là đóng — toạ độ đã lỗi thời.
+ */
+function DauGhiChu({ ghiChu }: { ghiChu: string }) {
+  const [mo, datMo] = useState<{ boi: 'chuot' | 'bam'; trai: number; tren?: number; duoi?: number } | null>(null);
+  const nut = useRef<HTMLButtonElement>(null);
+
+  const moRa = (boi: 'chuot' | 'bam') => {
+    const r = nut.current?.getBoundingClientRect();
+    if (!r) return;
+    const rong = Math.min(352, window.innerWidth - 16);
+    const trai = Math.max(8, Math.min(r.left, window.innerWidth - rong - 8));
+    // Dưới dấu nếu còn chỗ, không thì lật lên trên.
+    datMo(
+      window.innerHeight - r.bottom > 200
+        ? { boi, trai, tren: r.bottom + 6 }
+        : { boi, trai, duoi: window.innerHeight - r.top + 6 },
+    );
+  };
+
+  useEffect(() => {
+    if (!mo) return;
+    const dongNgoai = (e: Event) => {
+      if (!nut.current?.contains(e.target as Node)) datMo(null);
+    };
+    const dong = () => datMo(null);
+    const phim = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') datMo(null);
+    };
+    document.addEventListener('pointerdown', dongNgoai);
+    document.addEventListener('scroll', dong, true);
+    window.addEventListener('resize', dong);
+    document.addEventListener('keydown', phim);
+    return () => {
+      document.removeEventListener('pointerdown', dongNgoai);
+      document.removeEventListener('scroll', dong, true);
+      window.removeEventListener('resize', dong);
+      document.removeEventListener('keydown', phim);
+    };
+  }, [mo]);
+
+  return (
+    <button
+      ref={nut}
+      type="button"
+      className={`dau-ghi-chu${mo ? ' dau-mo' : ''}`}
+      aria-label={`Ghi chú: ${ghiChu}`}
+      aria-expanded={mo !== null}
+      onClick={() => (mo?.boi === 'bam' ? datMo(null) : moRa('bam'))}
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse' && !mo) moRa('chuot');
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === 'mouse' && mo?.boi === 'chuot') datMo(null);
+      }}
+      onBlur={() => datMo(null)}
+    >
+      <BieuTuongGhiChu />
+      {mo && (
+        <span
+          className="ghi-chu-noi"
+          aria-hidden="true"
+          style={{ left: mo.trai, ...(mo.tren !== undefined ? { top: mo.tren } : { bottom: mo.duoi }) }}
+        >
+          {ghiChu}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
 export const thieuQuyDinh = (d: DongSanPham): boolean =>
   d.thresholdSource === 'PRODUCT_DEFAULT' || d.thresholdSource === 'KHONG_CO';
@@ -630,6 +724,42 @@ function NutDong({
       </div>
     );
   }
+  /*
+   * Ở BẢNG: hai nút BIỂU TƯỢNG — bút và thùng rác (`0267`, khách hàng chốt 07/11),
+   * cột thao tác hẹp từ 166px xuống ~100px. Tên nút (`aria-label`) GIỮ NGUYÊN chữ
+   * *Sửa* / *Xoá*: trình đọc màn hình đọc kèm tiêu đề hàng (`th scope="row"`) nên
+   * biết là sửa dòng nào, và `title` cho người dùng chuột đọc được nghĩa khi rê.
+   * Ở THẺ (điện thoại) giữ nút CHỮ — thẻ có thừa chỗ, chữ đọc ngay.
+   */
+  if (hang) {
+    return (
+      <div className={lop}>
+        {suaDong && (
+          <button
+            type="button"
+            className="nut-bieu-tuong nut-bt-dong"
+            aria-label="Sửa"
+            title="Sửa dòng"
+            onClick={() => suaDong(d)}
+          >
+            <BieuTuongBut />
+          </button>
+        )}
+        {xoaDong && (
+          <button
+            type="button"
+            className="nut-bieu-tuong nut-bt-dong nut-bt-xoa"
+            aria-label="Xoá"
+            title="Xoá dòng"
+            disabled={dangXoa === d.id}
+            onClick={() => xoaDong(d.id)}
+          >
+            <BieuTuongThung />
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div className={lop}>
       {suaDong && (
@@ -696,6 +826,58 @@ export function BangSanPham({
     còn gì để mà mở. Trạng thái *"đang xem giá trị cũ"* giờ là chuyện của riêng
     từng dấu (`DauDoi`), vì hai dấu trên hai ô khác nhau không loại trừ nhau.
   */
+  /*
+   * CỘT TÊN VỪA KHÍT, CÓ TRẦN (`0267`).
+   *
+   * Muốn: tên nào ngắn hơn 18rem thì nằm gọn MỘT dòng; dài hơn mới xuống dòng.
+   * CSS thuần không nói được *"rộng bằng nội dung nhưng không quá X"* cho một cột
+   * bảng đang bị ép (bảng rộng hơn khung thì trình duyệt co mọi cột về sàn — đo
+   * được: cột tên đứng đúng 192px ở cả ba khổ màn hình, tên dài gãy làm hai). Nên
+   * đo: tạm cấm xuống dòng (`dang-do-ten`), đọc bề rộng của chính Ô tên (cột tự
+   * giãn bằng nội dung dài nhất: tên + biểu tượng, hay dòng mã), rồi đặt
+   * `--rong-ten` = min(bề rộng ấy, 18rem chữ + lề trong của ô). Đo lại khi dữ
+   * liệu đổi và khi phông tự host nạp xong (đo bằng phông dự phòng là sai số).
+   *
+   * ĐO CẢ Ô, KHÔNG ĐO CHỮ — bản đầu đo `<span>` tên rồi đặt số ấy làm bề rộng ô,
+   * và trên demo thật bốn trong tám tên VẪN xuống dòng: mọi ô là `border-box`, nên
+   * bề rộng đặt cho ô đã gồm 24px lề trong mà phép đo chữ không có.
+   *
+   * jsdom trả bề rộng 0 — không đặt biến, CSS rơi về sàn/trần như cũ.
+   */
+  const khung = useRef<HTMLDivElement>(null);
+  const bang = useRef<HTMLTableElement>(null);
+  useLayoutEffect(() => {
+    const t = bang.current;
+    if (!t) return;
+    const do_ = () => {
+      const o = t.querySelector<HTMLElement>('tbody .cot-khoa');
+      if (!o) return;
+      t.classList.add('dang-do-ten');
+      const dai = o.getBoundingClientRect().width;
+      t.classList.remove('dang-do-ten');
+      const cs = getComputedStyle(o);
+      const le = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      const tran = 18 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) + le;
+      if (dai > 0) t.style.setProperty('--rong-ten', `${Math.ceil(Math.min(dai, tran))}px`);
+    };
+    do_();
+    let conSong = true;
+    void document.fonts?.ready.then(() => {
+      if (conSong) do_();
+    });
+    return () => {
+      conSong = false;
+    };
+  }, [dong]);
+
+  /* Bóng mép phải của cột ghim CHỈ khi bảng đã cuộn: ở trạng thái nghỉ bảng trông
+     như mọi bảng khác. Đổi lớp thẳng trên DOM, không qua state — cuộn bắn sự kiện
+     ở mỗi khung hình, dựng lại cả bảng mỗi lần là phí. */
+  const cuon = () => {
+    const k = khung.current;
+    if (k) k.classList.toggle('da-cuon', k.scrollLeft > 0);
+  };
+
   if (dong.length === 0) {
     return (
       <p className="trong">
@@ -707,17 +889,24 @@ export function BangSanPham({
   return (
     <>
       {/* ≥640px: bảng thật, cuộn ngang trong khung riêng ở 640–1023px. */}
-      <div className="khung-cuon" role="region" aria-label="Bảng sản phẩm" tabIndex={0}>
-        <table className="bang-san-pham">
+      <div
+        ref={khung}
+        className="khung-cuon"
+        role="region"
+        aria-label="Bảng sản phẩm"
+        tabIndex={0}
+        onScroll={cuon}
+      >
+        <table ref={bang} className="bang-san-pham">
           <thead>
             <tr>
               {/*
-                `0230` đưa cột tên lên đầu, ghim khi cuộn ngang và tô nổi; khách
-                hàng 29/09 lùi cả ba — `0231` trả thứ tự về *Ngày · Mã · Tên* và
-                bỏ ghim (KHÔNG cột nào đứng yên khi cuộn, kể cả ba cột của
-                `0228`), `0233` trả màu về như mọi cột.
-                Lớp `cot-khoa` giữ tên cũ: nó vẫn là cột KHOÁ theo nghĩa *"cột
-                nói dòng này là mặt hàng nào"* (`th scope="row"`).
+                `0267` — cột tên ĐẦU bảng và GHIM khi cuộn ngang (khách hàng chốt
+                07/11; bản in giữ thứ tự cũ). Lịch sử: `0230` ghim, `0231` bỏ
+                ghim để khớp bản in, `0233` bỏ màu riêng — vế màu VẪN GIỮ: ô ghim
+                chỉ mang nền của chính hàng, cần thiết để chữ cuộn qua không lộ.
+                Lớp `cot-khoa` giữ tên: nó là cột KHOÁ theo nghĩa *"cột nói dòng
+                này là mặt hàng nào"* (`th scope="row"`).
               */}
               {cotCho(dong).map((c) => (
                 <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
@@ -745,14 +934,19 @@ export function BangSanPham({
                   điều kiện nào ở đây — và đó là chủ ý: một `{dieuKien && …}` gõ
                   lại ở tám ô là tám chỗ để quên một.
                 */}
+                {/* `0267` — TÊN (kèm biểu tượng ghi chú) và MÃ ở dòng dưới; hai
+                    `<span>` là hai thứ phép đo bề rộng cột đọc. */}
+                <th scope="row" className="cot-khoa">
+                  <span className="ten-dong">
+                    {d.productName}
+                    {d.note && <DauGhiChu ghiChu={d.note} />}
+                  </span>
+                  <span className="ma-sp">{d.productCode}</span>
+                </th>
                 <td className="ngay-ap-dung">
                   {ngay(d.ngayApDung)}
                   <Dau d={d} o="ngayApDung" />
                 </td>
-                <td>{d.productCode}</td>
-                <th scope="row" className="cot-khoa">
-                  {d.productName}
-                </th>
                 <td className="so">
                   {tien(d.companyPrice)}
                   <Dau d={d} o="companyPrice" />
@@ -795,7 +989,6 @@ export function BangSanPham({
                 <td>
                   <NhanTrangThai d={d} />
                 </td>
-                <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   /*
                     LUÔN HIỆN (`0228`, khách hàng 29/09: *"bỏ cơ chế hover"*) —

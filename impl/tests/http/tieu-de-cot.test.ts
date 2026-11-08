@@ -25,6 +25,12 @@
  * chép là dựng ra bản sao thứ ba.
  *
  * Ba cột chỉ có ở một bên thì khai đích danh ở `CHI_MOT_BEN` kèm lý do.
+ *
+ * `0267` (khách hàng chốt 07/11/2026): bảng web được phép KHÁC bản in — *"những
+ * thay đổi này không ảnh hưởng đến các bảng trong bản mềm, tất cả chỉ là thay
+ * đổi hiển thị trên web"*. Web đưa tên lên đầu, gộp mã xuống dưới tên và đổi ghi
+ * chú thành biểu tượng. Vế TÊN cột ở đây GIỮ NGUYÊN — cột nào có ở cả hai bên
+ * vẫn mang đúng một tên; vế THỨ TỰ thì chỉ còn ràng bản in.
  */
 import { describe, expect, it } from 'vitest';
 import { COT_BANG, NHAN_TRANG_THAI_DONG, bangSanPhamXml } from '@csbh/document/testing';
@@ -40,14 +46,12 @@ const KHOP: Record<string, string> = {
   ngayApDung: 'ngay_ap_dung',
   discountRateTruoc: 'ty_le_ck_cu',
   trangThai: 'trang_thai',
-  productCode: 'ma_san_pham',
   productName: 'ten_san_pham',
   companyPrice: 'gia_cong_ty',
   wholesalePrice: 'gia_ban_buon',
   cpbhTotal: 'cpbh_tong',
   netPrice: 'gia_thu_ve',
   discountRate: 'ty_le_ck',
-  note: 'ghi_chu',
 };
 
 /**
@@ -58,6 +62,8 @@ const CHI_MOT_BEN: Record<string, string> = {
   stt: 'chỉ bản in: trên màn hình dòng đã có thứ tự nhìn thấy được',
   cpbh: 'nhãn gộp của N cột lẻ, không phải một cột — kiểm riêng ở ca dưới',
   ruleCode: 'chỉ màn hình: mã quy định chiết khấu để tra ngược, không in ra giấy',
+  ma_san_pham: 'chỉ bản in (`0267`): trên web mã là dòng chữ nhỏ dưới tên sản phẩm, không phải cột riêng',
+  ghi_chu: 'chỉ bản in (`0267`): trên web ghi chú là biểu tượng cạnh tên, đọc khi rê chuột hoặc chạm',
 };
 
 describe('`0172` nhãn cột khớp giữa màn hình và bản mềm', () => {
@@ -126,46 +132,41 @@ describe('`0172` nhãn cột khớp giữa màn hình và bản mềm', () => {
 });
 
 /**
- * `0180` — THỨ TỰ CỘT, không chỉ tên cột.
+ * `0180` → `0267` — THỨ TỰ CỘT.
  *
- * `0172` canh việc hai bảng gọi cùng một cột bằng cùng một tên. Lượt này thêm
- * vế thứ hai, vì khách hàng chốt một VỊ TRÍ chứ không chỉ một cái tên: *"cột
- * ngày áp dụng để bên trái mã sản phẩm"*.
- *
- * Vế ấy không suy ra được từ phép đối chiếu tên: hai bảng có thể mang đủ cùng
- * mười ba cái tên mà xếp theo hai thứ tự khác nhau, và khi ấy người đối chiếu
- * màn hình với bản in phải dò lại từ đầu — đúng cái `0172` sinh ra để tránh.
+ * `0180` chốt *"cột ngày áp dụng để bên trái mã sản phẩm"* và `0231` đòi hai bảng
+ * xếp cột GIỐNG HỆT nhau. `0267` tách hai bảng: bản in giữ đúng thứ tự cũ, bảng
+ * web có thứ tự riêng — tên đầu bảng (cột ghim), ngày áp dụng ngay sau. Mỗi bên
+ * giờ được ghim bằng chính DÃY của nó, đủ cả độ dài: chèn một cột vào giữa hay
+ * đổi chỗ hai cột đều đỏ (bài học `0152`: so từng cặp lân cận thì lọt).
  */
-describe('`0180` thứ tự cột khớp giữa hai bảng, và ngày áp dụng đứng trước mã', () => {
+describe('`0267` thứ tự cột: bản in giữ cũ, web có thứ tự riêng', () => {
   const khoaWeb = [...COT_TRUOC, ...COT_SAU].map((c) => c.khoa as string);
   const khoaBang = COT_BANG.map((c) => c.khoa as string);
 
-  it('*Ngày áp dụng* đứng NGAY TRƯỚC *Mã sản phẩm* ở CẢ HAI bảng', () => {
-    expect(khoaWeb.indexOf('ngayApDung')).toBe(khoaWeb.indexOf('productCode') - 1);
+  it('bản in: *Ngày áp dụng* vẫn đứng NGAY TRƯỚC *Mã sản phẩm* (`0180`)', () => {
     expect(khoaBang.indexOf('ngay_ap_dung')).toBe(khoaBang.indexOf('ma_san_pham') - 1);
+  });
+
+  it('web: đúng dãy cột đã chốt — tên đầu, ngày ngay sau, không mã, không ghi chú', () => {
+    expect(khoaWeb).toEqual([
+      'productName',
+      'ngayApDung',
+      'companyPrice',
+      'wholesalePrice',
+      'cpbhTotal',
+      'netPrice',
+      'discountRate',
+      'discountRateTruoc',
+      'ruleCode',
+      'trangThai',
+    ]);
   });
 
   it('*Tỷ lệ CK cũ* đứng NGAY SAU *Tỷ lệ CK* ở cả hai bảng', () => {
     // Nó chỉ có nghĩa khi đọc cạnh con số mới; cách một cột là mắt phải nhớ số.
     expect(khoaWeb.indexOf('discountRateTruoc')).toBe(khoaWeb.indexOf('discountRate') + 1);
     expect(khoaBang.indexOf('ty_le_ck_cu')).toBe(khoaBang.indexOf('ty_le_ck') + 1);
-  });
-
-  it('thứ tự các cột CHUNG giống hệt nhau ở hai bảng', () => {
-    /*
-     * Phép so mạnh nhất mà hai danh sách khác độ dài cho phép: lọc mỗi bên về
-     * đúng những cột có mặt ở cả hai, rồi đòi hai dãy khớp từng vị trí.
-     *
-     * Chỉ so từng cặp lân cận thì chèn một cột vào giữa vẫn lọt (bài học
-     * `0152`).
-     */
-    /*
-     * `0230` từng miễn *Tên sản phẩm* khỏi phép so này (nó đứng đầu màn hình,
-     * bản in giữ chỗ cũ); `0231` trả nó về chỗ cũ ở màn hình, nên miễn trừ GỠ —
-     * mọi cột chung khớp từng vị trí, không ngoại lệ.
-     */
-    const chung = khoaWeb.filter((k) => KHOP[k] !== undefined);
-    expect(chung.map((k) => KHOP[k])).toEqual(khoaBang.filter((k) => chung.some((w) => KHOP[w] === k)));
   });
 });
 
