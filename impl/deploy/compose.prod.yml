@@ -19,15 +19,20 @@
 # ảnh nằm chung một repo và phân biệt bằng THẺ: `service-…`, `web-…`, `ops-…`.
 # Một repo riêng tư là đủ cho cả ba.
 #
-# THẺ KHÔNG BAO GIỜ LÀ `latest`. `CSBH_TAG` trong `.env` là một phiên bản cụ thể
-# (`1.0.0`). Với `latest` thì `docker compose pull` một tháng sau đổi thứ đang
-# chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào —
-# `make version` in ra một con số, còn ảnh thì là một con số khác.
+# THẺ `-latest` CHO BỐN ẢNH CỦA TA (`0270`, yêu cầu 08/11) — ĐẢO luật `0218`.
 #
-# Câu trên nói về `.env`, và nó VẪN ĐÚNG từ `0218`. Registry thì có thêm thẻ
-# `…-latest` làm CON TRỎ tới bản mới nhất, cho `./csbh upgrade` của bản chạy thử
-# kéo về; nhưng lệnh ấy đọc số thật từ nhãn trong ảnh rồi ghim CON SỐ vào
-# `CSBH_TAG` — nên `latest` không bao giờ chạm tới dòng này.
+# Tới `0269` dòng này viết "THẺ KHÔNG BAO GIỜ LÀ `latest`", với hai lý do: một lượt
+# `pull` một tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói
+# máy chủ đang chạy bản nào. Cả hai VẪN ĐÚNG, và được giữ bằng cơ chế khác:
+#
+#   * ảnh TỰ biết phiên bản — `APP_VERSION` nướng vào ảnh lúc dựng (`docker/Dockerfile`),
+#     nên compose KHÔNG còn đặt biến ấy; `./csbh phien-ban` đọc nhãn OCI của ảnh
+#     container đang chạy;
+#   * chỉ HAI chỗ được kéo ảnh — máy chưa có ảnh, và `./csbh cap-nhat` (sao lưu trước,
+#     giữ ảnh cũ dưới thẻ `-truoc-cap-nhat` để lùi). `docker compose up` không tự kéo.
+#
+# Registry vẫn giữ MỌI thẻ số — đường về một bản cụ thể (chuyển máy dùng nó).
+# Ảnh BÊN NGOÀI (Postgres, Redis, RabbitMQ, Gotenberg, Caddy…) vẫn ghim digest (`0248`).
 #
 # Từ `0118` thẻ KHÔNG còn phần `-<git sha>`. Điều kiện để nó an toàn: mỗi lần
 # giao là một số phiên bản mới. Dựng lại cùng số với nội dung khác thì thẻ trên
@@ -35,7 +40,7 @@
 # =============================================================================
 
 x-node: &node
-  image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:service-${CSBH_TAG:?thiếu CSBH_TAG}
+  image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:service-latest
   restart: unless-stopped
   logging:
     driver: json-file
@@ -81,7 +86,6 @@ x-node: &node
     GOTENBERG_URL: http://gotenberg:3000
     JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
 
-    APP_VERSION: ${CSBH_TAG}
     # Địa chỉ trong LIÊN KẾT của email. Sai ở đây thì thư mời vẫn gửi đi và vẫn
     # đẹp, nhưng liên kết trong đó không dẫn tới đâu.
     APP_BASE_URL: ${SITE_URL:?thiếu SITE_URL}
@@ -139,7 +143,7 @@ services:
     # ẢNH NHÂN BẢN trong kho của ta (`0247`), không phải `minio/minio`: MinIO đã
     # xoá kho ấy khỏi Docker Hub (09/2026), nên một máy MỚI không kéo được ảnh gốc.
     # Cùng ảnh, chép nguyên từng lớp — xem `MINIO_GOC` ở `scripts/dong-goi.sh`.
-    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-RELEASE.2024-09-22T00-33-43Z@sha256:3c770f9cf8c98df2f828ff6078ee539af497fe92ccd6ea332fffb0e36080279a
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-latest
     environment:
       MINIO_ROOT_USER: csbh
       # Cùng lý do với Postgres ngay trên. MinIO không dừng khi cả hai cùng có —
@@ -169,7 +173,7 @@ services:
   # Thay chỗ `migrate`, và làm luôn mọi việc vận hành về sau: sao lưu, phục hồi,
   # dọn dữ liệu, mồi tài khoản. Xem `docker compose run --rm ops help`.
   ops:
-    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:ops-${CSBH_TAG:?thiếu CSBH_TAG}
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:ops-latest
     command: ["migrate"]
     restart: "no"
     logging:
@@ -186,7 +190,6 @@ services:
       PGDATABASE: csbh
       ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
       BACKUP_MIRROR_DIR: /mirror
-      APP_VERSION: ${CSBH_TAG}
       # `bootstrap-admin` từ chối một ADMIN_EMAIL ngoài danh sách này (`0117`):
       # tài khoản mồi không nhận thư mời nào, nên sai tên miền chỉ lộ ra ở lần
       # đầu bấm *Quên mật khẩu* — lúc không còn đường vào nào khác. `ops` KHÔNG
@@ -303,7 +306,7 @@ services:
   # Giao diện nằm TRONG ảnh, không đọc từ thư mục nào của máy chủ. Caddyfile cũng
   # vậy. Hai biến còn để ngoài vì chúng khác nhau ở từng nơi cài.
   caddy:
-    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:web-${CSBH_TAG:?thiếu CSBH_TAG}
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:web-latest
     restart: unless-stopped
     logging:
       driver: json-file

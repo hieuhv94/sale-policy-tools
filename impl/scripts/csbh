@@ -40,15 +40,16 @@ usage() {
 csbh — vận hành Chính sách bán hàng
 
   Chạy hệ thống
-    len              Kéo ảnh theo thẻ trong .env rồi dựng. An toàn khi chạy lại.
+    len              Dựng hệ. KHÔNG kéo ảnh khi máy đã có — chỉ kéo khi thiếu.
     xuong            Dừng toàn hệ. Dữ liệu giữ nguyên.
     trang-thai       Service nào đang sống, healthcheck ra sao.
     log [service]    Xem log, mặc định 200 dòng cuối của tất cả.
-    phien-ban        Thẻ ảnh đang chạy.
+    phien-ban        Phiên bản đang chạy (đọc từ chính ảnh).
 
-  Nâng cấp
-    nang-cap <thẻ>   Đổi CSBH_TAG trong .env, kéo ảnh, chạy migration, dựng lại.
-                     GIỮ NGUYÊN dữ liệu.
+  Cập nhật
+    cap-nhat         Hỏi registry có bản `latest` mới không; có thì sao lưu, kéo,
+                     migration, dựng lại. GIỮ NGUYÊN dữ liệu.
+    lui-lai          Về lại ảnh trước lượt cap-nhat gần nhất (khi chưa có migration mới).
     upgrade          Lên bản MỚI NHẤT trên registry cho bản CHẠY THỬ, và XOÁ
                      SẠCH dữ liệu: CSDL dựng lại từ trống, kho tệp dọn sạch.
                      Sau đó phải làm lại mo-tai-khoan và nap-danh-muc. KHÔNG
@@ -361,7 +362,7 @@ id_cloudflared() { $DC ps -q cloudflared 2>/dev/null || true; }
 keo_anh_latest() {
   kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
   thieu=""
-  for tp in service web ops; do
+  for tp in $ANH_TA; do
     docker pull "${kho}:${tp}-latest" >/dev/null 2>&1 || {
       docker image inspect "${kho}:${tp}-latest" >/dev/null 2>&1 || thieu="$thieu ${kho}:${tp}-latest"
     }
@@ -379,10 +380,110 @@ keo_anh_latest() {
 # `latest` là một CON TRỎ trên registry, còn thứ được ghi vào `.env` là CON SỐ nó
 # trỏ tới. Rỗng nghĩa là ảnh dựng trước `0218`, lúc chưa có nhãn — khi ấy KHÔNG
 # rơi về ghi `latest`, mà dừng: đó đúng là trạng thái hai lý do kia cấm.
-so_phien_ban() {
-  kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
-  docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' \
-    "${kho}:ops-latest" 2>/dev/null || true
+so_phien_ban() { nhan_anh "$(kho_anh):ops-latest"; }
+
+# --- Ảnh `-latest` và phiên bản (`0270`) ---------------------------------------
+#
+# Từ `0270` máy chủ chạy THẺ `-latest` cho bốn ảnh của ta (yêu cầu 08/11) — ĐẢO
+# luật `0218` "`latest` không bao giờ vào `.env`". Hai lý do của luật ấy được giữ
+# bằng cơ chế khác, và hai cơ chế ấy là lý do các hàm dưới đây tồn tại:
+#
+#   1. "Không biết máy đang chạy bản nào" → ảnh TỰ biết: `APP_VERSION` nướng vào
+#      ảnh lúc dựng, và số phiên bản đọc từ NHÃN OCI của ảnh container đang chạy
+#      (`phien_ban_may`) — không đọc từ `.env`, nơi không còn con số nào.
+#   2. "Một lượt pull đổi thứ đang chạy mà không ai chủ ý" → CHỈ HAI chỗ được kéo
+#      ảnh: máy chưa có ảnh (`keo_anh_neu_thieu`) và `cap-nhat`. `len`, khởi động
+#      lại máy, chạy lại `cai-dat.sh` đều KHÔNG kéo.
+#
+# Ảnh MinIO nhân bản cũng là ảnh của kho ta nên cũng chạy `minio-latest`; nó không
+# mang nhãn phiên bản phần mềm (nó là MinIO), nên chỉ ba ảnh kia trả lời "bản nào".
+ANH_TA="service web ops minio"
+kho_anh() { grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-; }
+nhan_anh() {
+  docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' "$1" 2>/dev/null || true
+}
+
+# Phiên bản ĐANG CHẠY: nhãn của ảnh mà container `gateway` đang dùng (theo image ID,
+# không theo thẻ — sau lượt kéo, thẻ `-latest` trên máy đã trỏ sang ảnh mới trong khi
+# container vẫn chạy ảnh cũ). Hệ chưa chạy thì nhãn của `service-latest` trên máy.
+phien_ban_may() {
+  id="$($DC ps -q gateway 2>/dev/null | head -1)"
+  a="$(kho_anh):service-latest"
+  [ -n "$id" ] && a="$(docker inspect -f '{{.Image}}' "$id" 2>/dev/null || echo "$a")"
+  v="$(nhan_anh "$a")"
+  echo "${v:-không rõ}"
+}
+
+# Digest của ảnh trên máy (rỗng: chưa từng kéo/đẩy) và trên registry (rỗng: không hỏi được).
+digest_may() {
+  docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$1" 2>/dev/null | sed -n 's/^[^@]*@//p' | head -1
+}
+digest_kho() {
+  docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "$1" 2>/dev/null | tr -d '"'
+}
+nhan_kho() {
+  docker buildx imagetools inspect --format '{{index .Image.Config.Labels "org.opencontainers.image.version"}}' "$1" 2>/dev/null || true
+}
+
+# Kéo CHỈ KHI máy thiếu ảnh — lý do 2 ở trên. Có đủ thì nói ra là đã KHÔNG kéo, để
+# người chờ một bản mới biết đường đúng là `cap-nhat`.
+keo_anh_neu_thieu() {
+  for a in $($DC config --images | sort -u); do
+    docker image inspect "$a" > /dev/null 2>&1 || { keo_anh; return; }
+  done
+  echo "==> đủ ảnh trên máy — KHÔNG kéo bản mới (muốn cập nhật: ./csbh cap-nhat)"
+}
+
+# Thẻ cục bộ giữ đường lùi của một lượt cập nhật. Chỉ nằm trên máy, không bao giờ đẩy.
+THE_LUI="truoc-cap-nhat"
+
+# Trả mọi `-truoc-cap-nhat` về `-latest` (lùi ảnh). Thiếu một cái thì không đụng cái nào.
+tra_anh_cu() {
+  k="$(kho_anh)"
+  for tp in $ANH_TA; do
+    docker image inspect "${k}:${tp}-${THE_LUI}" > /dev/null 2>&1 || {
+      echo "  Không có ảnh ${k}:${tp}-${THE_LUI} để lùi về." >&2; return 1; }
+  done
+  for tp in $ANH_TA; do docker tag "${k}:${tp}-${THE_LUI}" "${k}:${tp}-latest"; done
+}
+
+# Migration mới nhất CSDL đã chạy (tên tệp), để `lui-lai` biết có lùi ảnh được không.
+migration_cuoi() {
+  q_ops "SELECT filename FROM sys.schema_migration ORDER BY filename DESC LIMIT 1"
+}
+
+# --- Hiển thị BƯỚC (`0270`, yêu cầu 08/11) ---------------------------------------
+#
+# Lệnh dài (cài, cập nhật, lùi) phải nói rõ bước nào ĐANG chạy và bước nào ĐÃ XONG:
+#
+#   [2/7] ▶ Sao lưu CSDL trước khi kéo ảnh…
+#   [2/7] ✔ Sao lưu CSDL trước khi kéo ảnh  (14 giây)
+#   [3/7] ✘ Kéo ảnh mới — HỎNG sau 3 giây
+#
+# `buoc_tong N` đặt tổng số bước; `buoc "tên"` đóng bước trước (✔) rồi mở bước mới;
+# `buoc_xong` đóng bước cuối; `buoc_bo "lý do"` đóng bước hiện tại là BỎ QUA (–).
+# Bước đang mở mà lệnh thoát với mã khác 0 thì `trap` in ✘ — không có bước nào
+# "treo" ở ▶ trên màn hình khi script đã chết. Ra STDOUT, không màu khi không phải
+# terminal (log cron/tệp nhật ký đọc được).
+if [ -t 1 ]; then _X=$(printf '\033[32m'); _D=$(printf '\033[31m'); _V=$(printf '\033[33m'); _H=$(printf '\033[1m'); _0=$(printf '\033[0m')
+else _X=''; _D=''; _V=''; _H=''; _0=''; fi
+BUOC_TONG=0; BUOC_SO=0; BUOC_TEN=''; BUOC_LUC=0
+buoc_tong() { BUOC_TONG=$1; BUOC_SO=0; BUOC_TEN=''; trap '_buoc_thoat $?' EXIT; }
+_buoc_dong() {
+  [ -n "$BUOC_TEN" ] || return 0
+  printf '%s[%s/%s] %s %s%s  (%s giây)\n' "$1" "$BUOC_SO" "$BUOC_TONG" "$2" "$BUOC_TEN" "$_0" "$(( $(date +%s) - BUOC_LUC ))"
+  BUOC_TEN=''
+}
+buoc() {
+  _buoc_dong "$_X" '✔'
+  BUOC_SO=$((BUOC_SO + 1)); BUOC_TEN=$1; BUOC_LUC=$(date +%s)
+  printf '\n%s[%s/%s] ▶ %s…%s\n' "$_H" "$BUOC_SO" "$BUOC_TONG" "$BUOC_TEN" "$_0"
+}
+buoc_xong() { _buoc_dong "$_X" '✔'; }
+buoc_bo() { BUOC_TEN="$BUOC_TEN — bỏ qua: $1"; _buoc_dong "$_V" '–'; }
+_buoc_thoat() {
+  if [ "$1" != 0 ] && [ -n "$BUOC_TEN" ]; then BUOC_TEN="$BUOC_TEN — HỎNG"; _buoc_dong "$_D" '✘'
+  else _buoc_dong "$_X" '✔'; fi
 }
 
 # --- Tác tử vận hành (`0254`) ------------------------------------------------
@@ -509,7 +610,7 @@ tac_tu_mot_nhip() {
   # Một việc một lúc. Tệp dấu do CHÍNH việc ấy gỡ khi xong — không dò bằng `kill -0`: tiến
   # trình đã xong mà shell chưa thu về vẫn trả "còn sống".
   ranh=true; [ -f "$TT/viec-dang-chay" ] && ranh=false
-  pb="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+  pb="$(phien_ban_may)"
   if ! viec="$(q_pg "SELECT ops.tac_tu_nhip(\$csbh_j\$$pb\$csbh_j\$, \$csbh_j\$$(hostname 2>/dev/null)\$csbh_j\$, $ranh)")"; then
     echo "tac-tu: không nối được CSDL — thử lại ở nhịp sau" >&2
     return 1
@@ -547,42 +648,121 @@ case "${1:-help}" in
       *) echo "Dùng: ./csbh tac-tu [--mot-nhip]" >&2; exit 2 ;;
     esac ;;
   len)
-    # Kéo hỏng mà đủ ảnh trên máy thì đi tiếp — xem `keo_anh`.
-    keo_anh || exit 1
+    buoc_tong 3
+    # Kéo CHỈ KHI thiếu ảnh (`0270`); kéo hỏng mà đủ ảnh thì đi tiếp — xem `keo_anh`.
+    buoc "Kiểm ảnh trên máy"
+    keo_anh_neu_thieu || exit 1
     # `migrate` chạy TRƯỚC, và là điều kiện của mọi service — `depends_on` đã khai
     # `service_completed_successfully`, nên `up -d` tự chờ. Gọi riêng ở đây để
     # người vận hành thấy kết quả migration thay vì thấy nó trôi trong log chung.
+    buoc "Chạy migration CSDL"
     $DC run --rm -T ops migrate
+    buoc "Dựng các service và chờ healthcheck"
     $DC up -d --wait
+    buoc_xong
     echo ""
-    echo "  Xong. Mở $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
+    echo "  Xong — phiên bản $(phien_ban_may). Mở $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
     ;;
   xuong)        $DC down ;;
   trang-thai)   $DC ps ;;
   log)          shift; $DC logs --tail=200 -f "$@" ;;
-  phien-ban)    grep -E '^CSBH_TAG=' .env | cut -d= -f2- ;;
+  phien-ban)    phien_ban_may ;;
 
   nang-cap)
-    the="${2:-}"
-    [ -n "$the" ] || { echo "dùng: ./csbh nang-cap <thẻ>   ví dụ 1.0.1" >&2; exit 2; }
-    # Sao lưu TRƯỚC khi đổi bất cứ thứ gì. Một lượt nâng cấp hỏng mà không có
-    # bản sao lưu ngay trước đó là một lượt không lùi lại được.
-    echo "==> sao lưu trước khi nâng cấp"
+    # Gỡ ở `0270`: máy chủ không còn thẻ số nào để nâng tới.
+    echo "Lệnh nang-cap đã thay bằng: ./csbh cap-nhat  (kéo bản latest mới nhất, có sao lưu và đường lùi)" >&2
+    exit 2 ;;
+
+  cap-nhat)
+    # =====================================================================
+    # CẬP NHẬT LÊN BẢN `latest` MỚI NHẤT, GIỮ DỮ LIỆU (`0270`).
+    # =====================================================================
+    #
+    # THỨ TỰ là toàn bộ sự an toàn của lệnh này:
+    #   1. hỏi registry BẰNG DIGEST, KHÔNG kéo — không có bản mới thì không đụng gì;
+    #   2. SAO LƯU bằng ảnh `ops` ĐANG có trên máy — kéo trước thì sao lưu chạy bằng
+    #      ảnh mới (đúng bẫy `pg_archivecleanup` của `0234`);
+    #   3. gắn `-truoc-cap-nhat` lên ảnh đang chạy — đường lùi;
+    #   4. kéo. Container vẫn chạy ảnh cũ (Docker giữ image ID), nên tới đây hệ
+    #      chưa bị đụng; kéo hỏng thì trả thẻ cũ và DỪNG;
+    #   5. migration rồi dựng lại.
+    k="$(kho_anh)"
+    buoc_tong 6
+    buoc "Hỏi registry có bản mới không"
+    cu="$(phien_ban_may)"
+    moi_co=""
+    for tp in $ANH_TA; do
+      dk="$(digest_kho "${k}:${tp}-latest")"
+      [ -n "$dk" ] || { echo "  Không hỏi được registry về ${k}:${tp}-latest — đăng nhập registry (docker login) rồi thử lại." >&2; exit 1; }
+      [ "$dk" = "$(digest_may "${k}:${tp}-latest")" ] || moi_co="$moi_co $tp"
+    done
+    if [ -z "$moi_co" ]; then
+      buoc_bo "đang là bản mới nhất, các bước còn lại không cần chạy"
+      echo ""; echo "  Đang là bản mới nhất (${cu}). Không đổi gì."
+      exit 0
+    fi
+    moi="$(nhan_kho "${k}:ops-latest")"
+    echo "  Có bản mới: ${cu} → ${moi:-không rõ}   (ảnh đổi:${moi_co})"
+
+    buoc "Sao lưu CSDL trước khi cập nhật"
     ops backup
-    cu="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
-    sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${the}|" .env
-    echo "==> ${cu} -> ${the}"
-    # `keo_anh` chứ không `$DC pull` trần (`0235`): một ảnh bên thứ ba biến khỏi
-    # registry thì lượt nâng cấp vẫn đi được nếu máy đang giữ ảnh ấy. Thiếu ảnh
-    # thật thì DỪNG và TRẢ `.env` về thẻ cũ — hệ đang chạy chưa bị đụng tới.
-    keo_anh || {
-      sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${cu}|" .env
-      echo "  Đã trả CSBH_TAG về ${cu}." >&2
+
+    buoc "Giữ đường lùi (gắn thẻ ${THE_LUI})"
+    for tp in $ANH_TA; do
+      docker image inspect "${k}:${tp}-latest" > /dev/null 2>&1 && docker tag "${k}:${tp}-latest" "${k}:${tp}-${THE_LUI}"
+    done
+    migration_cuoi > "$PWD/.migration-truoc-cap-nhat" || true
+
+    buoc "Kéo ảnh mới"
+    for tp in $ANH_TA; do
+      docker pull "${k}:${tp}-latest" > /dev/null || {
+        tra_anh_cu || true
+        echo "  Kéo ${k}:${tp}-latest hỏng. Đã trả ảnh cũ; hệ vẫn chạy bản ${cu}, chưa bị đụng." >&2
+        exit 1
+      }
+    done
+
+    buoc "Chạy migration CSDL"
+    $DC run --rm -T ops migrate || {
+      echo "  Migration hỏng. Dữ liệu có thể đã đổi một phần — lùi bằng bản sao lưu vừa tạo:" >&2
+      echo "    ./csbh phuc-hoi <tệp mới nhất>   rồi   ./csbh lui-lai" >&2
       exit 1
     }
-    $DC run --rm -T ops migrate
+
+    buoc "Dựng lại các service và chờ healthcheck"
+    $DC up -d --wait || {
+      echo "  Dựng lại hỏng. Lùi về bản ${cu}:  ./csbh lui-lai" >&2
+      exit 1
+    }
+    buoc_xong
+    echo ""
+    echo "  Xong: ${cu} → $(phien_ban_may)."
+    echo "  Lùi lại (khi cần, chỉ được khi bản mới chưa thêm migration): ./csbh lui-lai"
+    ;;
+
+  lui-lai)
+    # Về ảnh `-truoc-cap-nhat`. MIGRATION KHÔNG LÙI ĐƯỢC: nếu lượt cập nhật đã chạy
+    # migration mới thì ảnh cũ sẽ chạy trên một lược đồ nó không biết — trạng thái
+    # không ai kiểm. Khi ấy DỪNG và chỉ sang phục hồi từ bản sao lưu, không đoán hộ.
+    buoc_tong 3
+    buoc "Kiểm có lùi ảnh được không"
+    truoc="$(cat "$PWD/.migration-truoc-cap-nhat" 2>/dev/null || true)"
+    nay="$(migration_cuoi)"
+    if [ -z "$truoc" ] || [ "$truoc" != "$nay" ]; then
+      cat >&2 <<HET
+  KHÔNG lùi ảnh được: CSDL đã chạy migration ${nay:-?} sau lượt cập nhật (trước đó: ${truoc:-không rõ}).
+  Ảnh cũ không biết lược đồ mới. Đường đúng:
+    1. ./csbh phuc-hoi <bản sao lưu tạo lúc cập nhật>
+    2. ./csbh lui-lai
+HET
+      exit 1
+    fi
+    buoc "Trả ảnh về bản trước cập nhật"
+    tra_anh_cu
+    buoc "Dựng lại các service và chờ healthcheck"
     $DC up -d --wait
-    echo "  Xong. Lùi lại: ./csbh nang-cap ${cu}"
+    buoc_xong
+    echo ""; echo "  Đã lùi về bản $(phien_ban_may)."
     ;;
 
   upgrade)
@@ -590,39 +770,34 @@ case "${1:-help}" in
     # LÊN BẢN MỚI NHẤT, XOÁ SẠCH DỮ LIỆU, GIỮ NGUYÊN ĐỊA CHỈ (`0218`).
     # ==================================================================
     #
-    # Khác `nang-cap` ở HAI chuyện:
+    # Khác `cap-nhat` ở MỘT chuyện (từ `0270` cả hai cùng kéo `-latest`):
     #
-    #   1. không nhận thẻ — nó kéo `…-latest`, tức bản mới nhất bên đóng gói đã
-    #      đẩy. Nhưng `.env` KHÔNG BAO GIỜ mang chữ `latest`: số thật đọc từ nhãn
-    #      trong ảnh rồi ghim vào `CSBH_TAG` (xem `so_phien_ban`);
-    #   2. CSDL dựng lại từ TRỐNG và kho tệp dọn sạch — không hoàn tác được, nên
+    #   CSDL dựng lại từ TRỐNG và kho tệp dọn sạch — không hoàn tác được, nên
     #      bản mới bắt đầu lại từ bước tạo tài khoản Quản trị.
     #
     # Dùng cho bản chạy thử cần thử lại từ đầu trên mã mới. KHÔNG dùng cho hệ
-    # có dữ liệu thật — ở đó là `nang-cap <thẻ>`.
+    # có dữ liệu thật — ở đó là `cap-nhat`.
     #
     # BA THỨ KHÔNG ĐƯỢC ĐỤNG TỚI, mỗi thứ một lý do:
     #
     #   * `cloudflared` — địa chỉ quick tunnel chết theo tiến trình, nên dựng
     #     lại nó là đổi địa chỉ công khai và giết mọi liên kết trong những lá
     #     thư đã gửi. Ở đây nó được ĐO, xem `id_cloudflared`.
-    #   * `.env` ngoài dòng `CSBH_TAG` — `SITE_URL` đang mang địa chỉ đường hầm,
+    #   * `.env` — `SITE_URL` đang mang địa chỉ đường hầm,
     #     và mười service đọc nó.
     #   * volume `pgdata` — xoá volume là mất luôn mật khẩu Postgres đã khởi
     #     tạo (`0106`), và mọi thứ sau đó hỏng với "password authentication
     #     failed". Xoá CSDL thì đủ, và `reset-db.sh` làm đúng thế.
-    cu="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+    cu="$(phien_ban_may)"
 
-    # KÉO VÀ ĐỌC SỐ TRƯỚC KHI HỎI. Kéo ảnh không đụng container nào đang chạy,
-    # nên làm trước được — và nhờ vậy người vận hành thấy mình sắp lên BẢN NÀO
-    # ngay lúc gõ xác nhận, thay vì gõ "XOA-SACH" cho một thứ chưa biết là gì.
-    echo "==> kéo bản mới nhất từ registry"
-    keo_anh_latest
-    moi="$(so_phien_ban)"
+    # ĐỌC SỐ TRƯỚC KHI HỎI, KHÔNG KÉO (`0270`): số của bản mới đọc thẳng từ nhãn trên
+    # registry, nên người vận hành thấy mình sắp lên BẢN NÀO ngay lúc gõ xác nhận. Kéo
+    # để SAU bước sao lưu — từ `0270` thẻ `-latest` trên máy là thứ compose chạy, kéo
+    # trước thì lượt sao lưu chạy bằng ảnh `ops` mới thay vì bản đã ghi dữ liệu.
+    moi="$(nhan_kho "$(kho_anh):ops-latest")"
     [ -n "$moi" ] || {
-      echo "  Ảnh ops-latest KHÔNG mang nhãn phiên bản — nó dựng trước 0218." >&2
-      echo "  Bên đóng gói cần dựng lại (make dong-goi) và đẩy lại (make day-anh)," >&2
-      echo "  hoặc dùng: ./csbh nang-cap <thẻ>" >&2
+      echo "  Không đọc được phiên bản của ops-latest trên registry." >&2
+      echo "  Đăng nhập registry (docker login), hoặc kiểm bên đóng gói đã chạy make day-anh chưa." >&2
       exit 1
     }
 
@@ -641,7 +816,7 @@ case "${1:-help}" in
   Xong rồi thì phải làm lại hai bước cài đặt:
     ./csbh mo-tai-khoan     rồi    ./csbh nap-danh-muc
 
-  Muốn nâng bản mà GIỮ dữ liệu:   ./csbh nang-cap ${moi}
+  Muốn cập nhật mà GIỮ dữ liệu:   ./csbh cap-nhat
 
 HET
     [ "$cu" = "$moi" ] && echo "  (Bản mới nhất TRÙNG bản đang chạy — lượt này chỉ còn là làm sạch dữ liệu.)" && echo ""
@@ -649,24 +824,18 @@ HET
     read -r xn
     [ "$xn" = "XOA-SACH" ] || { echo "  Đã huỷ."; exit 1; }
 
-    # Sao lưu TRƯỚC mọi bước phá huỷ, cùng lý lẽ `nang-cap`: một lượt hỏng giữa
-    # chừng mà không có bản sao lưu ngay trước đó là một lượt không lùi lại
-    # được. Ở đây nó còn là thứ duy nhất cứu được một lượt gõ nhầm lệnh. Nó chạy
-    # bằng ảnh ops của bản CŨ — `CSBH_TAG` chưa đổi — tức đúng bản đã ghi dữ liệu.
+    # Sao lưu TRƯỚC mọi bước phá huỷ VÀ trước khi kéo: một lượt hỏng giữa chừng mà
+    # không có bản sao lưu ngay trước đó là một lượt không lùi lại được, và ở đây nó
+    # còn là thứ duy nhất cứu được một lượt gõ nhầm lệnh. Chưa kéo nên nó chạy bằng
+    # ảnh ops CŨ — đúng bản đã ghi dữ liệu.
     echo "==> sao lưu trước khi xoá"
     ops backup
 
     truoc="$(id_cloudflared)"
     [ -n "$truoc" ] && echo "==> đường hầm đang chạy, sẽ KHÔNG đụng tới"
 
-    # GHIM CON SỐ, không ghim `latest`. Gắn thẻ số lên ảnh vừa kéo NGAY TRÊN MÁY,
-    # nên compose tìm thấy `…-${moi}` mà không phải hỏi registry thêm một lượt
-    # nào — kể cả trên máy cách ly nạp ảnh bằng `docker load`.
-    kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
-    for tp in service web ops; do
-      docker tag "${kho}:${tp}-latest" "${kho}:${tp}-${moi}"
-    done
-    sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${moi}|" .env
+    echo "==> kéo bản mới nhất từ registry"
+    keo_anh_latest
     echo "==> ${cu} -> ${moi}"
 
     # HẠ SERVICE ỨNG DỤNG TRƯỚC KHI XOÁ, không hạ hạ tầng.
@@ -744,7 +913,7 @@ HET
     2. đăng nhập một lần để đổi mật khẩu lần đầu
     3. ./csbh nap-danh-muc     nạp danh mục mẫu
 
-  Về lại bản cũ (dữ liệu vẫn trống):  ./csbh nang-cap ${cu}
+  Về lại ảnh cũ (dữ liệu vẫn trống):  ./csbh lui-lai
   Lấy lại dữ liệu vừa xoá:             ./csbh phuc-hoi <tệp sao lưu>
 
 HET
@@ -881,7 +1050,8 @@ HET
       cp -a "$la/." "$ra/goi/logarchive/"
     fi
     {
-      echo "CSBH_TAG=$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+      # Số phiên bản đọc từ ẢNH đang chạy (`0270` — `.env` không còn con số nào).
+      echo "PHIEN_BAN=$(phien_ban_may)"
       echo "SITE_URL=$(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
       echo "COMPOSE_PROJECT_NAME=$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)"
       echo "XUAT_LUC=$luc"
@@ -904,7 +1074,7 @@ HET
 $(ls -1 "$ra" | sed 's/^/    /')
 
   Máy này ĐANG TẮT phần mềm (CSDL và kho tệp vẫn chạy). Trên máy MỚI:
-    1. giải nén bộ cài CÙNG phiên bản $(grep -E '^CSBH_TAG=' .env | cut -d= -f2-) — KHÔNG chạy cai-dat.sh
+    1. giải nén bộ cài (bản nào cũng được — lệnh nhập tự kéo đúng bản $(phien_ban_may)) — KHÔNG chạy cai-dat.sh
     2. ./csbh nhap-chuyen-may <gói dữ liệu> <gói bí mật>
 
   Thôi chuyển thì bật lại máy này: ./csbh len
@@ -924,8 +1094,9 @@ HET
     [ -f .env.mau ] || { echo "Không thấy .env.mau — đây không phải thư mục bộ cài." >&2; exit 1; }
 
     kho="$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-)"
-    the="$(grep -E '^CSBH_TAG=' .env.mau | cut -d= -f2-)"
-    anh="${kho}:ops-${the}"
+    # Ảnh ops nào cũng mở được gói (định dạng gói không đổi theo bản); ĐÚNG bản thì
+    # chốt ở dưới, sau khi đọc được gói nói máy cũ chạy bản nào.
+    anh="${kho}:ops-latest"
     docker image inspect "$anh" > /dev/null 2>&1 || docker pull "$anh" || {
       echo "Không có ảnh $anh. Đăng nhập registry (docker login) rồi thử lại." >&2; exit 1; }
 
@@ -940,13 +1111,6 @@ HET
       -v "$(dirname "$bm"):/vao:ro" -v "$tam:/ra" "$anh" \
       chuyen-may bi-mat-mo "/vao/$(basename "$bm")" /ra/bi-mat || { rm -rf "$tam"; exit 1; }
 
-    # CÙNG PHIÊN BẢN, không "mới hơn cũng được": nhập xong là đối chiếu từng bảng,
-    # mà một bản mới hơn có migration chạy lúc dựng — đối chiếu sẽ lệch đúng ở chỗ
-    # migration vừa đổi. Nâng bản là việc RIÊNG, sau khi đã chuyển xong.
-    the_cu="$(grep -E '^CSBH_TAG=' "$tam/bi-mat/.env" | cut -d= -f2-)"
-    [ "$the_cu" = "$the" ] || {
-      echo "Máy cũ chạy bản $the_cu, bộ cài này là $the. Giải nén bộ cài bản $the_cu rồi chạy lại." >&2
-      rm -rf "$tam"; exit 1; }
     du_an="$(grep -E '^COMPOSE_PROJECT_NAME=' "$tam/bi-mat/.env" | cut -d= -f2-)"
     ! docker volume inspect "${du_an}_pgdata" > /dev/null 2>&1 || {
       echo "Máy này đã có CSDL của dự án $du_an (volume ${du_an}_pgdata). Không nhập đè." >&2
@@ -955,8 +1119,26 @@ HET
     echo "==> mở gói dữ liệu"
     docker run --rm --user "$NGUOI" -v "$(dirname "$goi"):/vao:ro" -v "$tam:/ra" "$anh" \
       chuyen-may mo-goi "/vao/$(basename "$goi")" /ra/goi || { rm -rf "$tam"; exit 1; }
-    grep -qx "CSBH_TAG=$the" "$tam/goi/thong-tin.txt" || {
-      echo "Gói dữ liệu không phải của bản $the (xem thong-tin.txt trong gói)." >&2; rm -rf "$tam"; exit 1; }
+
+    # CÙNG PHIÊN BẢN, không "mới hơn cũng được": nhập xong là đối chiếu từng bảng,
+    # mà một bản mới hơn có migration chạy lúc dựng — đối chiếu sẽ lệch đúng ở chỗ
+    # migration vừa đổi. Cập nhật là việc RIÊNG, sau khi đã chuyển xong.
+    #
+    # Từ `0270` máy chạy `-latest`, mà `latest` trên registry có thể đã đi trước máy
+    # cũ. Nên: kéo THẺ SỐ của đúng bản máy cũ (registry giữ mọi thẻ số) rồi gắn nó
+    # thành `-latest` NGAY TRÊN MÁY — compose chạy đúng bản ấy mà `.env` không mang số.
+    the="$(grep -E '^PHIEN_BAN=' "$tam/goi/thong-tin.txt" | cut -d= -f2-)"
+    [ -n "$the" ] || the="$(grep -E '^CSBH_TAG=' "$tam/goi/thong-tin.txt" | cut -d= -f2-)"   # gói xuất trước 0270
+    [ -n "$the" ] || { echo "Gói dữ liệu không nói máy cũ chạy bản nào (thong-tin.txt)." >&2; rm -rf "$tam"; exit 1; }
+    if [ "$(nhan_anh "$anh")" != "$the" ]; then
+      echo "==> máy cũ chạy bản $the — kéo đúng bản ấy"
+      for tp in service web ops; do
+        docker pull "${kho}:${tp}-${the}" > /dev/null && docker tag "${kho}:${tp}-${the}" "${kho}:${tp}-latest" || {
+          echo "Không kéo được ${kho}:${tp}-${the}. Đăng nhập registry rồi thử lại." >&2; rm -rf "$tam"; exit 1; }
+      done
+    fi
+    docker image inspect "${kho}:minio-latest" > /dev/null 2>&1 || docker pull "${kho}:minio-latest" > /dev/null || {
+      echo "Không kéo được ${kho}:minio-latest." >&2; rm -rf "$tam"; exit 1; }
 
     cp "$tam/bi-mat/.env" .env && chmod 600 .env
     mkdir -p secrets && cp -a "$tam/bi-mat/secrets/." secrets/ && chmod 600 secrets/*

@@ -1,15 +1,17 @@
 /**
- * `0235` — `./csbh nang-cap` đi tiếp khi một ảnh BÊN THỨ BA không kéo được mà
- * máy đang giữ sẵn nó; thiếu ảnh thật thì dừng và trả `.env` về thẻ cũ.
+ * `0270` — `./csbh cap-nhat` · `lui-lai` · `len` dưới mô hình thẻ `-latest`, và phần
+ * hiển thị BƯỚC (yêu cầu 08/11: *"phải hiển thị rõ bước nào đang chạy, bước nào đã xong"*).
  *
- * 29/09 kho `minio/minio` trên Docker Hub trả `pull access denied` (cả thẻ ghim
- * của ta), và `nang-cap` — gọi `$DC pull` trần dưới `set -e` — chết ngay sau bước
- * sao lưu trên hệ thật. `len` đã có đường vòng từ `0107`; giờ cả hai gọi chung
- * `keo_anh`.
+ * Thay ca `0235` của `nang-cap <thẻ>` (lệnh ấy gỡ ở `0270`). Đường vòng *"kéo hỏng mà đủ
+ * ảnh trên máy thì đi tiếp"* của `0235` vẫn sống trong `keo_anh`, giờ do `len` gọi khi
+ * thiếu ảnh — có ca riêng ở cuối.
  *
- * Chạy CHÍNH `scripts/csbh` với một lệnh `docker` giả đặt đầu `PATH`: giả lập
- * `compose pull` hỏng, `config --images` liệt kê ảnh, `image inspect` trả lời
- * theo danh sách ảnh "có trên máy", và ghi mọi lượt gọi ra một tệp để đọc lại.
+ * Thứ canh ở đây là THỨ TỰ, vì đó là toàn bộ sự an toàn của `cap-nhat`:
+ *   hỏi registry KHÔNG kéo → sao lưu bằng ảnh CŨ → giữ đường lùi → kéo → migrate → dựng.
+ * Và hai lý do cũ của `0218` mà mô hình `latest` phải giữ: `len` KHÔNG kéo khi đủ ảnh;
+ * phiên bản đọc từ ảnh, không từ `.env`.
+ *
+ * Chạy CHÍNH `scripts/csbh` với một `docker` giả đặt đầu `PATH`, ghi mọi lượt gọi ra tệp.
  */
 import { execFile } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,71 +22,213 @@ import { describe, expect, it } from 'vitest';
 
 const chay = promisify(execFile);
 
-const ANH = ['minio/minio:RELEASE.2024-09-22T00-33-43Z', 'kho/csbh:ops-1.0.5', 'kho/csbh:service-1.0.5'];
+const ANH = ['minio/minio:RELEASE.2024-09-22T00-33-43Z', 'kho/csbh:ops-latest', 'kho/csbh:service-latest'];
 
 const DOCKER_GIA = `#!/bin/sh
 echo "$*" >> "$NHAT_KY"
 case "$*" in
-  *" pull") exit 1 ;;
-  *"config --images"*) printf '%s\\n' ${ANH.join(' ')} ;;
+  *"buildx imagetools inspect --format {{json .Manifest.Digest}}"*)
+    [ "\${KHO_HONG:-0}" = 1 ] && exit 1
+    echo "\\"\${DIGEST_KHO:-sha256:moi}\\"" ;;
+  *"buildx imagetools inspect"*"org.opencontainers.image.version"*) echo 1.4.0 ;;
+  *"image inspect -f {{range .RepoDigests}}"*) echo "kho/csbh@\${DIGEST_MAY:-sha256:cu}" ;;
+  *"image inspect -f"*"org.opencontainers.image.version"*) echo "\${NHAN:-1.3.0}" ;;
   "image inspect "*)
+    [ -z "\${CO_ANH+x}" ] && exit 0
     for a in $CO_ANH; do [ "$a" = "$3" ] && exit 0; done
     exit 1 ;;
+  "pull "*) [ "\${PULL_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
+  *" pull") [ "\${COMPOSE_PULL_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
+  *"config --images"*) printf '%s\\n' ${ANH.join(' ')} ;;
+  *" ops backup"*) [ "\${BACKUP_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
+  *"sys.schema_migration"*) echo "\${MIG:-0132_noi_dung_khoan_cpbh.sql}" ;;
+  *" ops migrate"*) [ "\${MIGRATE_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
+  *"up -d --wait"*) [ "\${UP_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
   *) exit 0 ;;
 esac
 `;
 
-/** Dựng một thư mục cài đặt giả, chạy `./csbh nang-cap 1.0.5`, trả kết quả. */
-async function nangCap(coAnh: string[]) {
-  const d = mkdtempSync(join(tmpdir(), 'csbh-'));
+type Kq = { ma: number; ra: string; loi: string; goi: string; d: string };
+
+async function csbh(lenh: string[], dat: Record<string, string> = {}, truoc?: (d: string) => void): Promise<Kq> {
+  const d = mkdtempSync(join(tmpdir(), 'csbh-cn-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_TAG=1.0.4\n');
+  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nSITE_URL=https://csbh.test\n');
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
+  truoc?.(d);
   const nhatKy = join(d, 'goi.log');
   writeFileSync(nhatKy, '');
-  const env = { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, CO_ANH: coAnh.join(' ') };
-  let ma = 0;
-  let loi = '';
+  const env = { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, ...dat };
   try {
-    await chay('sh', [join(d, 'csbh'), 'nang-cap', '1.0.5'], { env });
+    const r = await chay('sh', [join(d, 'csbh'), ...lenh], { env, cwd: d });
+    return { ma: 0, ra: r.stdout, loi: r.stderr, goi: readFileSync(nhatKy, 'utf8'), d };
   } catch (e) {
-    ma = (e as { code?: number }).code ?? 1;
-    loi = String((e as { stderr?: string }).stderr ?? '');
+    const x = e as { code?: number; stdout?: string; stderr?: string };
+    return { ma: x.code ?? 1, ra: x.stdout ?? '', loi: x.stderr ?? '', goi: readFileSync(nhatKy, 'utf8'), d };
   }
-  return {
-    ma,
-    loi,
-    goi: readFileSync(nhatKy, 'utf8'),
-    the: /^CSBH_TAG=(.*)$/m.exec(readFileSync(join(d, '.env'), 'utf8'))![1],
-  };
 }
 
-describe('`0235` nang-cap chịu được ảnh bên thứ ba không kéo được', () => {
-  it('kéo hỏng nhưng ĐỦ ảnh trên máy → sao lưu, migrate, dựng lại, thẻ mới', async () => {
-    const r = await nangCap(ANH);
+/** Mọi mốc có mặt trong nhật ký gọi `docker`, theo đúng thứ tự. */
+function thuTu(goi: string, moc: string[]) {
+  const vt = moc.map((m) => goi.indexOf(m));
+  expect(vt.every((i) => i >= 0), `thiếu mốc: ${moc.filter((_, i) => vt[i]! < 0).join(' | ')}\n${goi}`).toBe(true);
+  expect([...vt].sort((a, b) => a - b), goi).toEqual(vt);
+}
+
+describe('`0270` cap-nhat', () => {
+  it('registry TRÙNG digest với máy → không sao lưu, không kéo, không dựng lại', async () => {
+    const r = await csbh(['cap-nhat'], { DIGEST_KHO: 'sha256:cu' });
     expect(r.ma, r.loi).toBe(0);
-    expect(r.the).toBe('1.0.5');
-    const thuTu = ['ops backup', ' pull', 'ops migrate', 'up -d --wait'].map((k) => r.goi.indexOf(k));
-    expect(thuTu.every((i) => i >= 0), r.goi).toBe(true);
-    expect([...thuTu].sort((a, b) => a - b)).toEqual(thuTu);
+    expect(r.ra).toContain('Đang là bản mới nhất (1.3.0)');
+    for (const k of ['ops backup', 'pull ', 'ops migrate', 'up -d']) expect(r.goi, k).not.toContain(k);
   });
 
-  it('THIẾU ảnh thật → dừng trước migrate, `.env` trả về thẻ cũ', async () => {
-    const r = await nangCap([ANH[0]!, ANH[2]!]);
+  it('CÓ bản mới → hỏi registry → SAO LƯU → giữ đường lùi → kéo → migrate → dựng, đúng thứ tự', async () => {
+    const r = await csbh(['cap-nhat']);
+    expect(r.ma, r.loi + r.ra).toBe(0);
+    thuTu(r.goi, [
+      'buildx imagetools inspect',
+      'ops backup',
+      'tag kho/csbh:ops-latest kho/csbh:ops-truoc-cap-nhat',
+      'pull kho/csbh:ops-latest',
+      'ops migrate',
+      'up -d --wait',
+    ]);
+    // Đủ bốn ảnh của kho ta, kể cả MinIO nhân bản.
+    for (const tp of ['service', 'web', 'ops', 'minio']) expect(r.goi).toContain(`pull kho/csbh:${tp}-latest`);
+    expect(r.ra).toContain('1.3.0 → 1.4.0');
+  });
+
+  it('KHÔNG kéo trước khi sao lưu — lượt sao lưu phải chạy bằng ảnh ops CŨ', async () => {
+    const r = await csbh(['cap-nhat']);
+    expect(r.goi.indexOf('ops backup')).toBeLessThan(r.goi.indexOf('pull '));
+  });
+
+  it('không hỏi được registry → dừng trước mọi việc, nói đăng nhập registry', async () => {
+    const r = await csbh(['cap-nhat'], { KHO_HONG: '1' });
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('docker login');
+    expect(r.goi).not.toContain('ops backup');
+    expect(r.goi).not.toContain('pull ');
+  });
+
+  it('sao lưu HỎNG → không kéo, không gắn thẻ, không dựng — hệ chưa bị đụng', async () => {
+    const r = await csbh(['cap-nhat'], { BACKUP_HONG: '1' });
     expect(r.ma).not.toBe(0);
-    expect(r.loi).toContain('kho/csbh:ops-1.0.5');
-    expect(r.the).toBe('1.0.4');
+    for (const k of ['pull ', 'truoc-cap-nhat', 'ops migrate', 'up -d']) expect(r.goi, k).not.toContain(k);
+  });
+
+  it('kéo HỎNG → trả thẻ `-truoc-cap-nhat` về `-latest`, không migrate, không dựng', async () => {
+    const r = await csbh(['cap-nhat'], { PULL_HONG: '1' });
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('hệ vẫn chạy bản 1.3.0');
+    thuTu(r.goi, ['pull kho/csbh:', 'tag kho/csbh:service-truoc-cap-nhat kho/csbh:service-latest']);
     expect(r.goi).not.toContain('ops migrate');
     expect(r.goi).not.toContain('up -d');
   });
 
-  it('không lệnh con nào của `csbh` gọi `$DC pull` trần ngoài `keo_anh`', () => {
-    const ma = readFileSync('scripts/csbh', 'utf8')
-      .split('\n')
-      .filter((d) => !/^\s*#/.test(d));
-    const tran = ma.filter((d) => /\$DC pull\b/.test(d));
-    expect(tran.map((d) => d.trim())).toEqual(['$DC pull && return 0']);
+  it('migration HỎNG → không dựng, chỉ đường phục hồi + lùi', async () => {
+    const r = await csbh(['cap-nhat'], { MIGRATE_HONG: '1' });
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('./csbh phuc-hoi');
+    expect(r.goi).not.toContain('up -d');
+  });
+
+  it('ghi lại migration cuối TRƯỚC khi kéo — thứ `lui-lai` cần để biết có lùi được không', async () => {
+    const r = await csbh(['cap-nhat']);
+    expect(readFileSync(join(r.d, '.migration-truoc-cap-nhat'), 'utf8').trim()).toBe('0132_noi_dung_khoan_cpbh.sql');
+  });
+});
+
+describe('`0270` hiển thị BƯỚC — bước nào đang chạy, bước nào đã xong', () => {
+  it('mỗi bước có dòng ▶ lúc bắt đầu và ✔ lúc xong, đánh số [i/N]', async () => {
+    const r = await csbh(['cap-nhat']);
+    for (let i = 1; i <= 6; i++) {
+      expect(r.ra, `bước ${i} không có dòng bắt đầu`).toMatch(new RegExp(`\\[${i}/6\\] ▶ `));
+      expect(r.ra, `bước ${i} không có dòng xong`).toMatch(new RegExp(`\\[${i}/6\\] ✔ .*\\(\\d+ giây\\)`));
+    }
+    // ✔ của một bước đứng SAU ▶ của chính nó và TRƯỚC ▶ của bước kế.
+    const iBat2 = r.ra.indexOf('[2/6] ▶');
+    const iXong2 = r.ra.indexOf('[2/6] ✔');
+    expect(iBat2).toBeLessThan(iXong2);
+    expect(iXong2).toBeLessThan(r.ra.indexOf('[3/6] ▶'));
+  });
+
+  it('bước HỎNG in ✘ — không có bước nào treo ở ▶ khi lệnh đã chết', async () => {
+    const r = await csbh(['cap-nhat'], { BACKUP_HONG: '1' });
+    expect(r.ra).toMatch(/\[2\/6\] ✘ Sao lưu CSDL trước khi cập nhật — HỎNG/);
+    expect(r.ra).not.toContain('[3/6]');
+  });
+
+  it('bước BỎ QUA in – kèm lý do', async () => {
+    const r = await csbh(['cap-nhat'], { DIGEST_KHO: 'sha256:cu' });
+    expect(r.ra).toMatch(/\[1\/6\] – .*bỏ qua: đang là bản mới nhất/);
+  });
+
+  it('`len` cũng hiện bước', async () => {
+    const r = await csbh(['len']);
+    expect(r.ma, r.loi).toBe(0);
+    expect(r.ra).toMatch(/\[3\/3\] ✔ Dựng các service/);
+  });
+});
+
+describe('`0270` lui-lai', () => {
+  const daCapNhat = (mig: string) => (d: string) => writeFileSync(join(d, '.migration-truoc-cap-nhat'), `${mig}\n`);
+
+  it('chưa có migration mới → trả ảnh `-truoc-cap-nhat` về `-latest` rồi dựng', async () => {
+    const r = await csbh(['lui-lai'], {}, daCapNhat('0132_noi_dung_khoan_cpbh.sql'));
+    expect(r.ma, r.loi).toBe(0);
+    thuTu(r.goi, ['tag kho/csbh:ops-truoc-cap-nhat kho/csbh:ops-latest', 'up -d --wait']);
+  });
+
+  it('CSDL ĐÃ chạy migration mới → DỪNG, chỉ sang phục hồi, không đụng ảnh', async () => {
+    const r = await csbh(['lui-lai'], { MIG: '0133_moi.sql' }, daCapNhat('0132_noi_dung_khoan_cpbh.sql'));
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('./csbh phuc-hoi');
+    expect(r.goi).not.toContain('truoc-cap-nhat kho/csbh');
+    expect(r.goi).not.toContain('up -d');
+  });
+
+  it('chưa từng cap-nhat (không có mốc) → DỪNG', async () => {
+    const r = await csbh(['lui-lai']);
+    expect(r.ma).toBe(1);
+    expect(r.goi).not.toContain('up -d');
+  });
+
+  it('thiếu một ảnh `-truoc-cap-nhat` → không gắn lại cái nào', async () => {
+    const r = await csbh(['lui-lai'], { CO_ANH: 'kho/csbh:service-truoc-cap-nhat' }, daCapNhat('0132_noi_dung_khoan_cpbh.sql'));
+    expect(r.ma).not.toBe(0);
+    expect(r.goi).not.toMatch(/^tag /m);
+  });
+});
+
+describe('`0270` len KHÔNG kéo khi đủ ảnh — lý do thứ hai của `0218`', () => {
+  it('đủ ảnh trên máy → không gọi pull, và nói đường cập nhật', async () => {
+    const r = await csbh(['len']);
+    expect(r.goi).not.toMatch(/ pull$/m);
+    expect(r.ra).toContain('./csbh cap-nhat');
+  });
+
+  it('thiếu ảnh → kéo; kéo hỏng mà ĐỦ ảnh thì đi tiếp (đường vòng `0235`)', async () => {
+    const r = await csbh(['len'], { CO_ANH: ANH.slice(1).join(' '), COMPOSE_PULL_HONG: '1' });
+    // Thiếu ảnh MinIO gốc ở lượt kiểm đầu → kéo; kéo hỏng → kiểm lại vẫn thiếu → dừng.
+    expect(r.goi).toMatch(/ pull$/m);
+    expect(r.ma).toBe(1);
+    expect(r.loi).toContain('THIẾU ảnh');
+    expect(r.goi).not.toContain('ops migrate');
+  });
+
+  it('`phien-ban` đọc NHÃN của ảnh, không đọc `.env`', async () => {
+    const r = await csbh(['phien-ban'], { NHAN: '1.3.7' });
+    expect(r.ra.trim()).toBe('1.3.7');
+  });
+
+  it('`nang-cap` đã gỡ — nói lệnh thay thế', async () => {
+    const r = await csbh(['nang-cap', '1.0.5']);
+    expect(r.ma).toBe(2);
+    expect(r.loi).toContain('./csbh cap-nhat');
+    expect(r.goi).toBe('');
   });
 });

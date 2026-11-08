@@ -322,19 +322,39 @@ hình Quản trị). Thư gửi ba lần không được thì vào đó kèm ngu
 
 ---
 
-## 5. Nâng cấp và lùi bản
+## 5. Cập nhật và lùi bản `sửa 08/11`
+
+Máy chạy thẻ **`-latest`** của bốn ảnh phần mềm (`0270`). Cập nhật là MỘT lệnh:
 
 ```sh
-./csbh nang-cap 1.0.3
+./csbh cap-nhat
 ```
 
-Sao lưu → đổi thẻ → kéo ảnh → migration → dựng lại. Lệnh in ra thẻ cũ khi xong;
-lùi bản là chạy lại với thẻ ấy.
+Màn hình in từng bước `[i/6] ▶ …` lúc bắt đầu và `[i/6] ✔ … (N giây)` lúc xong
+(`✘` khi hỏng, `–` khi bỏ qua):
 
-**Migration không lùi được.** Lùi ảnh về bản cũ trong khi CSDL đã đi tới lược đồ
-mới là một trạng thái không được kiểm thử. Nếu một lượt nâng cấp hỏng ở phần
-CSDL thì đường đúng là **phục hồi từ bản sao lưu ngay trước đó** — chính vì vậy
-`nang-cap` sao lưu trước khi đụng vào bất cứ thứ gì.
+1. **Hỏi registry có bản mới không — KHÔNG kéo.** Trùng bản đang chạy thì dừng ở
+   đây, không đụng gì: *"Đang là bản mới nhất (1.3.0)"*.
+2. **Sao lưu CSDL** bằng ảnh đang chạy. Hỏng → dừng, hệ chưa bị đụng.
+3. **Giữ đường lùi**: ảnh đang chạy được gắn thêm thẻ `-truoc-cap-nhat` (chỉ trên máy).
+4. **Kéo ảnh mới.** Hỏng → ảnh cũ được trả lại, hệ vẫn chạy bản cũ.
+5. **Migration CSDL.**
+6. **Dựng lại** và chờ mọi service khoẻ.
+
+`./csbh phien-ban` đọc số phiên bản **từ chính ảnh đang chạy**. Không lệnh nào khác
+kéo ảnh: `./csbh len`, khởi động lại máy hay chạy lại bộ cài đều dùng ảnh đã có, nên
+máy không bao giờ tự đổi bản mà không ai chủ ý.
+
+**Lùi về bản trước lượt cập nhật gần nhất:**
+
+```sh
+./csbh lui-lai
+```
+
+Chỉ được khi bản mới **chưa thêm migration** nào — lệnh tự kiểm và nói ra. **Migration
+không lùi được**: ảnh cũ chạy trên lược đồ mới là trạng thái không ai kiểm, nên khi CSDL
+đã đi tới lược đồ mới thì đường đúng là `./csbh phuc-hoi <bản sao lưu tạo ở bước 2>`
+rồi mới `./csbh lui-lai`.
 
 ### Lên bản mới nhất cho bản chạy thử, và làm sạch dữ liệu `mới 21/09`
 
@@ -344,23 +364,21 @@ CSDL thì đường đúng là **phục hồi từ bản sao lưu ngay trước 
 
 Không nhận thẻ nào: lệnh kéo **bản mới nhất** bên đóng gói đã đẩy lên (thẻ
 `…-latest`), cho bạn thấy nó là bản số mấy, rồi mới hỏi xác nhận. Giống
-`nang-cap`, **cộng thêm một việc không hoàn tác được**: CSDL bị xoá hẳn rồi dựng
+`cap-nhat`, **cộng thêm một việc không hoàn tác được**: CSDL bị xoá hẳn rồi dựng
 lại từ trống, và kho tệp dọn sạch. Dùng khi bản chạy thử cần thử lại từ đầu trên
 mã mới — **không dùng cho hệ đã có dữ liệu thật**.
 
 | | |
 | --- | --- |
 | Mất gì | Mọi hồ sơ · khách hàng · danh mục · quy định chiết khấu · **mọi tài khoản, kể cả Quản trị** · mọi tệp đã tải lên · toàn bộ nhật ký kiểm toán |
-| Giữ gì | Tệp `.env` (trừ dòng `CSBH_TAG`), bí mật trong `secrets/`, volume dữ liệu Postgres, và **đường hầm Cloudflare đang mở** |
+| Giữ gì | Tệp `.env`, bí mật trong `secrets/`, volume dữ liệu Postgres, và **đường hầm Cloudflare đang mở** |
 | Hỏi lại | Có — in ra *"Bản đang chạy / Sẽ lên bản"*, rồi phải gõ `XOA-SACH`. Và lệnh **sao lưu trước** khi xoá |
 | Sau đó phải làm | `./csbh mo-tai-khoan` → đăng nhập một lần để đổi mật khẩu → `./csbh nap-danh-muc` |
 | Lấy lại dữ liệu vừa xoá | `./csbh phuc-hoi <tệp sao lưu>` — bản sao lưu nằm ngay trước lượt xoá |
-| Về lại bản cũ | `./csbh nang-cap <thẻ cũ>` — lệnh in ra thẻ ấy khi xong |
+| Về lại ảnh cũ | `./csbh lui-lai` (dữ liệu vẫn trống) |
 
-**`./csbh phien-ban` vẫn in ra một CON SỐ, không phải `latest`.** Lệnh kéo ảnh
-bằng thẻ `latest`, đọc số phiên bản thật ghi trong ảnh, rồi ghim **con số ấy**
-vào `.env`. Nên sau lượt này hệ thống vẫn nói được nó đang chạy bản nào, và một
-lượt `./csbh len` về sau không tự đổi sang bản mới hơn mà không ai chủ ý.
+**`./csbh phien-ban` in ra một CON SỐ** — đọc từ nhãn trong ảnh đang chạy, không từ
+`.env` (`0270`). Lệnh sao lưu TRƯỚC rồi mới kéo ảnh mới.
 
 **Địa chỉ công khai KHÔNG đổi**, và đó là điểm khác `xuong` rồi `len`. Địa chỉ
 của một quick tunnel chết theo tiến trình `cloudflared`, nên lệnh này cố ý không
@@ -371,10 +389,10 @@ biết ngay thay vì biết khi có người báo liên kết chết.
 
 > **Lệnh dừng với *"ops-latest KHÔNG mang nhãn phiên bản"*?** Ảnh trên registry
 > được dựng trước khi phần mềm biết ghi số vào ảnh. Bên đóng gói chạy lại
-> `make dong-goi` rồi `make day-anh`; trong lúc chờ, dùng `./csbh nang-cap <thẻ>`.
+> `make dong-goi` rồi `make day-anh`.
 
-> **`nang-cap` hay `upgrade`?** `nang-cap <thẻ>` giữ dữ liệu, nhận một thẻ cụ
-> thể, và là lệnh dùng cho hệ thật. `upgrade` chỉ dành cho bản chạy thử, và câu
+> **`cap-nhat` hay `upgrade`?** `cap-nhat` giữ dữ liệu và là lệnh dùng cho hệ
+> thật. `upgrade` chỉ dành cho bản chạy thử, và câu
 > hỏi để phân biệt là: *"sau lượt này có phải tạo lại tài khoản Quản trị không?"*
 > — `upgrade` thì có.
 

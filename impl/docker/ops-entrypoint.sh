@@ -94,7 +94,7 @@ case "${1:-help}" in
     # lượt gọi này đã đi qua hai cổng khác.
     [ "${XAC_NHAN_XOA_SACH:-}" = "XOA-SACH" ] || {
       echo "csbh-ops lam-sach: phải đặt XAC_NHAN_XOA_SACH=XOA-SACH một cách có ý thức." >&2
-      echo "Việc này XOÁ HẲN mọi dữ liệu. Muốn nâng bản mà GIỮ dữ liệu: ./csbh nang-cap <thẻ>." >&2
+      echo "Việc này XOÁ HẲN mọi dữ liệu. Muốn cập nhật mà GIỮ dữ liệu: ./csbh cap-nhat." >&2
       exit 1
     }
     shift

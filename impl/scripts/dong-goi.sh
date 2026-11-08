@@ -36,17 +36,13 @@
 # nhận nội dung khác mà `./csbh phien-ban` vẫn in ra đúng con số cũ — không có
 # cách nào phát hiện từ máy chủ. Sha trong thẻ trước đây chặn đúng chuyện này.
 #
-# `latest` — ĐẢO MỘT NỬA ở `0218`, và nửa còn lại vẫn giữ nguyên.
+# `latest` — ĐẢO MỘT NỬA ở `0218`, rồi ĐẢO NỐT ở `0270`.
 #
-# Tới `0217` dòng này viết *"Vẫn không bao giờ là `latest`"*, với hai lý do ở
-# đầu `compose.prod.yml`: `pull` một tháng sau đổi thứ đang chạy mà không ai chủ
-# ý, và không có cách nào nói máy chủ đang chạy bản nào. Cả hai vẫn ĐÚNG.
-#
-# Cái đổi là `latest` giờ CÓ trên registry, như một CON TRỎ tới bản mới nhất,
-# để `./csbh upgrade` của bản chạy thử kéo về mà không phải biết số. Hai lý do
-# kia được giữ bằng cách **`latest` KHÔNG BAO GIỜ vào `.env`**: `upgrade` đọc số
-# phiên bản thật từ nhãn trong ảnh (xem `anh`) rồi ghim con số ấy vào
-# `CSBH_TAG`. Thẻ số vẫn là nguồn sự thật, và vẫn được đẩy lên song song.
+# `0218`: `latest` có trên registry như một CON TRỎ, nhưng không bao giờ vào `.env`.
+# `0270` (yêu cầu 08/11): máy chủ CHẠY thẻ `-latest`, cập nhật bằng `./csbh cap-nhat`.
+# Hai lý do cũ chống `latest` được giữ bằng cơ chế khác — ảnh tự mang số phiên bản
+# (`--build-arg APP_VERSION` + nhãn OCI ở `anh`), và chỉ `cap-nhat` kéo ảnh. Thẻ số
+# vẫn đẩy TRƯỚC `latest`: nó là đường về một bản cụ thể (chuyển máy kéo đúng thẻ số).
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -91,7 +87,10 @@ NHAN="org.opencontainers.image.version=${TAG}"
 
 anh() {
   echo "==> dựng ${IMG}:service-${TAG}"
-  docker build -f docker/Dockerfile --label "$NHAN" -t "${IMG}:service-${TAG}" .
+  # `APP_VERSION` NƯỚNG VÀO ẢNH (`0270`) — máy chủ chạy `-latest`, compose không còn
+  # đặt biến ấy; thiếu dòng này thì mười một service tự báo `0.0.0-dev`.
+  docker build -f docker/Dockerfile --label "$NHAN" --build-arg "APP_VERSION=${TAG}" \
+    -t "${IMG}:service-${TAG}" .
 
   echo "==> dựng ${IMG}:web-${TAG}"
   docker build -f docker/Dockerfile.web --label "$NHAN" \
@@ -138,6 +137,10 @@ day_minio() {
     echo "Chưa có ${MINIO_BAN} trên máy — chạy: sh scripts/dong-goi.sh anh" >&2; exit 1; }
   echo "==> đẩy ${MINIO_BAN}"
   docker push "$MINIO_BAN"
+  # `minio-latest` (`0270`): máy chủ chạy thẻ `-latest` cho MỌI ảnh của kho ta.
+  echo "==> đẩy ${IMG}:minio-latest  (trỏ tới ${MINIO_BAN##*:})"
+  docker tag "$MINIO_BAN" "${IMG}:minio-latest"
+  docker push "${IMG}:minio-latest"
 }
 
 day() {
@@ -192,7 +195,7 @@ goi() {
   cp templates/*.docx "$goc/mau-van-ban/"
 
   # --- Bản khai môi trường --------------------------------------------------
-  sed -e "s|__TAG__|${TAG}|" -e "s|__IMAGE__|${IMG}|" deploy/env.mau > "$goc/.env.mau"
+  sed -e "s|__IMAGE__|${IMG}|" deploy/env.mau > "$goc/.env.mau"
 
   cat > "$goc/README.md" <<HET
 # Chính sách bán hàng (CSBH) — bản ${TAG}

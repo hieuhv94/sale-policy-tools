@@ -35,6 +35,8 @@ case "$*" in
     [ "\${VAN_HANH_HONG:-0}" = 1 ] && exit 1
     for a; do ten=$a; done
     mkdir -p "$LOG_GIA/dang-ghi"; cat >> "$LOG_GIA/dang-ghi/$ten" ;;
+  # \`0270\`: phiên bản đọc từ NHÃN của ảnh, không từ \`.env\`.
+  *"image inspect -f"*"org.opencontainers.image.version"*) echo 1.1.0 ;;
   *" ps -a --format json"*) echo '{"Service":"postgres","State":"running","Health":"healthy"}' ;;
   *"system df -v --format json"*) echo '{"Volumes":[{"Name":"csbh-prod_pgdata","Size":"1GB"}]}' ;;
   *"system df --format json"*) echo '{"Type":"Images","Size":"4.2GB"}' ;;
@@ -59,7 +61,7 @@ function chuanBi(): string {
   copyFileSync('scripts/csbh', join(d, 'csbh'));
   chmodSync(join(d, 'csbh'), 0o755);
   mkdirSync(join(d, 'logs'));
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_TAG=1.1.0\n');
+  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   return d;

@@ -156,12 +156,12 @@ Ba ảnh nằm chung **một repo**, phân biệt bằng **thẻ** — registry 
 
 Tổng khoảng **590 MB**, không phải tổng ba con số trên.
 
-**Mỗi ảnh có HAI thẻ trên registry** `mới 21/09`: `service-1.0.3` và
-`service-latest` trỏ tới cùng một ảnh. **`.env` luôn ghi CON SỐ** (`CSBH_TAG=1.0.3`)
-— `latest` chỉ để `./csbh upgrade` của bản chạy thử biết bản mới nhất là bản nào,
-và lệnh ấy cũng ghim con số vào `.env` chứ không ghi chữ `latest`. Mỗi ảnh mang
-sẵn số phiên bản của nó trong một nhãn, nên `docker image inspect` trả lời được
-*"ảnh này là bản nào"* mà không cần nhìn thẻ.
+**Mỗi ảnh có HAI thẻ trên registry**: `service-1.3.0` và `service-latest` trỏ tới
+cùng một ảnh. **Máy chủ chạy `-latest`** `sửa 08/11` (`0270`) — `.env` không ghi số
+phiên bản nào. Mỗi ảnh mang sẵn số phiên bản của nó (nhãn OCI và biến `APP_VERSION`
+nướng lúc dựng), nên `./csbh phien-ban` trả lời được *"đang chạy bản nào"*. Thẻ số
+vẫn ở lại registry làm đường về một bản cụ thể. Ảnh MinIO nhân bản cũng chạy
+`minio-latest`.
 
 ---
 
@@ -330,7 +330,7 @@ bằng tài khoản quản trị Google Workspace của Công ty:
    GOOGLE_HOSTED_DOMAIN=nutricare.vn
    GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret.txt
    ```
-4. `./csbh nang-cap <thẻ hiện tại>` (hoặc khởi động lại `identity`) để nạp biến mới.
+4. `./csbh len` (hoặc khởi động lại `identity`) để nạp biến mới.
 
 | Biến | Nghĩa |
 | --- | --- |
@@ -458,7 +458,7 @@ Kiểm TRƯỚC khi nâng cấp, trên bản đang chạy:
 | --- | --- |
 | Rỗng | Nâng cấp được |
 | Có dòng | Mỗi khách giữ đúng một hồ sơ đang xử lý: TDV phụ trách xoá bản Nháp/bản bị trả về thừa, hoặc cho một bản đi hết luồng duyệt |
-| Lỡ chạy rồi | Không mất gì — migration chạy trong một transaction. Dọn xong thì chạy lại `./csbh nang-cap <thẻ>` |
+| Lỡ chạy rồi | Không mất gì — migration chạy trong một transaction. Dọn xong thì chạy lại `./csbh cap-nhat` |
 
 ---
 
@@ -640,11 +640,16 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 ## 8. Nâng cấp
 
 ```sh
-./csbh nang-cap 1.0.3
+./csbh cap-nhat      # lùi: ./csbh lui-lai
 ```
 
-Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
-in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
+Hỏi registry (không kéo) → sao lưu → giữ ảnh cũ làm đường lùi → kéo → migration →
+dựng lại; mỗi bước in `▶` lúc chạy, `✔` lúc xong. Chi tiết ở `05-VAN-HANH.md` §5.
+
+> **Máy cài TRƯỚC `0270` (còn dòng `CSBH_TAG` trong `.env`)** `mới 08/11`. Lần chuyển
+> sang mô hình `-latest`: chép `deploy/compose.prod.yml` và tệp `csbh` mới sang máy,
+> xoá dòng `CSBH_TAG` khỏi `.env`, rồi `./csbh cap-nhat`. Các đoạn dưới đây nhắc
+> `nang-cap <thẻ>` là ghi chép cho máy chạy bản cũ hơn — lệnh ấy đã thay bằng `cap-nhat`.
 
 > **Từ `1.1.0` lên `1.3.0`** `mới 08/11`. Bản này gói `P277`–`P305`: chuyển máy, trang
 > *Vận hành*, giao diện mới, bình luận trên hồ sơ, nội dung từng khoản CPBH. **Có chín
@@ -740,9 +745,10 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 > dùng nó (ca `ghim-anh.test.ts` đòi mọi chỗ trùng nhau), `make test`, dựng thật, rồi giao bản mới.
 > Cái giá: không còn bản vá bảo mật nào tự tới — phải chủ động rà và nâng.
 
-> **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
-> tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ
-> đang chạy bản nào.
+> **Thẻ `-latest` mà không tự đổi bản** `sửa 08/11`. Tới `0269` dòng này viết *"thẻ
+> ảnh không bao giờ là `latest`"* — vì một lượt kéo vài tháng sau đổi thứ đang chạy
+> mà không ai chủ ý, và không có cách nào nói máy đang chạy bản nào. Cả hai vẫn được
+> giữ: CHỈ `cap-nhat` (và lần cài đầu) kéo ảnh, và ảnh tự mang số phiên bản.
 >
 > **Migration không lùi được.** Lùi ảnh về bản cũ trong khi CSDL đã đi tới lược đồ
 > mới là một trạng thái không được kiểm thử. Nâng cấp hỏng ở phần CSDL thì đường

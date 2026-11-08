@@ -35,7 +35,7 @@ function chay(lenh: string[], dat: Record<string, string> = {}): Promise<Kq> {
   const d = mkdtempSync(join(tmpdir(), 'csbh-lich-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_TAG=1.1.0\n');
+  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   const nhatKy = join(d, 'goi.log');

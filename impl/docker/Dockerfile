@@ -53,6 +53,14 @@ RUN pnpm install --offline --frozen-lockfile --config.store-dir=/pnpm-store \
 # tự sinh một khoá riêng rồi không service nào xác minh nổi token của service kia.
 ENV NODE_ENV=production
 
+# PHIÊN BẢN NƯỚNG VÀO ẢNH (`0270`). Tới `0269` mười một service nhận `APP_VERSION`
+# từ `.env` lúc chạy, nên ảnh KHÔNG tự biết mình là bản nào — đúng lý do `0218` cấm
+# `latest` trong `.env`. Máy chủ giờ chạy thẻ `-latest`, nên con số phải đi theo
+# ẢNH: `scripts/dong-goi.sh` truyền `--build-arg APP_VERSION=<VERSION>`. Đặt sau
+# lượt cài để đổi số chỉ dựng lại hai lớp ENV rẻ tiền. Ảnh `ops` kế thừa biến này.
+ARG APP_VERSION=0.0.0-dev
+ENV APP_VERSION=${APP_VERSION}
+
 ARG SERVICE=gateway
 ENV SERVICE=${SERVICE}
 

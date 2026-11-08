@@ -23,7 +23,7 @@ function thamChieu(): { tep: string; ref: string }[] {
   const ra: { tep: string; ref: string }[] = [];
   for (const tep of COMPOSE) {
     for (const m of readFileSync(tep, 'utf8').matchAll(/^\s+image:\s*(.+?)\s*$/gm)) {
-      if (m[1]!.startsWith('${CSBH_IMAGE')) continue; // ảnh của ta — thẻ số phiên bản
+      if (m[1]!.startsWith('${CSBH_IMAGE')) continue; // ảnh của ta — thẻ `-latest` (`0270`), ca riêng ở dưới
       ra.push({ tep, ref: m[1]! });
     }
   }
@@ -70,8 +70,16 @@ describe('`0248` ghim ảnh bên ngoài', () => {
     expect(lech).toEqual([]);
   });
 
-  it('ảnh MinIO nhân bản của production cũng ghim digest', () => {
+  it('`0270` — ảnh của KHO TA chạy `-latest`, KHÔNG ghim digest (đảo `0248` cho riêng chúng)', () => {
+    /*
+     * Tới `0269` ca này đòi ảnh MinIO nhân bản ghim digest như ảnh ngoài. Yêu cầu 08/11:
+     * MỌI ảnh trong registry của ta trỏ `latest`, và cập nhật bằng `./csbh cap-nhat`.
+     * Ghim digest ở đây thì `cap-nhat` kéo bản mới về mà compose vẫn chạy bản cũ —
+     * một lượt cập nhật "xong" không đổi gì. Ảnh NGOÀI vẫn ghim (các ca trên).
+     */
     const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
-    expect(prod).toMatch(/^\s+image: \$\{CSBH_IMAGE:\?thiếu CSBH_IMAGE\}:minio-RELEASE\.[\dT-]+Z@sha256:[0-9a-f]{64}$/m);
+    const cuaTa = [...prod.matchAll(/^\s+image: (\$\{CSBH_IMAGE[^}]*\}:\S+)$/gm)].map((m) => m[1]!);
+    expect(cuaTa.length).toBeGreaterThanOrEqual(4);
+    expect(cuaTa.filter((r) => !/:(service|web|ops|minio)-latest$/.test(r))).toEqual([]);
   });
 });

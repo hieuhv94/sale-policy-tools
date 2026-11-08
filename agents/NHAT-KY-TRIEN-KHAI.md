@@ -22132,3 +22132,52 @@ Kiểm khi demo bật: ảnh rời `csbh-test` `--network none` — `tests/versi
 lượt này chỉ đổi `VERSION` và tài liệu). Chưa dựng/đẩy ảnh `1.3.0` — `make dong-goi` / `make day-anh` chờ lệnh.
 
 **12/12 xanh.**
+
+## P307 — `0270` Máy chủ chạy thẻ `-latest`; `cap-nhat` / `lui-lai`; hiển thị từng bước
+
+Chặng đầu của kế hoạch *"cài production trên VPS bằng một lệnh"* (ba chặng P307–P309). Yêu cầu 08/11:
+**mọi ảnh trong registry của ta trỏ `latest`**, script có tuỳ chọn cập nhật lên bản `latest` mới, và
+*"khi script chạy phải hiển thị rõ bước nào đang chạy, bước nào đã xong"*.
+
+**ĐẢO `0218`, và cách giữ hai lý do của nó.** `0218` cấm `latest` trong `.env` vì (1) không biết máy
+chạy bản nào — ảnh `service`/`ops` nhận `APP_VERSION` từ `.env`, ghi `latest` là mười một service tự
+báo `latest`; (2) một lượt `pull` đổi thứ đang chạy mà không ai chủ ý. Cả hai vẫn đúng, nên chúng được
+giữ bằng cơ chế khác chứ không bị bỏ qua:
+1. Chữa ở GỐC: `APP_VERSION` **nướng vào ảnh** (`ARG`/`ENV` ở `docker/Dockerfile`, như `Dockerfile.web`
+   đã làm; `dong-goi.sh` truyền `--build-arg`), compose thôi đặt biến ấy, `.env` thôi có `CSBH_TAG`.
+   `./csbh phien-ban` đọc nhãn OCI của ảnh mà **container `gateway` đang chạy (theo image ID)** — không
+   theo thẻ: sau lượt kéo, `-latest` trên máy đã trỏ sang ảnh mới trong khi container vẫn chạy ảnh cũ.
+2. CHỈ HAI chỗ được kéo ảnh: máy thiếu ảnh (`keo_anh_neu_thieu`, `len` gọi) và `cap-nhat`. `len` đủ ảnh
+   thì in rõ *"KHÔNG kéo bản mới (muốn cập nhật: ./csbh cap-nhat)"*.
+
+**`cap-nhat`, thứ tự là toàn bộ sự an toàn**: hỏi registry bằng DIGEST, KHÔNG kéo (`docker buildx
+imagetools inspect` → so `RepoDigests`; đo trên registry thật: hai con số khớp, và nhãn phiên bản đọc
+được từ manifest mà không kéo) → **sao lưu bằng ảnh ops ĐANG có** (kéo trước là sao lưu chạy bằng ảnh
+mới — bẫy `0234`) → gắn `-truoc-cap-nhat` (đường lùi, chỉ trên máy) + ghi migration cuối → kéo
+(container vẫn chạy ảnh cũ; hỏng thì trả thẻ cũ) → migrate → dựng. `lui-lai` chỉ lùi khi migration cuối
+**trùng** mốc ghi lúc cập nhật; khác thì dừng và chỉ sang `phuc-hoi` — ảnh cũ trên lược đồ mới là trạng
+thái không ai kiểm. `nang-cap <thẻ>` **gỡ** (in lệnh thay thế, mã 2).
+
+**MinIO nhân bản cũng `minio-latest`** (*"tất cả các docker image trong registry cá nhân"*): `day_minio`
+đẩy thêm thẻ ấy sau thẻ bản. Đảo `0248` CHO RIÊNG bốn ảnh của ta — ghim digest ở đó thì `cap-nhat` kéo
+bản mới về mà compose vẫn chạy bản cũ. Ảnh ngoài vẫn ghim.
+
+**Chuyển máy**: gói xuất ghi `PHIEN_BAN=<nhãn ảnh đang chạy>` (thay `CSBH_TAG`); lệnh nhập vẫn đòi CÙNG
+bản (đối chiếu từng bảng), nhưng thôi bắt giải nén bộ cài đúng bản — nó **kéo thẻ số của máy cũ rồi gắn
+thành `-latest` ngay trên máy**. Gói xuất trước `0270` (ghi `CSBH_TAG`) vẫn đọc được.
+
+**Hiển thị bước**: `buoc_tong N` · `buoc "tên"` · `buoc_xong` · `buoc_bo "lý do"` — `[i/N] ▶ …`, rồi
+`[i/N] ✔ … (N giây)`; trap EXIT in `✘ … — HỎNG` cho bước đang mở khi lệnh chết, nên không bước nào
+"treo" ở ▶ trên màn hình. Không màu khi không phải terminal (log cron đọc được). P308/P309 dùng lại.
+
+**Phá lại bảy lượt, bảy đỏ đúng chỗ**: kéo trước sao lưu (4 đỏ) · `len` luôn kéo (1) · bỏ trap ✘ (1) ·
+`lui-lai` bỏ chốt migration (2) · `phien-ban` đọc chuỗi cứng (1) · Dockerfile bỏ `APP_VERSION` (1) · chuyển
+máy không kéo thẻ số (3). Một ca tự sai lúc đầu: quét `/APP_VERSION/` trên cả tệp compose đỏ vì **chú
+thích đầu tệp nhắc tên biến** (bẫy `0124`) — đổi sang khoá YAML `^\s+APP_VERSION:`.
+
+Ca `0235` (`nang-cap` chịu được ảnh bên thứ ba không kéo được) viết lại thành ca `len`: đường vòng ấy
+giờ sống trong `keo_anh`, do `len` gọi khi thiếu ảnh. Ca `0218` *"`latest` không bao giờ vào `.env`"*
+THAY bằng ca `0270` canh bốn mắt xích (Dockerfile nhận biến · lượt dựng truyền · compose thôi đè ·
+`.env` thôi có số).
+
+`make test` đầy đủ (demo tắt): **3364/3364 xanh.**

@@ -114,7 +114,15 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P306**: **`VERSION` → `1.3.0`** (gói `P277`–`P305`; chín migration `0124`–`0132` từ `1.1.0`, phải chép
+Chặng gần nhất **P307** (`0270`): **máy chủ chạy thẻ `-latest`** cho bốn ảnh của ta (kể cả `minio-latest`) — ĐẢO
+`0218`; `APP_VERSION` nướng vào ảnh, `.env` hết `CSBH_TAG`, `phien-ban` đọc nhãn ảnh của container đang chạy;
+**`./csbh cap-nhat`** (hỏi registry bằng digest KHÔNG kéo → sao lưu bằng ảnh CŨ → `-truoc-cap-nhat` → kéo →
+migrate → dựng) và **`lui-lai`** (chỉ khi chưa có migration mới); `nang-cap <thẻ>` gỡ; `len` KHÔNG kéo khi đủ ảnh.
+**Hiển thị bước** `[i/N] ▶ / ✔ / ✘ / –` (`buoc_tong`·`buoc`·`buoc_xong`·`buoc_bo`). Kế hoạch ba chặng P307–P309
+(một lệnh cài trên VPS, `/etc/csbh/csbh.env`, workspace riêng, chồng kiểm nghiệm) ở
+`~/.claude/plans/gi-t-i-mu-n-ng-modular-dijkstra.md`. **3364/3364 xanh.**
+
+Trước đó **P306**: **`VERSION` → `1.3.0`** (gói `P277`–`P305`; chín migration `0124`–`0132` từ `1.1.0`, phải chép
 tay compose/`postgresql.conf`/`csbh` + cài cron và tác tử — `04-TRIEN-KHAI` §8). **Chưa dựng/đẩy ảnh.**
 
 Trước đó **P304** (`0268`): **nội dung từng khoản CPBH** — `pol.policy_line.cpbh_noi_dung text[]` song song
@@ -2038,7 +2046,7 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   trường mà mẫu vừa chọn có in"* — nên nó không phụ thuộc mẫu. Giữ nguyên quyết định `0098`: buộc
   service nặng nhất vào đường gửi duyệt là nó chết thì không ai gửi được hồ sơ nào, và còn dựng ra
   vòng đồng bộ `policy → document → policy` giữa transaction.
-- **THẺ `latest` CÓ trên registry, KHÔNG BAO GIỜ trong `.env`** (`0218`). `make day-anh` đẩy thẻ
+- **MÁY CHỦ CHẠY THẺ `-latest`** (`0270`, đảo `0218`) — ảnh tự mang số phiên bản, chỉ `cap-nhat` và lần cài đầu được kéo ảnh. Đoạn dưới là luật CŨ của `0218`, giữ làm lịch sử: **THẺ `latest` CÓ trên registry, KHÔNG BAO GIỜ trong `.env`** (`0218`). `make day-anh` đẩy thẻ
   số TRƯỚC rồi mới `latest` (ngược lại thì `latest` có thể trỏ tới một bản mà thẻ số của nó không
   tồn tại). Cả ba ảnh mang nhãn OCI `org.opencontainers.image.version`, và `./csbh upgrade` đọc nhãn
   ấy để ghim CON SỐ vào `CSBH_TAG` — vì ảnh `service`/`ops` không tự biết mình là bản nào, ghi

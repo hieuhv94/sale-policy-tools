@@ -33,11 +33,14 @@ case "$*" in
   *"chuyen-may bi-mat-mo"*)
     [ "\${BI_MAT_MA:-0}" = 0 ] || { echo "bi-mat-mo: SAI mật khẩu, hoặc gói bí mật hỏng." >&2; exit 1; }
     mkdir -p "$ra/bi-mat/secrets"
-    printf 'COMPOSE_PROJECT_NAME=csbh-prod\\nCSBH_TAG=%s\\nSITE_URL=https://csbh.test\\n' "\${TAG_CU:-1.1.0}" > "$ra/bi-mat/.env"
+    printf 'COMPOSE_PROJECT_NAME=csbh-prod\\nCSBH_IMAGE=kho/csbh\\nSITE_URL=https://csbh.test\\n' > "$ra/bi-mat/.env"
     echo x > "$ra/bi-mat/secrets/pg_password.txt" ;;
   *"chuyen-may mo-goi"*)
     mkdir -p "$ra/goi/tep" "$ra/goi/logarchive"
-    printf 'CSBH_TAG=%s\\n' "\${TAG_GOI:-1.1.0}" > "$ra/goi/thong-tin.txt" ;;
+    printf '%s=%s\\n' "\${KHOA_GOI:-PHIEN_BAN}" "\${TAG_GOI:-1.1.0}" > "$ra/goi/thong-tin.txt" ;;
+  # \`0270\`: phiên bản của ảnh trên máy đọc từ NHÃN OCI.
+  *"image inspect -f"*"org.opencontainers.image.version"*) echo "\${NHAN_MAY:-1.1.0}" ;;
+  "pull "*) [ "\${PULL_HONG:-0}" = 1 ] && exit 1; exit 0 ;;
   *"chuyen-may so-sanh"*) exit "\${SO_SANH_MA:-0}" ;;
   "volume inspect "*) exit "\${CO_VOLUME:-1}" ;;
   *) exit 0 ;;
@@ -50,7 +53,7 @@ async function chay(lenh: string[], vao: string, o: { env?: string; dat?: Record
   const d = mkdtempSync(join(tmpdir(), 'csbh-cm-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env.mau'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nCSBH_TAG=1.1.0\n');
+  writeFileSync(join(d, '.env.mau'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
   if (o.env !== undefined) writeFileSync(join(d, '.env'), o.env);
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
@@ -69,7 +72,7 @@ async function chay(lenh: string[], vao: string, o: { env?: string; dat?: Record
   });
 }
 
-const ENV_CU = 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_TAG=1.1.0\nSITE_URL=https://csbh.test\n';
+const ENV_CU = 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nSITE_URL=https://csbh.test\n';
 const MK = 'mat-khau-du-dai';
 const xuat = (vao: string, dat: Record<string, string> = {}) => chay(['xuat-chuyen-may'], vao, { env: ENV_CU, dat });
 const nhap = (dat: Record<string, string> = {}, env?: string) =>
@@ -150,7 +153,9 @@ describe('`0246` nhap-chuyen-may', () => {
     ]);
     expect(r.goi.trimEnd().split('\n').pop()).toMatch(/up -d --wait$/);
     expect(r.goi).toMatch(/-e RESTORE_DB=csbh /);
-    expect(readFileSync(join(r.d, '.env'), 'utf8')).toContain('CSBH_TAG=1.1.0');
+    expect(readFileSync(join(r.d, '.env'), 'utf8')).toContain('SITE_URL=https://csbh.test');
+    // Ảnh trên máy đã đúng bản máy cũ → KHÔNG kéo thẻ số nào.
+    expect(r.goi).not.toMatch(/^pull kho\/csbh:(service|web|ops)-/m);
     expect(existsSync(join(r.d, 'secrets', 'pg_password.txt'))).toBe(true);
     expect(existsSync(join(r.d, '.nhap-tam')), 'thư mục tạm phải được dọn').toBe(false);
   });
@@ -170,12 +175,32 @@ describe('`0246` nhap-chuyen-may', () => {
     expect(r.goi).not.toContain('up -d');
   });
 
-  it('máy cũ KHÁC phiên bản với bộ cài → từ chối, nói bản cần giải nén', async () => {
-    const r = await nhap({ TAG_CU: '1.0.5' });
+  it('`0270` máy cũ KHÁC bản với ảnh trên máy → kéo THẺ SỐ của máy cũ, gắn thành -latest, TRƯỚC khi dựng', async () => {
+    /*
+     * Tới `0269` ca này đòi TỪ CHỐI và bảo giải nén bộ cài đúng bản. Từ `0270` máy chạy
+     * `-latest`, mà `latest` trên registry có thể đã đi trước máy cũ — nên lệnh nhập tự
+     * kéo đúng thẻ số (registry giữ mọi thẻ số) rồi gắn nó thành `-latest` ngay trên máy.
+     * Vẫn CÙNG bản (đối chiếu từng bảng đòi thế), chỉ thôi bắt người vận hành tự tìm bộ cài.
+     */
+    const r = await nhap({ TAG_GOI: '1.0.5' });
+    expect(r.ma, r.loi + r.ra).toBe(0);
+    for (const tp of ['service', 'web', 'ops']) {
+      thuTu(r.goi, [`pull kho/csbh:${tp}-1.0.5`, `tag kho/csbh:${tp}-1.0.5 kho/csbh:${tp}-latest`, 'up -d --wait postgres']);
+    }
+  });
+
+  it('`0270` kéo thẻ số của máy cũ HỎNG → dừng, không ra .env, không dựng gì', async () => {
+    const r = await nhap({ TAG_GOI: '1.0.5', PULL_HONG: '1' });
     expect(r.ma).toBe(1);
-    expect(r.loi).toContain('bản 1.0.5');
+    expect(r.loi).toContain('kho/csbh:service-1.0.5');
     expect(existsSync(join(r.d, '.env'))).toBe(false);
     expect(r.goi).not.toContain('up -d');
+  });
+
+  it('`0270` gói xuất TRƯỚC 0270 (thong-tin.txt ghi CSBH_TAG) vẫn nhập được', async () => {
+    const r = await nhap({ KHOA_GOI: 'CSBH_TAG', TAG_GOI: '1.0.5' });
+    expect(r.ma, r.loi + r.ra).toBe(0);
+    expect(r.goi).toContain('pull kho/csbh:ops-1.0.5');
   });
 
   it('máy này ĐÃ có CSDL của dự án → từ chối, không nhập đè', async () => {

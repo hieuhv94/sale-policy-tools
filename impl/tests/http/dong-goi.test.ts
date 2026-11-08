@@ -10,7 +10,8 @@
  * mỏng dễ mục nhất: danh sách tệp.
  */
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 
@@ -169,9 +170,11 @@ describe('`0105` bản đóng gói', () => {
      */
     const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
     expect(prod).not.toMatch(/^\s+build:/m);
-    // Và mọi ảnh đều ghim thẻ qua biến, không ai để `latest`.
-    expect(prod).not.toMatch(/image:.*:latest/);
-    expect(prod).toContain('${CSBH_TAG');
+    // `0270`: bốn ảnh của kho ta chạy ĐÚNG thẻ `-latest`, và `.env` không còn
+    // mang số phiên bản nào (ảnh tự biết mình — xem ca `0270` ở dưới).
+    const cuaTa = [...prod.matchAll(/^\s+image: \$\{CSBH_IMAGE:\?thiếu CSBH_IMAGE\}:(\S+)$/gm)].map((m) => m[1]);
+    expect([...new Set(cuaTa)].sort()).toEqual(['minio-latest', 'ops-latest', 'service-latest', 'web-latest']);
+    expect(prod).not.toContain('CSBH_TAG');
   });
 
   it('`.env.mau` khai ĐỦ mọi biến mà compose production đòi', () => {
@@ -300,6 +303,11 @@ describe('`0218` ./csbh upgrade', () => {
     const iXoa = nhanh!.indexOf('lam-sach');
     expect(iLuu, 'không sao lưu gì').toBeGreaterThan(-1);
     expect(iLuu, 'sao lưu SAU khi đã xoá').toBeLessThan(iXoa);
+    // `0270`: và TRƯỚC khi kéo — máy chạy thẻ `-latest`, kéo trước là lượt sao lưu
+    // chạy bằng ảnh ops MỚI thay vì bản đã ghi dữ liệu.
+    const iKeo = nhanh!.indexOf('keo_anh_latest');
+    expect(iKeo).toBeGreaterThan(-1);
+    expect(iLuu, 'kéo ảnh mới TRƯỚC khi sao lưu').toBeLessThan(iKeo);
   });
 
   it('NÓI RA hai bước cài đặt phải làm lại, và nói SAU KHI dựng xong', () => {
@@ -335,7 +343,8 @@ describe('`0218` ./csbh upgrade', () => {
     expect(CLI).toContain('keo_anh_latest() {');
     // Kéo ĐÚNG ba thành phần của phần mềm, bằng thẻ `latest`.
     const keo = /keo_anh_latest\(\) \{([\s\S]*?)\n\}/.exec(CLI)?.[1] ?? '';
-    expect(keo).toMatch(/for tp in service web ops/);
+    expect(keo).toMatch(/for tp in \$ANH_TA/);
+    expect(CLI).toMatch(/^ANH_TA="service web ops minio"$/m);
     expect(keo).toContain('-latest');
   });
 
@@ -369,23 +378,30 @@ describe('`0218` ./csbh upgrade', () => {
     expect(nhanh, 'id đổi mà không nói gì').toMatch(/CẢNH BÁO[\s\S]*cloudflared/);
   });
 
-  it('`latest` KHÔNG BAO GIỜ vào `.env` — ghim SỐ đọc từ nhãn trong ảnh', () => {
+  it('`0270` — `.env` KHÔNG mang số phiên bản; ẢNH tự biết mình', () => {
     /*
-     * CA ĐÁNG GIÁ NHẤT của yêu cầu này. Đầu `compose.prod.yml` ghi hai lý do
-     * chống `latest`: `pull` một tháng sau đổi thứ đang chạy mà không ai chủ ý,
-     * và không có cách nào nói máy chủ đang chạy bản nào. Ảnh `service` và
-     * `ops` KHÔNG tự mang số phiên bản — chúng nhận `APP_VERSION` từ `.env` lúc
-     * chạy — nên ghi `CSBH_TAG=latest` là mười service tự báo phiên bản là
-     * `latest`, đúng cái lý do thứ hai cấm.
-     *
-     * Nên `upgrade` kéo bằng `latest` mà GHIM một con số: ca này canh cả ba vế
-     * — đọc từ nhãn OCI, gán thẻ số lên ảnh vừa kéo, và ghi con số ấy (không
-     * phải chữ `latest`) vào `.env`.
+     * ĐẢO ca `0218` (*"`latest` không bao giờ vào `.env` — ghim SỐ"*). Lý do của ca
+     * cũ: ảnh `service`/`ops` nhận `APP_VERSION` từ `.env`, nên chạy `latest` là mười
+     * service tự báo phiên bản `latest`. Từ `0270` máy chạy `-latest` theo yêu cầu,
+     * nên lý do ấy phải được chữa Ở GỐC — con số nướng vào ẢNH — và ca này canh cả
+     * bốn mắt xích: Dockerfile nhận biến, lượt dựng truyền nó, compose thôi đè nó, và
+     * `upgrade` thôi ghi số vào `.env`.
      */
-    expect(nhanh, 'upgrade ghi latest vào .env').not.toMatch(/CSBH_TAG=latest/);
-    expect(nhanh, 'upgrade không ghim số vào .env').toMatch(/s\|\^CSBH_TAG=\.\*\|CSBH_TAG=\$\{moi\}\|/);
+    const df = readFileSync('docker/Dockerfile', 'utf8');
+    expect(df, 'ảnh service không nướng APP_VERSION').toMatch(/^ARG APP_VERSION=0\.0\.0-dev\nENV APP_VERSION=\$\{APP_VERSION\}$/m);
+    const SH2 = readFileSync('scripts/dong-goi.sh', 'utf8');
+    const anh = /\nanh\(\) \{([\s\S]*?)\n\}/.exec(SH2)?.[1] ?? '';
+    const lenhDung = anh.split('docker build').slice(1);
+    expect(lenhDung.length).toBe(3);
+    // Ảnh service VÀ ảnh web nhận `--build-arg APP_VERSION`; ảnh ops kế thừa từ service.
+    expect(lenhDung.filter((l) => l.includes('--build-arg "APP_VERSION=${TAG}"')).length).toBe(2);
+    for (const tep of readdirSync('deploy').filter((t) => /^compose\.(prod|tunnel)\.yml$/.test(t))) {
+      // Khoá YAML, không phải chữ: chú thích đầu tệp NÓI về biến này (bẫy `0124`).
+      expect(readFileSync(join('deploy', tep), 'utf8'), `${tep} còn đè APP_VERSION`).not.toMatch(/^\s+APP_VERSION:/m);
+    }
+    expect(readFileSync('deploy/env.mau', 'utf8')).not.toMatch(/^CSBH_TAG=/m);
+    expect(nhanh, 'upgrade còn ghi số vào .env').not.toMatch(/CSBH_TAG/);
     expect(CLI, 'không đọc số từ nhãn OCI').toContain('org.opencontainers.image.version');
-    expect(nhanh, 'không gắn thẻ số lên ảnh vừa kéo').toMatch(/docker tag "\$\{kho\}:\$\{tp\}-latest" "\$\{kho\}:\$\{tp\}-\$\{moi\}"/);
     /*
      * Nhãn rỗng (ảnh dựng trước `0218`) thì DỪNG, không rơi về `latest`.
      *
@@ -403,7 +419,8 @@ describe('`0218` ./csbh upgrade', () => {
   it('người vận hành thấy bản SẮP LÊN trước khi gõ xác nhận', () => {
     // Kéo ảnh không đụng container nào đang chạy, nên làm trước được — và gõ
     // "XOA-SACH" cho một bản chưa biết là gì là xác nhận một thứ mình không đọc.
-    const iSo = nhanh!.indexOf('so_phien_ban');
+    // `0270`: đọc số THẲNG TỪ REGISTRY (`nhan_kho`) — kéo phải đợi sau sao lưu.
+    const iSo = nhanh!.indexOf('nhan_kho');
     const iHoi = nhanh!.indexOf('read -r xn');
     expect(iSo, 'đọc số phiên bản SAU khi đã hỏi xác nhận').toBeLessThan(iHoi);
     expect(nhanh).toContain('Sẽ lên bản:');
@@ -499,7 +516,7 @@ describe('`0218` ./csbh upgrade', () => {
     expect(code, 'chạy được mà không cần xác nhận').not.toBe(0);
     expect(loi).toMatch(/XAC_NHAN_XOA_SACH/);
     // Và nó chỉ ra lối đi GIỮ dữ liệu, thay vì để người đọc tự đoán.
-    expect(loi).toMatch(/nang-cap/);
+    expect(loi).toMatch(/cap-nhat/);
   });
 });
 
@@ -533,7 +550,11 @@ describe('`0247` ảnh MinIO NHÂN BẢN trong kho của ta', () => {
   });
 
   it('`compose.prod.yml` dùng bản NHÂN BẢN của đúng bản ấy — không bao giờ `minio/minio`', () => {
-    expect(boDigest(anhCua('deploy/compose.prod.yml'))).toBe(`\${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-${BAN}`);
+    // `0270`: máy khách chạy `minio-latest`; `day_minio` gắn nó lên ĐÚNG bản nhân bản ấy.
+    expect(anhCua('deploy/compose.prod.yml')).toBe('${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-latest');
+    const dm = /\nday_minio\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    expect(dm).toContain('docker tag "$MINIO_BAN" "${IMG}:minio-latest"');
+    expect(dm.indexOf('docker push "$MINIO_BAN"'), 'đẩy latest trước thẻ bản').toBeLessThan(dm.indexOf('docker push "${IMG}:minio-latest"'));
   });
 
   it('`anh` gắn thẻ nhân bản TỪ ảnh gốc; `day` đẩy MinIO TRƯỚC ảnh phần mềm', () => {

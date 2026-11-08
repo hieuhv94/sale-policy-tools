@@ -90,7 +90,7 @@ else
   # bước ngay dưới — đọc `pg_password.txt` để điền vào `.env` — hỏng với
   # "Permission denied". Đã dính đúng lỗi này lúc chạy thử bản đóng gói đầu tiên.
   docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd)/secrets:/run/secrets" \
-    "$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-):ops-$(grep -E '^CSBH_TAG=' .env.mau | cut -d= -f2-)" \
+    "$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-):ops-latest" \
     gen-secrets /run/secrets
 fi
 
