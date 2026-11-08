@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 82 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 11 service NestJS, web React + Vite (không dùng thư viện component), 83 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -114,7 +114,13 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P303** (`0267`, CHỈ GIAO DIỆN WEB): **bảng sản phẩm của hồ sơ** — *Tên* đầu bảng, cột GHIM
+Chặng gần nhất **P304** (`0268`): **nội dung từng khoản CPBH** — `pol.policy_line.cpbh_noi_dung text[]` song song
+với `cpbh` (migration `0132`, ràng buộc không dài hơn), căn mảng ở `upsertLine` (thiếu đệm, thừa
+`CPBH_NOI_DUNG_LECH`); dấu `?` cạnh đúng con số; KHÔNG in bản mềm, KHÔNG vào phép so *Chỉnh sửa*, đi theo khoản sang
+phiên bản mới. Kèm: luật dính đáy ngăn trượt chỉ áp hàng có nút gửi (`:has(button[type="submit"])`) — dải *Thêm
+khoản chi phí* từng đè khối giá 24px. `make test` 3344/3345 (ca tài liệu, đã sửa) · **`tests/web` 1179/1179.**
+
+Trước đó **P303** (`0267`, CHỈ GIAO DIỆN WEB): **bảng sản phẩm của hồ sơ** — *Tên* đầu bảng, cột GHIM
 DUY NHẤT, rộng vừa tên dài nhất (đo CẢ Ô trong `useLayoutEffect`, trần 18rem + lề); mã là dòng dưới tên; *Ngày áp
 dụng* ngay sau; cột *Mã*/*Ghi chú* rời bảng web (ghi chú = `DauGhiChu`, ô chữ `position: fixed`); Sửa/Xoá = biểu
 tượng. **Bản mềm KHÔNG đổi** — luật *"web khớp thứ tự bản in"* (`0231`) chỉ còn áp cho bản in; tên cột chung vẫn

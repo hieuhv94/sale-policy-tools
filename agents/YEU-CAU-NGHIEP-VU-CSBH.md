@@ -882,6 +882,7 @@ tìm lượt bấm ấy ở màn hình *Nhật ký* (nơi cột mã tra cứu đ
 | CPBH tổng | Tổng mọi khoản CPBH của dòng đó. Dòng không có khoản nào thì tổng bằng 0 |
 | Giá thu về | `Giá bán buôn − CPBH tổng` |
 | Tỷ lệ CK | `(Giá bán Công ty − Giá thu về) / Giá bán Công ty`, tính theo phần trăm |
+| Nội dung khoản CPBH | `mới 08/11` Một câu ngắn (≤200 ký tự, **không bắt buộc**) cho **từng khoản CPBH** của dòng: chi phí ấy phục vụ việc gì. Trên màn hình là **dấu ? cạnh con số của khoản ấy**. **Không in ra bản mềm**, **không** tính vào phép so *Chỉnh sửa*, **đi theo khoản** sang phiên bản mới |
 | Ghi chú | `mới 16/08` Chữ tự do người lập gõ cho **riêng dòng ấy**, tối đa 500 ký tự. Không tham gia phép tính nào. **In ra bản CSBH A4** ở cột cuối bảng dòng sản phẩm; **trên màn hình** là một **biểu tượng cạnh tên sản phẩm**, rê chuột hoặc chạm để đọc `sửa 07/11`. Để trống thì ô trống — không có ghi chú mặc định nào |
 
 **Làm tròn** — tiền là số nguyên đồng; tỷ lệ CK làm tròn **hai chữ số thập phân**. Con số hiển thị
@@ -3061,6 +3062,14 @@ phiên bản (`sửa 05/11` — người không đăng nhập được cần đ�
 mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
 mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**
 cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi.
+
+**NỘI DUNG TỪNG KHOẢN CPBH** `mới 08/11` — *"thêm cho mỗi CPBH một ô nội dung, để mô tả chi phí này
+phục vụ cho việc gì, không phải trường bắt buộc. Hiển thị bằng một dấu hỏi chấm cạnh tên cột CPBH"*.
+Mockup cho hai vị trí dấu ? (tiêu đề cột / trong ô); khách hàng chọn **đặt đúng con số trong ô**, vì
+nội dung thuộc từng khoản của từng dòng. Chốt khi được hỏi: **không in ra bản mềm** · sửa riêng nội
+dung **không** làm dòng thành *Chỉnh sửa* (cùng lý lẽ ghi chú `21/09`) · **đi theo khoản** sang phiên
+bản mới. Cùng lượt: dải *+ Thêm khoản chi phí* thôi dính đáy hộp thoại (lỗi giao diện của `06/11`, đè
+lên khối giá).
 
 **BẢNG SẢN PHẨM TRÊN WEB: GHIM CỘT TÊN, MÃ DƯỚI TÊN, GHI CHÚ THÀNH BIỂU TƯỢNG** `sửa 07/11` —
 *"bảng sản phẩm đang có quá nhiều cột, khiến cho người dùng khó so sánh, phải lăn chuột ngang liên

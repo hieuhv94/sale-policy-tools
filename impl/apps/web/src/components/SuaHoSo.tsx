@@ -145,6 +145,15 @@ export function ThemDongSanPham({
   const [cpbh, datCpbh] = useState<string[]>(
     dongCu && dongCu.cpbh.length > 0 ? [...dongCu.cpbh] : [''],
   );
+  /*
+   * NỘI DUNG từng khoản (`0268`) — song song với `cpbh`, cùng chỉ số. Thêm/bớt một
+   * khoản là thêm/bớt CẢ HAI ở cùng vị trí; để hai mảng tự sống riêng là ngày đầu
+   * tiên bớt khoản giữa thì nội dung của khoản 3 dời sang mô tả khoản 2.
+   */
+  const [noiDung, datNoiDung] = useState<string[]>(() => {
+    const so = dongCu && dongCu.cpbh.length > 0 ? dongCu.cpbh.length : 1;
+    return Array.from({ length: so }, (_, i) => dongCu?.cpbhNoiDung?.[i] ?? '');
+  });
   const [ghiChu, datGhiChu] = useState(dongCu?.note ?? '');
   /*
    * NGÀY ÁP DỤNG của riêng dòng này (`0180`).
@@ -227,8 +236,17 @@ export function ThemDongSanPham({
   const doiCpbh = (i: number, v: string) =>
     datCpbh((cu) => cu.map((x, j) => (j === i ? v : x)));
 
-  const themCpbh = () => datCpbh((cu) => [...cu, '']);
-  const botCpbh = (i: number) => datCpbh((cu) => cu.filter((_, j) => j !== i));
+  const doiNoiDung = (i: number, v: string) =>
+    datNoiDung((cu) => cu.map((x, j) => (j === i ? v : x)));
+
+  const themCpbh = () => {
+    datCpbh((cu) => [...cu, '']);
+    datNoiDung((cu) => [...cu, '']);
+  };
+  const botCpbh = (i: number) => {
+    datCpbh((cu) => cu.filter((_, j) => j !== i));
+    datNoiDung((cu) => cu.filter((_, j) => j !== i));
+  };
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,6 +258,8 @@ export function ThemDongSanPham({
         // một khoản họ có ý định khai, chỉ là bằng không. Bỏ đi sẽ làm lệch số
         // thứ tự của các khoản sau nó.
         cpbh: cpbh.map((v) => v || '0'),
+        // `0268` — đủ một phần tử cho MỖI khoản, kể cả rỗng: giữ đúng chỉ số.
+        cpbhNoiDung: cpbh.map((_, i) => (noiDung[i] ?? '').trim()),
         // Ghi chú gửi lên KỂ CẢ khi rỗng: `opt()` phía máy chủ coi chuỗi rỗng
         // là vắng mặt, và vắng mặt là lệnh xoá ghi chú cũ. Bỏ hẳn trường đi khi
         // rỗng cũng cho cùng kết quả, nhưng viết thẳng thế này thì đọc mã là
@@ -354,10 +374,26 @@ export function ThemDongSanPham({
         {/* SỐ KHOẢN CPBH tuỳ dòng, người lập tự thêm bớt. Mỗi sản phẩm có cấu
             trúc chi phí khác nhau; ô cố định bốn là ép mọi sản phẩm vào một
             khuôn không có thật. */}
+        {/* `0268` — mỗi khoản là MỘT KHUNG: số tiền và nội dung đứng cạnh nhau để
+            đọc là cùng một khoản (mockup duyệt 08/11). Nhãn ô số tiền GIỮ chữ
+            *CPBH n* — đó là tên cột của bảng và là thứ các ca kiểm tìm ô theo. */}
         {cpbh.map((v, i) => (
-          <div className="hang-cpbh" key={i}>
+          <div className="hang-cpbh khoan-cpbh" key={i}>
             <Truong id={`dsp-cpbh${i + 1}`} nhan={`CPBH ${i + 1}`} donVi="Tiền tệ đơn vị đồng">
               {(p) => <ONhapTien {...p} giaTri={v} doi={(x) => doiCpbh(i, x)} />}
+            </Truong>
+            <Truong id={`dsp-cpbh${i + 1}-nd`} nhan="Nội dung" donVi="không bắt buộc">
+              {(p) => (
+                <input
+                  {...p}
+                  className="o-nhap"
+                  maxLength={200}
+                  aria-label={`Nội dung khoản chi phí ${i + 1}`}
+                  placeholder="Ví dụ: hỗ trợ trưng bày tại quầy"
+                  value={noiDung[i] ?? ''}
+                  onChange={(e) => doiNoiDung(i, e.target.value)}
+                />
+              )}
             </Truong>
             {cpbh.length > 1 && (
               <button
@@ -457,8 +493,8 @@ export function ThemDongSanPham({
           )}
         </Truong>
         <p className="ghi-chu">
-          Ghi chú riêng cho sản phẩm này — <strong>in ra bản CSBH A4</strong> và hiện trong bảng
-          cho mọi người duyệt. Tối đa 500 ký tự. Để trống thì không có ghi chú.
+          Ghi chú riêng cho sản phẩm này — <strong>in ra bản CSBH A4</strong>; trên bảng hiện bằng
+          một biểu tượng cạnh tên sản phẩm. Tối đa 500 ký tự. Để trống thì không có ghi chú.
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}

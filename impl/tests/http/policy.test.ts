@@ -8552,3 +8552,94 @@ describe('`0225` Sale Admin sửa bản cứng', () => {
     expect(r.body.code).toBe('POLICY_IN_PROGRESS');
   });
 });
+
+/**
+ * `0268` — NỘI DUNG của từng khoản CPBH (khách hàng chốt 08/11/2026).
+ *
+ * Bốn luật chốt khi được hỏi, mỗi luật một ca: lưu và trả theo đúng chỉ số; KHÔNG
+ * vào phép so *Chỉnh sửa* (sửa riêng nội dung, dòng vẫn *Đang áp dụng*); ĐI THEO
+ * khoản sang phiên bản mới; KHÔNG in ra bản mềm (cửa `internal.controller` không
+ * lấy cột này).
+ */
+describe('`0268` nội dung từng khoản CPBH', () => {
+  type Dong = { id: string; productId: string; cpbh: string[]; cpbhNoiDung: string[]; trangThai: string };
+  const dongCua = async (policyId: string) => (await get(`/policies/${policyId}`)).body.lines as Dong[];
+
+  it('thêm dòng có nội dung: trả đúng chỉ số, cắt khoảng trắng; khoản không có nội dung là chuỗi rỗng', async () => {
+    const d = await draft();
+    const sp = await makeProduct();
+    const r = await post(`/policies/${d.id}/lines`, line(sp, { cpbh: ['5000', '2000', '1000'], cpbhNoiDung: ['  Trưng bày tại quầy ', '', 'Quà tặng kèm'] }));
+    expect(r.status).toBe(201);
+    const dong = (await dongCua(d.id)).find((x) => x.productId === sp)!;
+    expect(dong.cpbhNoiDung).toEqual(['Trưng bày tại quầy', '', 'Quà tặng kèm']);
+  });
+
+  it('gửi ít nội dung hơn số khoản thì ĐỆM chuỗi rỗng; không gửi thì mọi khoản rỗng', async () => {
+    const d = await draft();
+    const sp = await makeProduct();
+    await post(`/policies/${d.id}/lines`, line(sp, { cpbh: ['5000', '2000'], cpbhNoiDung: ['Một'] }));
+    expect((await dongCua(d.id)).find((x) => x.productId === sp)!.cpbhNoiDung).toEqual(['Một', '']);
+    // Dòng của `draft()` không gửi trường này.
+    expect((await dongCua(d.id)).find((x) => x.productId === d.productId)!.cpbhNoiDung).toEqual(['']);
+  });
+
+  it('nhiều nội dung hơn số khoản → 400 CPBH_NOI_DUNG_LECH, không ghi gì', async () => {
+    const d = await draft();
+    const sp = await makeProduct();
+    const r = await post(`/policies/${d.id}/lines`, line(sp, { cpbh: ['5000'], cpbhNoiDung: ['a', 'b'] }));
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('CPBH_NOI_DUNG_LECH');
+    expect((await dongCua(d.id)).some((x) => x.productId === sp)).toBe(false);
+  });
+
+  it('nội dung quá 200 ký tự → 400; đúng 200 thì qua', async () => {
+    const d = await draft();
+    const sp = await makeProduct();
+    expect((await post(`/policies/${d.id}/lines`, line(sp, { cpbhNoiDung: ['x'.repeat(201)] }))).status).toBe(400);
+    expect((await post(`/policies/${d.id}/lines`, line(sp, { cpbhNoiDung: ['x'.repeat(200)] }))).status).toBe(201);
+  });
+
+  it('SỬA dòng: nội dung thay theo thân request; bớt khoản thì bớt cả nội dung', async () => {
+    const d = await draft();
+    const dong = (await dongCua(d.id))[0]!;
+    await patch(`/policies/${d.id}/lines/${dong.id}`, { wholesalePrice: '90000', cpbh: ['5000', '1000'], cpbhNoiDung: ['A', 'B'] });
+    expect((await dongCua(d.id))[0]!.cpbhNoiDung).toEqual(['A', 'B']);
+    await patch(`/policies/${d.id}/lines/${dong.id}`, { wholesalePrice: '90000', cpbh: ['1000'], cpbhNoiDung: ['B'] });
+    expect((await dongCua(d.id))[0]!.cpbhNoiDung).toEqual(['B']);
+  });
+
+  it('phiên bản mới CHÉP nội dung theo khoản; sửa RIÊNG nội dung thì dòng vẫn *Đang áp dụng*', async () => {
+    const d = await draft();
+    const dong = (await dongCua(d.id))[0]!;
+    await patch(`/policies/${d.id}/lines/${dong.id}`, { wholesalePrice: '90000', cpbh: ['5000'], cpbhNoiDung: ['Trưng bày'] });
+    await runToActive(d);
+    const r = await post('/policies', { customerId: d.customerId, mode: 'NEW_VERSION', lines: [] });
+    expect(r.status).toBe(201);
+    const v2 = r.body.id as string;
+    const thuaKe = (await dongCua(v2)).find((x) => x.productId === d.productId)!;
+    expect(thuaKe.cpbhNoiDung).toEqual(['Trưng bày']);
+    expect(thuaKe.trangThai).toBe('DANG_AP_DUNG');
+
+    // Đổi CHỈ nội dung (giá, CPBH, ngày giữ nguyên) → không phải *Chỉnh sửa*.
+    expect(
+      (await patch(`/policies/${v2}/lines/${thuaKe.id}`, { wholesalePrice: '90000', cpbh: ['5000'], cpbhNoiDung: ['Hỗ trợ trưng bày tại quầy'] })).status,
+    ).toBe(200);
+    const sau = (await dongCua(v2)).find((x) => x.productId === d.productId)!;
+    expect(sau.cpbhNoiDung).toEqual(['Hỗ trợ trưng bày tại quầy']);
+    expect(sau.trangThai).toBe('DANG_AP_DUNG');
+  });
+
+  it('CSDL: nội dung KHÔNG dài hơn số khoản (ràng buộc), và bản mềm không đọc cột này', async () => {
+    await withAdminDb(async (db) => {
+      const r = await db.query(
+        `SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint WHERE conname = 'cpbh_noi_dung_khong_thua'`,
+      );
+      expect(r.rows[0]?.d).toContain('cardinality(cpbh_noi_dung) <= cardinality(cpbh)');
+    });
+    // Cửa DUY NHẤT `document`/`reporting` đọc hồ sơ là `internal.controller`
+    // (`0204`): không nhắc tới cột này thì bản mềm không thể in nó.
+    const { readFileSync } = await import('node:fs');
+    const nguon = readFileSync('services/policy/src/internal.controller.ts', 'utf8');
+    expect(nguon).not.toMatch(/cpbh_noi_dung|cpbhNoiDung/);
+  });
+});

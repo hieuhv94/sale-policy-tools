@@ -377,6 +377,12 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Sản phẩm này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',
   },
+  // `0268` — nội dung khoản CPBH nhiều hơn số khoản. Biểu mẫu không gửi ra được thế
+  // (mỗi khung khoản mang đúng một ô nội dung); chỉ xảy ra khi bên gọi gửi sai.
+  CPBH_NOI_DUNG_LECH: {
+    dang: 'hop-thoai',
+    cau: 'Nội dung các khoản chi phí không khớp với số khoản. Đóng hộp thoại, tải lại hồ sơ rồi thử lại.',
+  },
   ATTACHMENT_NOT_FOUND: {
     dang: 'hop-thoai',
     cau: 'Tệp này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',

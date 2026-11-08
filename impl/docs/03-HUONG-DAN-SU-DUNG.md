@@ -898,6 +898,16 @@ làm bản in dài thêm mấy cột số 0.
 Trên bản in, số cột CPBH lấy theo **dòng nhiều khoản nhất**; dòng ít khoản hơn để **ô trống** — ô
 trống nghĩa là dòng ấy không có khoản đó, khác với số 0 nghĩa là khoản đó bằng không.
 
+**Nội dung của từng khoản** `mới 08/11`. Mỗi khoản là một khung gồm ô **số tiền** và ô **Nội dung**
+— một câu ngắn nói chi phí ấy phục vụ việc gì ("hỗ trợ trưng bày tại quầy", "quà tặng kèm khi mua
+thùng"). Ô Nội dung **không bắt buộc**, tối đa 200 ký tự. Bấm *Bớt* là bỏ cả số tiền lẫn nội dung của
+khoản ấy.
+
+- Trên bảng sản phẩm, khoản có nội dung mang **dấu ?** ngay cạnh con số của nó; rê chuột (hoặc bấm,
+  chạm) để đọc. Khoản không có nội dung thì không có dấu.
+- Nội dung **không in ra bản mềm**, và **sửa riêng nội dung không làm dòng thành *Chỉnh sửa***.
+- Lập phiên bản mới thì nội dung **đi theo khoản** như số tiền.
+
 **Sửa một dòng đã thêm**: bấm *Sửa* ở cột cuối bảng. Đổi được giá bán buôn và các khoản chi phí.
 **Sản phẩm thì không đổi được** — muốn đổi sản phẩm thì xoá dòng rồi thêm dòng mới, vì đó là hai
 việc khác nhau.

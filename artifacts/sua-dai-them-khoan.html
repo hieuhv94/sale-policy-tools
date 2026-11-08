@@ -1,0 +1,317 @@
+<title>Sửa dải Thêm khoản chi phí</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Bố cục: trang duyệt — tóm tắt lỗi đã chốt, rồi hai mockup tương tác (ngăn trượt thêm/sửa dòng; bảng sản phẩm) dựng bằng token thật của phần mềm, rồi các câu cần chốt. */
+:root {
+  --phong: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ma: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --mau-thuong-hieu: #0b4da3; --mau-thuong-hieu-nhat: #e8eff9; --mau-nut-chinh-hover: #083c80;
+  --mau-nen: #ffffff; --mau-nen-phu: #f4f6f9; --mau-nen-hover: #f0f3f7;
+  --mau-vien: #e1e6ed; --mau-vien-dam: #c6ceda;
+  --mau-chu: #121a26; --mau-chu-phu: #4a566a; --mau-chu-nhat: #7a8699; --mau-chu-nguoc: #ffffff;
+  --mau-loi: #b3261e; --mau-loi-nen: #fdeceb; --mau-tot: #136c33; --mau-tot-nen: #e3f5e9;
+  --mau-canh-bao: #a15c00; --mau-canh-bao-nen: #fdf3e2;
+  --bong-menu: 0 1px 2px rgb(18 26 38 / 6%), 0 8px 24px rgb(18 26 38 / 12%);
+  --bong-cot-ghim: 6px 0 8px -4px rgb(18 26 38 / 16%);
+  --chu-nho: 0.8125rem; --chu-thuong: 0.875rem;
+  --k1: 4px; --k2: 8px; --k3: 12px; --k4: 16px; --k5: 24px;
+  --vung-cham: 2.375rem;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --mau-thuong-hieu: #7fb0f0; --mau-thuong-hieu-nhat: #17294a; --mau-nut-chinh-hover: #9ccbfa;
+  --mau-nen: #151b24; --mau-nen-phu: #0e131a; --mau-nen-hover: #1e2632; --mau-vien: #263040; --mau-vien-dam: #36435a;
+  --mau-chu: #e6ebf2; --mau-chu-phu: #a7b2c3; --mau-chu-nhat: #76839a; --mau-chu-nguoc: #0e131a;
+  --mau-loi: #f28b82; --mau-loi-nen: #3b1b1a; --mau-tot: #58d68d; --mau-tot-nen: #10331f; --mau-canh-bao: #f0b352; --mau-canh-bao-nen: #382a11;
+  --bong-menu: 0 8px 28px rgb(0 0 0 / 45%); --bong-cot-ghim: 6px 0 8px -4px rgb(0 0 0 / 55%); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --mau-thuong-hieu: #7fb0f0; --mau-thuong-hieu-nhat: #17294a; --mau-nut-chinh-hover: #9ccbfa;
+  --mau-nen: #151b24; --mau-nen-phu: #0e131a; --mau-nen-hover: #1e2632; --mau-vien: #263040; --mau-vien-dam: #36435a;
+  --mau-chu: #e6ebf2; --mau-chu-phu: #a7b2c3; --mau-chu-nhat: #76839a; --mau-chu-nguoc: #0e131a;
+  --mau-loi: #f28b82; --mau-loi-nen: #3b1b1a; --mau-tot: #58d68d; --mau-tot-nen: #10331f; --mau-canh-bao: #f0b352; --mau-canh-bao-nen: #382a11;
+  --bong-menu: 0 8px 28px rgb(0 0 0 / 45%); --bong-cot-ghim: 6px 0 8px -4px rgb(0 0 0 / 55%); color-scheme: dark; }
+
+body { background: var(--mau-nen-phu); color: var(--mau-chu); font-family: var(--phong); font-size: var(--chu-thuong); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px; }
+*, *::before, *::after { box-sizing: border-box; }
+button, input, textarea, select { font: inherit; }
+.trang { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+h1 { margin: 0; font-size: 1.5rem; line-height: 1.3; text-wrap: balance; }
+h2 { margin: 0; font-size: 1.0625rem; text-wrap: balance; }
+p { margin: 0; max-width: 74ch; }
+.phu { color: var(--mau-chu-phu); }
+code { font-family: var(--ma); font-size: 0.85em; background: var(--mau-thuong-hieu-nhat); padding: 1px 5px; border-radius: 4px; }
+.khoi { background: var(--mau-nen); border: 1px solid var(--mau-vien); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.nhan-chu { align-self: flex-start; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 999px; background: var(--mau-tot-nen); color: var(--mau-tot); }
+ul.gon { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 4px; color: var(--mau-chu-phu); }
+
+/* --- Bố cục hai mockup ---------------------------------------------------- */
+.hai-cot { display: grid; grid-template-columns: minmax(0, 36rem) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .hai-cot { grid-template-columns: minmax(0, 1fr); } }
+.chu-thich-mockup { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- Ngăn trượt (dựng lại theo app.css) ----------------------------------- */
+.ngan { display: flex; flex-direction: column; height: 760px; max-height: 80vh; background: var(--mau-nen); border: 1px solid var(--mau-vien-dam); border-radius: 10px; overflow: hidden; box-shadow: var(--bong-menu); }
+.ngan-dau { display: flex; align-items: flex-start; gap: var(--k2); padding: var(--k4) var(--k5) var(--k3); border-bottom: 1px solid var(--mau-vien); }
+.ngan-dau h3 { flex: 1; margin: var(--k2) 0 0; font-size: 1.0625rem; }
+.ngan-than { flex: 1; overflow-y: auto; padding: var(--k4) var(--k5) var(--k5); }
+.ngan form { display: flex; flex-direction: column; }
+.truong { margin-bottom: var(--k3); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.truong label { font-weight: 600; font-size: var(--chu-thuong); }
+.truong label .don-vi { font-weight: 400; color: var(--mau-chu-nhat); }
+.truong label .bat-buoc { color: var(--mau-loi); }
+.o-nhap { min-height: var(--vung-cham); padding: var(--k2) var(--k3); border: 1px solid var(--mau-vien-dam); border-radius: 6px; background: var(--mau-nen); color: var(--mau-chu); width: 100%; }
+.o-nhap:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 1px; border-color: var(--mau-thuong-hieu); }
+.o-nhap:disabled { background: var(--mau-nen-phu); color: var(--mau-chu-nhat); }
+.o-tien { text-align: right; font-variant-numeric: tabular-nums; }
+textarea.o-nhap { min-height: 5rem; resize: vertical; }
+.ghi-chu-nho { font-size: var(--chu-nho); color: var(--mau-chu-phu); margin: 0 0 var(--k3); }
+.nut { min-height: var(--vung-cham); padding: 0 var(--k4); border-radius: 6px; border: 1px solid var(--mau-vien-dam); background: var(--mau-nen); color: var(--mau-chu); font-weight: 500; cursor: pointer; }
+.nut:hover { background: var(--mau-nen-hover); }
+.nut-chinh { background: var(--mau-thuong-hieu); border-color: var(--mau-thuong-hieu); color: var(--mau-chu-nguoc); }
+.nut-chinh:hover { background: var(--mau-nut-chinh-hover); }
+.nut:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
+.nhom-nut { display: flex; gap: var(--k2); flex-wrap: wrap; }
+
+/* MỚI — một khoản CPBH: số tiền + nội dung, bọc trong một khung nhẹ để hai ô đọc là MỘT khoản. */
+.khoan { border: 1px solid var(--mau-vien); border-radius: 8px; padding: var(--k3); margin-bottom: var(--k3); background: var(--mau-nen-phu); }
+.khoan-dau { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--k2); }
+.khoan-dau strong { font-size: var(--chu-thuong); }
+.khoan-luoi { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); gap: var(--k2) var(--k3); }
+@media (max-width: 520px) { .khoan-luoi { grid-template-columns: minmax(0, 1fr); } }
+.khoan .truong { margin-bottom: 0; }
+.khoan .truong label { font-weight: 500; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+.nut-bot { min-height: 1.75rem; padding: 0 var(--k2); font-size: var(--chu-nho); border-color: transparent; background: none; color: var(--mau-chu-phu); }
+.nut-bot:hover { color: var(--mau-loi); background: var(--mau-loi-nen); }
+
+/* Cách 1 đã áp: dải nút phụ KHÔNG dính đáy; chỉ hàng chứa nút gửi dính. */
+.dai-phu { margin: 0 0 var(--k4); }
+.hang-gui { position: sticky; bottom: calc(-1 * var(--k5)); z-index: 1; margin: var(--k4) calc(-1 * var(--k5)) calc(-1 * var(--k5)); padding: var(--k3) var(--k5); border-top: 1px solid var(--mau-vien); background: var(--mau-nen-phu); }
+
+.xem-truoc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--k2); margin: 0 0 var(--k4); padding: var(--k3); border-left: 3px solid var(--mau-vien-dam); border-radius: 6px; background: var(--mau-nen-phu); font-variant-numeric: tabular-nums; }
+.xem-truoc dt { font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+.xem-truoc dd { margin: 0; font-weight: 600; }
+.vuot { color: var(--mau-loi); }
+@media (max-width: 520px) { .xem-truoc { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* --- Bảng sản phẩm (dựng lại theo P303) ---------------------------------- */
+.khung-cuon { overflow-x: auto; border: 1px solid var(--mau-vien); border-radius: 8px; background: var(--mau-nen); position: relative; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: var(--k3); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--mau-vien); }
+thead th { font-size: var(--chu-nho); font-weight: 600; color: var(--mau-chu-phu); }
+tbody tr:last-child > * { border-bottom: 0; }
+tbody tr:hover > * { background: var(--mau-nen-hover); }
+.cot-khoa { position: sticky; left: 0; z-index: 1; background: var(--mau-nen); box-shadow: inset -1px 0 0 var(--mau-vien); }
+thead .cot-khoa { z-index: 2; }
+.ma-sp { display: block; margin-top: 2px; font-size: var(--chu-nho); font-weight: 400; color: var(--mau-chu-nhat); }
+.dau-hoi { display: inline-flex; align-items: center; justify-content: center; width: 1.15em; height: 1.15em; margin-left: var(--k1); padding: 0; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: inherit; font: inherit; font-size: 0.7em; font-weight: 700; line-height: 1; cursor: help; vertical-align: 0.1em; }
+.dau-hoi:hover, .dau-hoi[aria-expanded="true"] { background: var(--mau-nen-hover); }
+.dau-hoi:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
+th .dau-hoi { color: var(--mau-thuong-hieu); }
+.o-trong { color: var(--mau-chu-nhat); }
+
+.noi { position: fixed; z-index: 30; width: max-content; max-width: min(22rem, calc(100vw - 16px)); padding: var(--k2) var(--k3); border: 1px solid var(--mau-vien-dam); border-radius: 8px; background: var(--mau-nen); box-shadow: var(--bong-menu); color: var(--mau-chu); font-size: var(--chu-nho); line-height: 1.5; white-space: normal; }
+.noi dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px var(--k3); }
+.noi dt { color: var(--mau-chu-phu); }
+.noi dd { margin: 0; }
+.noi .tieu { font-weight: 600; margin-bottom: 4px; }
+
+/* --- Công tắc ------------------------------------------------------------- */
+.cong-tac { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--mau-vien-dam); border-radius: 6px; overflow: hidden; background: var(--mau-nen); align-self: flex-start; }
+.cong-tac button { border: 0; background: none; color: var(--mau-chu-phu); font-weight: 500; padding: 0 var(--k3); min-height: var(--vung-cham); cursor: pointer; }
+.cong-tac button + button { border-left: 1px solid var(--mau-vien-dam); }
+.cong-tac button[aria-pressed="true"] { background: var(--mau-thuong-hieu-nhat); color: var(--mau-thuong-hieu); }
+.cong-tac button:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: -2px; }
+.mo-ta { font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+ol.cau-hoi { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 8px; }
+ol.cau-hoi li::marker { color: var(--mau-thuong-hieu); font-weight: 700; }
+</style>
+
+<div class="trang">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Hộp thêm/sửa dòng sản phẩm — sửa dải “Thêm khoản chi phí” và thêm “Nội dung” cho từng khoản CPBH</h1>
+    <p class="phu">Mockup để duyệt một lần trước khi làm. Câu chữ, màu, khoảng cách theo phần mềm đang chạy. Số liệu là <strong>ví dụ</strong> (sản phẩm có thật trên demo, nội dung các khoản do tôi đặt).</p>
+  </header>
+
+  <section class="khoi">
+    <span class="nhan-chu">Đã chốt — cách 1</span>
+    <p>Luật dính đáy của ngăn trượt chỉ áp cho hàng <strong>chứa nút gửi</strong> (<code>form &gt; .nhom-nut:has(button[type="submit"])</code>). Dải <em>+ Thêm khoản chi phí</em> thôi dính đáy, thôi đè lên khối giá; hàng <em>Lưu dòng / Huỷ</em> vẫn dính đáy như cũ. Kèm ca kiểm dựng thật ba ngăn trượt: mỗi biểu mẫu đúng một dải dính đáy, dải ấy chứa nút gửi. Mockup bên dưới đã áp cách này.</p>
+  </section>
+
+  <section class="hai-cot">
+    <div class="ngan" role="dialog" aria-labelledby="tieu-ngan">
+      <div class="ngan-dau">
+        <h3 id="tieu-ngan">Sửa NC-GOLD-900</h3>
+      </div>
+      <div class="ngan-than">
+        <form id="bieu-mau" onsubmit="event.preventDefault()">
+          <div class="truong"><label for="o-ngay">Ngày áp dụng <span class="bat-buoc">*</span></label><input id="o-ngay" class="o-nhap" value="01/08/2026"></div>
+          <div class="truong"><label for="o-sp">Sản phẩm <span class="bat-buoc">*</span></label><select id="o-sp" class="o-nhap" disabled><option>Nutricare Gold 900g (NC-GOLD-900)</option></select></div>
+          <p class="ghi-chu-nho">Giá bán Công ty của sản phẩm này: <strong>615.000</strong>. Tỷ lệ chiết khấu tính từ con số đó và giá thu về.</p>
+          <div class="truong"><label for="o-gbb">Giá bán buôn <span class="bat-buoc">*</span> <span class="don-vi">(Tiền tệ đơn vị đồng)</span></label><input id="o-gbb" class="o-nhap o-tien" value="547.000" inputmode="numeric"></div>
+
+          <div id="ds-khoan"></div>
+
+          <div class="nhom-nut dai-phu"><button type="button" class="nut" id="them-khoan">+ Thêm khoản chi phí</button></div>
+
+          <dl class="xem-truoc" id="xem-truoc"></dl>
+
+          <div class="truong"><label for="o-ghi-chu">Ghi chú</label><textarea id="o-ghi-chu" class="o-nhap" maxlength="500"></textarea></div>
+          <p class="ghi-chu-nho">Ghi chú riêng cho sản phẩm này — <strong>in ra bản CSBH A4</strong>; trên bảng hiện bằng một biểu tượng cạnh tên sản phẩm. Tối đa 500 ký tự. Để trống thì không có ghi chú.</p>
+
+          <div class="nhom-nut hang-gui"><button type="submit" class="nut nut-chinh">Lưu dòng</button><button type="button" class="nut">Huỷ</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="chu-thich-mockup">
+      <h2>Trong hộp thoại</h2>
+      <ul class="gon">
+        <li>Mỗi khoản CPBH là <strong>một khung</strong>: ô số tiền và ô <strong>Nội dung</strong> (không bắt buộc) đứng cạnh nhau — hai ô đọc là cùng một khoản. Trên điện thoại hai ô xếp chồng.</li>
+        <li>Ô Nội dung: tối đa 200 ký tự, gợi ý sẵn trong ô (“Ví dụ: hỗ trợ trưng bày tại quầy”).</li>
+        <li><em>Bớt</em> nằm ở đầu khung, gỡ cả số tiền lẫn nội dung của khoản ấy.</li>
+        <li>Dải <em>+ Thêm khoản chi phí</em> nằm ngay sau khoản cuối, không dính đáy (cách 1).</li>
+        <li>Câu gợi ý dưới <em>Ghi chú</em> sửa theo P303.</li>
+      </ul>
+      <p class="mo-ta">Thử: gõ vào ô Nội dung, thêm/bớt khoản — bảng bên dưới cập nhật theo dòng <em>Nutricare Gold 900g</em>.</p>
+    </div>
+  </section>
+
+  <section class="khoi">
+    <h2>Trên bảng sản phẩm — dấu <span style="display:inline-flex;align-items:center;justify-content:center;width:1.1em;height:1.1em;border:1px solid currentColor;border-radius:50%;font-size:0.7em;font-weight:700;color:var(--mau-thuong-hieu)">?</span> ở đâu</h2>
+    <p class="phu">Câu “dấu hỏi chấm cạnh tên cột CPBH” đọc được theo hai cách, nên tôi bày cả hai để bạn chọn. Cả hai dùng chung một kiểu dữ liệu — nội dung gắn với từng khoản của từng dòng, nhập ở hộp thoại bên trên — chỉ khác chỗ đặt dấu.</p>
+    <div class="cong-tac" role="group" aria-label="Vị trí dấu hỏi">
+      <button type="button" data-vi-tri="tieu-de" aria-pressed="true">A · Cạnh tên cột (tiêu đề)</button>
+      <button type="button" data-vi-tri="o" aria-pressed="false">B · Cạnh con số (trong ô)</button>
+    </div>
+    <p class="mo-ta" id="mo-ta-vi-tri"></p>
+    <div class="khung-cuon" tabindex="0" role="region" aria-label="Bảng sản phẩm">
+      <table>
+        <thead><tr id="hang-dau"></tr></thead>
+        <tbody id="than-bang"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="khoi">
+    <h2>Cần bạn chốt trước khi làm</h2>
+    <ol class="cau-hoi">
+      <li><strong>Dấu <span>?</span> ở tiêu đề (A) hay trong ô (B)?</strong> Nội dung thuộc về <em>từng khoản của từng dòng</em> (mỗi sản phẩm có cấu trúc chi phí riêng), nên tôi nghiêng về <strong>B</strong>. A vẫn làm được: rê vào tiêu đề <em>CPBH 1</em> thì liệt kê nội dung khoản 1 của mọi sản phẩm.</li>
+      <li><strong>Nội dung có in ra bản mềm không?</strong> Đề xuất: <strong>không</strong> ở lượt này (bản mềm giữ nguyên, như luật P303); muốn in thì là một cột/ô trống mẫu mới, làm riêng.</li>
+      <li><strong>Sửa riêng nội dung có làm dòng thành <em>Chỉnh sửa</em> không?</strong> Đề xuất: <strong>không</strong> — cùng lý lẽ ghi chú (khách hàng chốt 21/09: trường mô tả không dùng để đánh giá sản phẩm có bị chỉnh sửa).</li>
+      <li><strong>Sang phiên bản mới:</strong> nội dung đi theo khoản như số tiền (đề xuất: có).</li>
+    </ol>
+    <p class="phu">Phần máy chủ: thêm một cột song song với <code>cpbh</code> trên dòng sản phẩm (danh sách chữ, mỗi khoản một mục, rỗng được), API thêm/sửa dòng nhận và trả nó, chép sang phiên bản mới. Kèm migration, ca kiểm, YCNV và HDSD — cùng một chặng với bản sửa cách 1.</p>
+  </section>
+</div>
+
+<div class="noi" id="noi" hidden></div>
+
+<script>
+(() => {
+  const so = (n) => n.toLocaleString('vi-VN');
+  const docSo = (s) => Number(String(s).replace(/\D/g, '')) || 0;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  // Dòng đang sửa trong hộp thoại (ví dụ trên sản phẩm có thật ở demo).
+  const khoan = [
+    { tien: 10000, noiDung: 'Hỗ trợ trưng bày tại quầy' },
+    { tien: 6000, noiDung: '' },
+  ];
+  const GIA_CTY = 615000;
+  let gbb = 547000;
+
+  // Các dòng khác của bảng — ví dụ.
+  const DONG_KHAC = [
+    { ten: 'Nutricare Canxi 900g', ma: 'NC-CAL-900', ngay: '01/08/2026', gct: 645000, gbb: 554700, khoan: [{ tien: 12900, noiDung: 'Phí lên kệ chuỗi nhà thuốc' }] },
+    { ten: 'Thanh dinh dưỡng 35g', ma: 'NC-BAR-35', ngay: '19/03/2026', gct: 22000, gbb: 18920, khoan: [{ tien: 300, noiDung: '' }, { tien: 150, noiDung: 'Quà tặng kèm khi mua thùng' }] },
+  ];
+
+  const dsKhoan = document.getElementById('ds-khoan');
+  function veKhoan() {
+    dsKhoan.innerHTML = khoan.map((k, i) => `
+      <div class="khoan">
+        <div class="khoan-dau"><strong>CPBH ${i + 1}</strong>${khoan.length > 1 ? `<button type="button" class="nut nut-bot" data-bot="${i}" aria-label="Bớt CPBH ${i + 1}">Bớt</button>` : ''}</div>
+        <div class="khoan-luoi">
+          <div class="truong"><label for="k-tien-${i}">Số tiền <span class="don-vi">(đồng)</span></label><input id="k-tien-${i}" class="o-nhap o-tien" inputmode="numeric" data-tien="${i}" value="${k.tien ? so(k.tien) : ''}"></div>
+          <div class="truong"><label for="k-nd-${i}">Nội dung <span class="don-vi">(không bắt buộc)</span></label><input id="k-nd-${i}" class="o-nhap" maxlength="200" data-nd="${i}" placeholder="Ví dụ: hỗ trợ trưng bày tại quầy" value="${esc(k.noiDung)}"></div>
+        </div>
+      </div>`).join('');
+  }
+  dsKhoan.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.dataset.tien !== undefined) { khoan[+t.dataset.tien].tien = docSo(t.value); veXemTruoc(); veBang(); }
+    if (t.dataset.nd !== undefined) { khoan[+t.dataset.nd].noiDung = t.value; veBang(); }
+  });
+  dsKhoan.addEventListener('blur', (e) => { const t = e.target; if (t.dataset.tien !== undefined) t.value = khoan[+t.dataset.tien].tien ? so(khoan[+t.dataset.tien].tien) : ''; }, true);
+  dsKhoan.addEventListener('click', (e) => { const b = e.target.closest('[data-bot]'); if (!b) return; khoan.splice(+b.dataset.bot, 1); veKhoan(); veXemTruoc(); veBang(); });
+  document.getElementById('them-khoan').addEventListener('click', () => { khoan.push({ tien: 0, noiDung: '' }); veKhoan(); veBang(); document.getElementById(`k-tien-${khoan.length - 1}`).focus(); });
+  document.getElementById('o-gbb').addEventListener('input', (e) => { gbb = docSo(e.target.value); veXemTruoc(); veBang(); });
+
+  const tinh = (gct, gb, ks) => { const tong = ks.reduce((a, k) => a + k.tien, 0); const gtv = gb - tong; return { tong, gtv, tl: Math.round((1 - gtv / gct) * 10000) / 100 }; };
+  function veXemTruoc() {
+    const r = tinh(GIA_CTY, gbb, khoan);
+    document.getElementById('xem-truoc').innerHTML = `<div><dt>CPBH</dt><dd>${so(r.tong)}</dd></div><div><dt>Giá thu về</dt><dd>${so(r.gtv)}</dd></div>
+      <div><dt>Tỷ lệ CK</dt><dd class="${r.tl > 18 ? 'vuot' : ''}">${r.tl.toLocaleString('vi-VN', { minimumFractionDigits: 2 })}%</dd></div><div><dt>QĐCK</dt><dd>18,00%</dd></div>`;
+  }
+
+  // ---- Bảng ------------------------------------------------------------
+  let viTri = 'tieu-de';
+  const MO_TA = {
+    'tieu-de': 'A — dấu ? cạnh tiêu đề “CPBH n” (chỉ hiện khi ít nhất một dòng có nội dung cho khoản ấy). Rê chuột hoặc chạm: liệt kê nội dung khoản n của từng sản phẩm. Đúng chữ “cạnh tên cột”, nhưng đọc nội dung của một dòng thì phải dò theo tên sản phẩm trong danh sách.',
+    'o': 'B — dấu ? cạnh con số trong ô, chỉ ở khoản có nội dung. Rê chuột hoặc chạm: nội dung của đúng khoản ấy, của đúng dòng ấy. Cùng lối dấu ? đang có ở cột Tỷ lệ CK và QĐCK.',
+  };
+  const tatCa = () => [{ ten: 'Nutricare Gold 900g', ma: 'NC-GOLD-900', ngay: '01/08/2026', gct: GIA_CTY, gbb, khoan }, ...DONG_KHAC];
+  function veBang() {
+    const ds = tatCa();
+    const soCot = Math.max(...ds.map((d) => d.khoan.length));
+    const dauHoi = (cau, nhan) => `<button type="button" class="dau-hoi" data-noi="${esc(cau)}" aria-label="${esc(nhan)}">?</button>`;
+    const cotCpbh = Array.from({ length: soCot }, (_, i) => {
+      const co = ds.filter((d) => d.khoan[i]?.noiDung);
+      const dau = viTri === 'tieu-de' && co.length
+        ? dauHoi(JSON.stringify({ tieu: `Nội dung CPBH ${i + 1}`, ds: co.map((d) => [d.ten, d.khoan[i].noiDung]) }), `Nội dung CPBH ${i + 1}: ` + co.map((d) => `${d.ten}: ${d.khoan[i].noiDung}`).join('; '))
+        : '';
+      return `<th>CPBH ${i + 1}${dau}</th>`;
+    }).join('');
+    document.getElementById('hang-dau').innerHTML = `<th class="cot-khoa">Tên sản phẩm</th><th>Ngày áp dụng</th><th>Giá bán Công ty</th><th>Giá bán buôn</th><th>CPBH</th>${cotCpbh}<th>Giá thu về</th><th>Tỷ lệ CK</th>`;
+    document.getElementById('than-bang').innerHTML = ds.map((d) => {
+      const r = tinh(d.gct, d.gbb, d.khoan);
+      const o = Array.from({ length: soCot }, (_, i) => {
+        const k = d.khoan[i];
+        if (!k) return '<td></td>';
+        const dau = viTri === 'o' && k.noiDung ? dauHoi(JSON.stringify({ tieu: `CPBH ${i + 1} — ${d.ten}`, chu: k.noiDung }), `Nội dung CPBH ${i + 1}: ${k.noiDung}`) : '';
+        return `<td>${so(k.tien)}${dau}</td>`;
+      }).join('');
+      return `<tr><th class="cot-khoa" scope="row">${esc(d.ten)}<span class="ma-sp">${d.ma}</span></th><td>${d.ngay}</td><td>${so(d.gct)}</td><td>${so(d.gbb)}</td><td>${so(r.tong)}</td>${o}<td>${so(r.gtv)}</td><td>${r.tl.toLocaleString('vi-VN', { minimumFractionDigits: 2 })}%</td></tr>`;
+    }).join('');
+    document.getElementById('mo-ta-vi-tri').textContent = MO_TA[viTri];
+  }
+  document.querySelectorAll('[data-vi-tri]').forEach((b) => b.addEventListener('click', () => {
+    viTri = b.dataset.viTri;
+    document.querySelectorAll('[data-vi-tri]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    dong(); veBang();
+  }));
+
+  // Ô nổi: rê chuột hiện; bấm thì ghim; bấm ra ngoài / Esc / cuộn thì đóng.
+  const noi = document.getElementById('noi');
+  let dang = null, ghim = false;
+  function mo(nut, g) {
+    const d = JSON.parse(nut.dataset.noi);
+    noi.innerHTML = `<div class="tieu">${esc(d.tieu)}</div>` + (d.ds ? `<dl>${d.ds.map(([t, c]) => `<dt>${esc(t)}</dt><dd>${esc(c)}</dd>`).join('')}</dl>` : esc(d.chu));
+    noi.hidden = false;
+    const r = nut.getBoundingClientRect(); const w = noi.offsetWidth;
+    noi.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
+    noi.style.top = (r.bottom + 6) + 'px';
+    dang?.setAttribute('aria-expanded', 'false'); dang = nut; ghim = g; nut.setAttribute('aria-expanded', 'true');
+  }
+  function dong() { noi.hidden = true; dang?.setAttribute('aria-expanded', 'false'); dang = null; ghim = false; }
+  document.addEventListener('pointerover', (e) => { const n = e.target.closest?.('[data-noi]'); if (e.pointerType === 'mouse' && n && !ghim) mo(n, false); });
+  document.addEventListener('pointerout', (e) => { const n = e.target.closest?.('[data-noi]'); if (e.pointerType === 'mouse' && n && !ghim && !n.contains(e.relatedTarget)) dong(); });
+  document.addEventListener('click', (e) => { const n = e.target.closest('[data-noi]'); if (n) { if (dang === n && ghim) dong(); else mo(n, true); } });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('[data-noi]') && !noi.contains(e.target)) dong(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
+  document.addEventListener('scroll', dong, true);
+
+  veKhoan(); veXemTruoc(); veBang();
+})();
+</script>

@@ -22044,3 +22044,60 @@ chạy trông giống một phá lại xanh"*; làm lại, lọc kết quả ở
 `tests/web` + `tests/http/{tieu-de-cot,o-ban-truoc,tai-lieu}`:
 
 **1175/1175 xanh.**
+
+## P304 — `0268` Nội dung từng khoản CPBH, và dải "Thêm khoản chi phí" thôi dính đáy
+
+Hai việc một chặng, duyệt trên mockup (https://claude.ai/artifact/TviJH8ZxPZK7qtBWMSbkKY).
+
+**1. Lỗi giao diện của chính `0257` (P290).** Luật `.hop-thoai-ngan form > .nhom-nut` ghim MỌI dải nút ngay dưới
+biểu mẫu xuống đáy ngăn trượt (sticky, nền, lề âm 24px) — ý định chỉ là hàng *Lưu/Huỷ*. Dải *+ Thêm khoản chi
+phí* của hộp thêm/sửa dòng cũng là `div.nhom-nut` ngay dưới `<form>`, nên lề âm kéo khối giá lên dưới nó: đo
+trên demo **chồng 24px ở cả bốn khổ** (1366 · 1440 · 820 · 390), và khi cuộn nó dính đáy thành dải nút thứ
+hai. Rà hai ngăn trượt còn lại (khách hàng, sản phẩm ở danh mục): mọi `nhom-nut` ở đó đều là hàng gửi.
+
+Hai cách đưa ra, cùng một hình; khách hàng chọn **cách 1 — sửa luật** chứ không đổi lớp của dải phụ: bộ chọn
+thành `form > .nhom-nut:has(button[type="submit"])`. Không `:last-child` như câu hỏi ban đầu gợi ý: chỉ cần
+một dòng báo lỗi hay ô ẩn thêm sau hàng nút là luật lặng lẽ thôi áp. Cái giá: trình duyệt không có `:has()`
+(trước Chrome 105 / Safari 15.4 / Firefox 121) thì hàng *Lưu* thôi dính đáy — biểu mẫu vẫn dùng được.
+Ca kiểm (`tests/web/noi-dung-cpbh.test.tsx`) đọc CHÍNH bộ chọn dính đáy từ `app.css` rồi chạy nó trên hộp
+thoại thật trong jsdom (`:has()` chạy được): đúng một dải khớp, dải ấy chứa nút gửi, không phải dải *Thêm
+khoản*. Đo lại trên demo: chồng −16px (có khoảng cách), dải dính đáy duy nhất là *Lưu dòng / Huỷ*.
+
+**2. Nội dung từng khoản CPBH** (khách hàng chốt 08/11): một câu ≤200 ký tự, không bắt buộc, cho TỪNG khoản.
+Bốn luật chốt khi được hỏi: dấu `?` **đặt đúng con số trong ô** (mockup cho hai vị trí — tiêu đề cột hay trong
+ô — khách chọn trong ô vì nội dung thuộc từng khoản của từng dòng) · **không in ra bản mềm** · sửa riêng nội
+dung **không** làm dòng thành *Chỉnh sửa* · **đi theo khoản** sang phiên bản mới.
+
+- **Lược đồ** (`0132_noi_dung_khoan_cpbh.sql`): `pol.policy_line.cpbh_noi_dung text[] NOT NULL DEFAULT '{}'`,
+  mảng SONG SONG với `cpbh`, ràng buộc `cpbh_noi_dung_khong_thua` (`cardinality ≤ cardinality(cpbh)`). Không
+  migration dữ liệu: dòng cũ rỗng = mọi khoản không có nội dung.
+- **Máy chủ**: mọi lượt ghi dòng đi qua `upsertLine` — chỗ duy nhất căn mảng: thiếu thì ĐỆM chuỗi rỗng (đọc
+  theo chỉ số không bao giờ lệch), thừa thì `400 CPBH_NOI_DUNG_LECH` (cắt là lặng lẽ vứt chữ người dùng vừa
+  gõ; thừa chỉ xảy ra khi bên gọi gửi sai — câu ở `loi.ts`). DTO `cpbhNoiDung: opt(danhSach(str(0, 200)))` ở
+  cả thêm lẫn sửa (`str(0, …)` để khoản rỗng giữ chỗ — bẫy `0175`). Lượt chép dòng của `create` chép cột này.
+  **Không đụng** `SQL_TRANG_THAI_DONG` (luật *không phải Chỉnh sửa* có sẵn vì phép so không biết cột ấy) và
+  **không đụng** `internal.controller` — cửa duy nhất bản mềm đọc hồ sơ (`0204`); có ca quét tệp ấy.
+- **Hộp thoại**: mỗi khoản là MỘT KHUNG `.khoan-cpbh` (số tiền 14rem + nội dung). Nhãn ô số tiền GIỮ chữ *CPBH
+  n* — tên cột bảng, và là thứ các ca cũ tìm ô theo; ô nội dung mang `aria-label` *Nội dung khoản chi phí n*
+  để không khớp nhầm `/CPBH 1/`. `noiDung` là state song song với `cpbh`, thêm/bớt CÙNG chỉ số ở một hàm —
+  hai mảng tự sống riêng là bớt khoản giữa thì nội dung khoản 3 dời sang mô tả khoản 2 (có ca). Câu gợi ý ô
+  *Ghi chú* sửa theo P303.
+- **Bảng**: `DauNoiDungKhoan` — dấu `?` dựng y hệt dấu `?` của Tỷ lệ CK/QĐCK (`title` + `aria-label`), chỉ ở
+  khoản có nội dung (khoảng trắng không tính), cả bảng lẫn danh sách CPBH gấp của thẻ điện thoại.
+
+**Hai lỗi hiển thị của chính chặng, demo thật tìm ra**: ô số tiền 11rem làm nhãn *CPBH 1 (Tiền tệ đơn vị
+đồng)* gãy đôi ở 1366 → 14rem; luật xếp chồng dưới 520px (`.khoan-cpbh > .truong`) THUA luật `:first-child`
+vì kém đặc hiệu, ô số tiền đứng hẹp trên điện thoại → `:nth-child(n)`. Đo lại: nhãn một dòng ở 1366/820,
+hai ô 315px ở 390.
+
+**Phá lại chín lượt, tám đỏ**: không chép sang phiên bản mới · không đệm · bỏ chặn thừa · bỏ trần 200 · bớt
+khoản quên bớt nội dung · không gửi `cpbhNoiDung` (2 ca) · trả luật dính đáy cũ · dấu `?` trên mọi khoản (2
+ca). **Lượt bỏ phép cắt khoảng trắng ở service XANH có lý do**: `str()` của `http-kit` đã cắt ở lớp kiểm dữ
+liệu vào, nên phép cắt ở service chỉ còn che người gọi nội bộ; ca *"cắt khoảng trắng"* canh được đường API,
+không canh được dòng ấy. Ca máy chủ chạy với `-t 0268` trên chồng kiểm, có mốc đối chứng 7/7.
+
+`make test` đầy đủ (demo tắt): **3344/3345** — ca đỏ duy nhất là `tai-lieu.test.ts` (*"82 migration"* ở bốn
+chỗ: CLAUDE.md, KIEN-TRUC ×2, 02-CHAY-DEMO; giờ 83), sửa xong tệp ấy 4/4. Sau đó chỉ đổi CSS: typecheck xanh;
+`tests/web` + `tests/http/{tai-lieu,tieu-de-cot}`:
+
+**1179/1179 xanh.**

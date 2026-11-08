@@ -52,6 +52,11 @@ export type DongSanPham = {
   wholesalePrice: string;
   /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. */
   cpbh: string[];
+  /**
+   * Nội dung từng khoản (`0268`), song song với `cpbh`; rỗng = không có. Máy chủ cũ
+   * hơn giao diện thì vắng mặt — mọi chỗ đọc dùng `?.[i]`.
+   */
+  cpbhNoiDung?: string[] | undefined;
   cpbhTotal: string;
   netPrice: string;
   discountRate: string;
@@ -633,6 +638,23 @@ export function OQuyDinh({ d }: { d: DongSanPham }) {
   );
 }
 
+/**
+ * Dấu `?` cạnh con số của một KHOẢN CPBH có nội dung (`0268`, khách hàng chọn
+ * "đặt đúng con số" trong hai phương án). Dựng y hệt dấu `?` của ô Tỷ lệ CK và
+ * QĐCK (`0027`): `<button>` mang `title` cho chuột và `aria-label` cho bàn phím và
+ * trình đọc màn hình. Khoản không có nội dung thì không có dấu.
+ */
+export function DauNoiDungKhoan({ d, k }: { d: DongSanPham; k: number }) {
+  const nd = d.cpbhNoiDung?.[k]?.trim();
+  if (!nd) return null;
+  const cau = `${nhanCpbh(k)}: ${nd}`;
+  return (
+    <button type="button" className="dau-hoi dau-noi-dung" title={cau} aria-label={`Nội dung ${cau}`}>
+      ?
+    </button>
+  );
+}
+
 function CpbhGop({ d }: { d: DongSanPham }) {
   const [mo, datMo] = useState(false);
   const co = d.cpbh ?? [];
@@ -667,6 +689,7 @@ function CpbhGop({ d }: { d: DongSanPham }) {
                 <dd className="so">
                   {tien(v)}
                   <DauKhoan d={d} k={i} />
+                  <DauNoiDungKhoan d={d} k={i} />
                 </dd>
               </div>
             ))}
@@ -966,6 +989,7 @@ export function BangSanPham({
                   <td key={k} className="so">
                     {d.cpbh?.[k] === undefined ? '' : tien(d.cpbh[k])}
                     <DauKhoan d={d} k={k} />
+                    {d.cpbh?.[k] !== undefined && <DauNoiDungKhoan d={d} k={k} />}
                   </td>
                 ))}
                 <td className="so">

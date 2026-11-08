@@ -88,6 +88,13 @@ export type LineInput = {
   wholesalePrice: bigint;
   /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. Thiếu = không có khoản nào. */
   cpbh?: readonly bigint[] | undefined;
+  /**
+   * NỘI DUNG của từng khoản CPBH (`0268`), song song với `cpbh`: phần tử thứ i mô tả
+   * khoản thứ i, rỗng = không có nội dung. Thiếu = mọi khoản không có nội dung —
+   * cùng luật "biểu mẫu gửi toàn bộ dòng" của `cpbh` và `note`. Dài hơn `cpbh` là
+   * `CPBH_NOI_DUNG_LECH` (lỗi của bên gọi, không phải của người dùng).
+   */
+  cpbhNoiDung?: readonly string[] | undefined;
   /** Ghi chú tự do cho riêng dòng này (`0027`). Thiếu = xoá ghi chú đang có. */
   note?: string | undefined;
   /**
@@ -1268,11 +1275,11 @@ export class PoliciesService {
           // của mọi mặt hàng cũ mỗi lần lập một phiên bản mới.
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
-              company_price_snap, wholesale_price, cpbh,
+              company_price_snap, wholesale_price, cpbh, cpbh_noi_dung,
               discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
               ngay_ap_dung)
            SELECT $1, product_id, product_code_snap, product_name_snap,
-                  company_price_snap, wholesale_price, cpbh,
+                  company_price_snap, wholesale_price, cpbh, cpbh_noi_dung,
                   discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
                   ngay_ap_dung
              FROM pol.policy_line WHERE policy_id = $2`,
@@ -1461,6 +1468,22 @@ export class PoliciesService {
       throw e;
     }
 
+    /*
+     * NỘI DUNG KHOẢN (`0268`) — căn ĐÚNG số khoản: thiếu thì đệm chuỗi rỗng, thừa thì
+     * từ chối. Đệm để mảng luôn đọc được theo chỉ số (`noiDung[i]` ↔ `cpbh[i]`) mà
+     * không ai phải lo lệch độ dài; từ chối thay vì cắt vì cắt là lặng lẽ vứt chữ
+     * người dùng vừa gõ — thừa chỉ xảy ra khi bên gọi gửi sai.
+     */
+    const soKhoan = (line.cpbh ?? []).length;
+    const noiDungVao = (line.cpbhNoiDung ?? []).map((x) => x.trim());
+    if (noiDungVao.length > soKhoan) {
+      throw new BadRequestException({
+        code: 'CPBH_NOI_DUNG_LECH',
+        message: `Có ${noiDungVao.length} nội dung cho ${soKhoan} khoản chi phí`,
+      });
+    }
+    const noiDung = Array.from({ length: soKhoan }, (_, i) => noiDungVao[i] ?? '');
+
     // Rate2 (1235) sang numeric(5,2) (12.35). Chia ở ĐÚNG một chỗ này; con số
     // đem so ngưỡng đã được làm tròn từ trước trong computeLine.
     const rate = rate2ToNumeric(calc.discountRate);
@@ -1472,11 +1495,12 @@ export class PoliciesService {
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
             discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
-            ngay_ap_dung)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12,$13)
+            ngay_ap_dung, cpbh_noi_dung)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12,$13,$14::text[])
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
             cpbh = EXCLUDED.cpbh,
+            cpbh_noi_dung = EXCLUDED.cpbh_noi_dung,
             company_price_snap = EXCLUDED.company_price_snap,
             discount_rate = EXCLUDED.discount_rate,
             threshold_snap = EXCLUDED.threshold_snap,
@@ -1517,6 +1541,7 @@ export class PoliciesService {
            * nó; gộp lại là dời ngày áp dụng và lật nhãn trạng thái (`0201`).
            */
           customer.on ?? ngayVN(),
+          noiDung,
         ],
       )
       .catch((e: unknown) => {
@@ -1619,6 +1644,7 @@ export class PoliciesService {
     input: {
       wholesalePrice: bigint;
       cpbh?: readonly bigint[] | undefined;
+      cpbhNoiDung?: readonly string[] | undefined;
       note?: string | undefined;
       ngayApDung?: string | undefined;
     },
@@ -3179,6 +3205,9 @@ export class PoliciesService {
               l.company_price_snap::text AS "companyPrice",
               l.wholesale_price::text AS "wholesalePrice",
               l.cpbh::text[] AS cpbh,
+              -- 0268 — nội dung từng khoản, song song với cpbh. CHỈ ở đường đọc của
+              -- giao diện: internal.controller (cửa của bản mềm) KHÔNG lấy cột này.
+              l.cpbh_noi_dung AS "cpbhNoiDung",
               l.cpbh_total::text AS "cpbhTotal", l.net_price::text AS "netPrice",
               l.discount_rate::text AS "discountRate", l.threshold_snap::text AS "threshold",
               l.over_threshold AS "overThreshold",

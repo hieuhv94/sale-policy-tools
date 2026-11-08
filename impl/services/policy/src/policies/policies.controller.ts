@@ -73,6 +73,13 @@ const lineShape = {
    */
   cpbh: opt(danhSach(moneyKhongAm())),
   /**
+   * NỘI DUNG từng khoản CPBH (`0268`), song song với `cpbh`, không bắt buộc. 200 ký
+   * tự: một câu mô tả *"chi phí này phục vụ việc gì"*, không phải một đoạn văn.
+   * `str(0, …)` chứ không `str(1, …)`: khoản không có nội dung gửi chuỗi rỗng để giữ
+   * đúng chỉ số (bẫy `0175` — `str()` tự cắt khoảng trắng).
+   */
+  cpbhNoiDung: opt(danhSach(str(0, 200))),
+  /**
    * Ghi chú tự do cho riêng dòng này (`0027`).
    *
    * 500 ký tự là chỗ cho vài câu, không phải chỗ cho một phụ lục — ô này in
@@ -272,6 +279,8 @@ export class PoliciesController {
     const b = validate(body, {
       wholesalePrice: money(),
       cpbh: opt(danhSach(moneyKhongAm())),
+      // 0268 — vắng mặt là mọi khoản KHÔNG có nội dung, cùng luật với `cpbh`.
+      cpbhNoiDung: opt(danhSach(str(0, 200))),
       // Vắng mặt là XOÁ ghi chú, không phải "giữ nguyên": biểu mẫu sửa dòng gửi
       // lên toàn bộ nội dung dòng, cùng luật với `cpbh` ngay trên.
       note: opt(str(1, 500)),
