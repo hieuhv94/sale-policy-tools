@@ -59,9 +59,11 @@ type Kq = { ma: number; ra: string; goi: string; sql: string; lanChay: string; d
 function chuanBi(): string {
   const d = mkdtempSync(join(tmpdir(), 'csbh-tt-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
+  copyFileSync('scripts/lib-buoc.sh', join(d, 'lib-buoc.sh'));
+  mkdirSync(join(d, 'run'), { recursive: true });
   chmodSync(join(d, 'csbh'), 0o755);
   mkdirSync(join(d, 'logs'));
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
+  writeFileSync(join(d, '.env'), `COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nCSBH_WORKSPACE=${d}\n`);
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   return d;
@@ -72,7 +74,7 @@ function chay(d: string, lenh: string[], dat: Record<string, string> = {}): Prom
   for (const t of [nhatKy, `${nhatKy}.sql`, `${nhatKy}.lanchay`]) writeFileSync(t, '');
   const env = {
     ...process.env,
-    PATH: `${d}:${process.env.PATH}`,
+    CSBH_ENV: join(d, ".env"), PATH: `${d}:${process.env.PATH}`,
     NHAT_KY: nhatKy,
     LOG_GIA: join(d, 'logs'), // thư mục log "bên trong" container van-hanh giả
     VIEC: '',
@@ -183,7 +185,7 @@ describe('`0254` VÒNG LẶP thật (không --mot-nhip)', () => {
     for (const t of [nhatKy, `${nhatKy}.sql`, `${nhatKy}.lanchay`]) writeFileSync(t, '');
     const p = spawn('sh', [join(d, 'csbh'), 'tac-tu'], {
       cwd: d,
-      env: { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, LOG_GIA: join(d, 'logs'), LICH: 'khong 9', TAC_TU_NHIP: '1', ...dat },
+      env: { ...process.env, CSBH_ENV: join(d, ".env"), PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, LOG_GIA: join(d, 'logs'), LICH: 'khong 9', TAC_TU_NHIP: '1', ...dat },
     });
     try {
       for (let i = 0; i < 100 && !readFileSync(`${nhatKy}.sql`, 'utf8').includes('ops.tac_tu_xong'); i++) {
@@ -217,7 +219,7 @@ describe('`0254` VÒNG LẶP thật (không --mot-nhip)', () => {
 describe('`0254` khoá sao lưu: lượt bấm trùng lượt theo lịch', () => {
   it('khoá đang bị giữ → việc web báo LỖI (không phải "xong"), không sao lưu', async () => {
     const d = chuanBi();
-    const giu = spawn('flock', [join(d, '.khoa-sao-luu'), 'sleep', '5']);
+    const giu = spawn('flock', [join(d, 'run', 'khoa-sao-luu'), 'sleep', '5']);
     await new Promise((r) => setTimeout(r, 300));
     try {
       const k = await nhip({ VIEC: `7 SAO_LUU_CSDL ${UUID}` }, d);
@@ -264,8 +266,8 @@ describe('`0254` việc định kỳ của tác tử', () => {
   it('con trỏ mốc: lượt sau hỏi --since = dòng cuối + 1 nano giây; service không có dòng nào thì chưa có mốc', async () => {
     const d = chuanBi();
     await nhip({ CSBH_EPOCH: '1000000' }, d);
-    expect(readFileSync(join(d, '.tac-tu', 'moc-log', 'postgres'), 'utf8').trim()).toBe('2026-11-05T17:00:01.000000010Z');
-    expect(existsSync(join(d, '.tac-tu', 'moc-log', 'minio'))).toBe(false);
+    expect(readFileSync(join(d, 'run', 'tac-tu', 'moc-log', 'postgres'), 'utf8').trim()).toBe('2026-11-05T17:00:01.000000010Z');
+    expect(existsSync(join(d, 'run', 'tac-tu', 'moc-log', 'minio'))).toBe(false);
     const k = await nhip({ CSBH_EPOCH: '1000301' }, d);
     expect(k.goi).toContain('logs --no-color --no-log-prefix --timestamps --since 2026-11-05T17:00:01.000000010Z postgres');
     expect(k.goi).toMatch(/logs --no-color --no-log-prefix --timestamps minio\n/);
@@ -275,7 +277,7 @@ describe('`0254` việc định kỳ của tác tử', () => {
     const d = chuanBi();
     const k = await nhip({ VAN_HANH_HONG: '1' }, d);
     expect(k.ra).toContain('không ghi được log postgres');
-    expect(existsSync(join(d, '.tac-tu', 'moc-log', 'postgres'))).toBe(false);
+    expect(existsSync(join(d, 'run', 'tac-tu', 'moc-log', 'postgres'))).toBe(false);
     const k2 = await nhip({ CSBH_EPOCH: '1000301' }, d);
     expect(k2.goi).toMatch(/logs --no-color --no-log-prefix --timestamps postgres\n/);
     expect(readFileSync(join(k2.log, 'postgres-2026-11-05.log'), 'utf8')).toContain('trước nửa đêm');
@@ -298,12 +300,16 @@ describe('`0254` việc định kỳ của tác tử', () => {
 describe('`0254` bộ giao: unit systemd', () => {
   const unit = readFileSync('deploy/systemd/csbh-tac-tu.service', 'utf8');
   it('ExecStart gọi đúng lệnh con `tac-tu` có thật; tự chạy lại khi chết; chờ docker', () => {
-    expect(unit).toMatch(/^ExecStart=\S+\/csbh tac-tu$/m);
+    // `0270`: unit là MẪU — `cai-dat.sh` thay `__CSBH__` bằng `/opt/csbh/current/csbh`.
+    expect(unit).toMatch(/^ExecStart=__CSBH__ tac-tu$/m);
+    expect(readFileSync('scripts/cai-dat.sh', 'utf8')).toContain('s|__CSBH__|$GOC_CT/current/csbh|g');
     expect(readFileSync('scripts/csbh', 'utf8')).toMatch(/^  tac-tu\)/m);
     expect(unit).toMatch(/^Restart=always$/m);
     expect(unit).toMatch(/^Requires=docker\.service$/m);
   });
   it('gói giao mang theo unit', () => {
-    expect(readFileSync('scripts/dong-goi.sh', 'utf8')).toContain('cp deploy/systemd/csbh-tac-tu.service');
+    // `0270`: gói dựng bằng `ban-cai.sh` — một danh sách cho bộ cài lẫn lượt cập nhật.
+    expect(readFileSync('scripts/dong-goi.sh', 'utf8')).toContain('sh scripts/ban-cai.sh');
+    expect(readFileSync('scripts/ban-cai.sh', 'utf8')).toContain('deploy/systemd/csbh-tac-tu.service');
   });
 });

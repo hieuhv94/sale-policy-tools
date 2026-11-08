@@ -114,7 +114,14 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P307** (`0270`): **máy chủ chạy thẻ `-latest`** cho bốn ảnh của ta (kể cả `minio-latest`) — ĐẢO
+Chặng gần nhất **P308** (`0270`): **`sudo ./cai-dat.sh` cài cả hệ, KHÔNG hỏi gì, đọc MỘT tệp `/etc/csbh/csbh.env`**
+(12 bước `▶`/`✔`, gom lỗi cấu hình một lần, tự cài Docker, kiểm DNS, login qua stdin, Quản trị đầu từ env rồi xoá
+mật khẩu, cron + tác tử). **Ba chỗ**: chương trình `/opt/csbh/releases/<bản>` + `current` (bung TỪ ẢNH ops bằng
+`scripts/ban-cai.sh` — một danh sách cho gói lẫn `cap-nhat`) · cấu hình `/etc/csbh/csbh.env` · workspace
+`${CSBH_WORKSPACE}` (data/ bind qua `compose.du-lieu.yml`, giữ tên volume). Bí mật người dùng trong env KHÔNG compose
+nào nhắc → không lộ `docker inspect`. Hướng dẫn: **`impl/docs/06-CAI-DAT-VPS.md`**. **3397/3397 xanh.**
+
+Trước đó **P307** (`0270`): **máy chủ chạy thẻ `-latest`** cho bốn ảnh của ta (kể cả `minio-latest`) — ĐẢO
 `0218`; `APP_VERSION` nướng vào ảnh, `.env` hết `CSBH_TAG`, `phien-ban` đọc nhãn ảnh của container đang chạy;
 **`./csbh cap-nhat`** (hỏi registry bằng digest KHÔNG kéo → sao lưu bằng ảnh CŨ → `-truoc-cap-nhat` → kéo →
 migrate → dựng) và **`lui-lai`** (chỉ khi chưa có migration mới); `nang-cap <thẻ>` gỡ; `len` KHÔNG kéo khi đủ ảnh.

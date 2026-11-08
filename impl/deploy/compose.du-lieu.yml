@@ -1,0 +1,46 @@
+# =============================================================================
+# DỮ LIỆU SỐNG NẰM TRONG WORKSPACE (`0270`) — CHỈ chồng production thật dùng tệp này.
+#
+# Tới `0269` CSDL, kho tệp, hàng đợi, Redis, chứng chỉ HTTPS và bản sao lưu nằm
+# trong volume Docker ở `/var/lib/docker/volumes/…` — không ai nhìn vào máy là biết
+# dữ liệu của hệ ở đâu. Tệp này giữ NGUYÊN TÊN volume (`pgdata`, `miniodata`…) mà
+# khai chúng là bind vào `${CSBH_WORKSPACE}/data/…` và `${CSBH_WORKSPACE}/backup`:
+# mọi lệnh hỏi volume theo tên (`chuyen-may`, sao lưu kho tệp, chốt `0113` "bí mật
+# mới + volume cũ") chạy y như trước.
+#
+# VÌ SAO TÁCH TỆP, không viết thẳng vào `compose.prod.yml`: compose GỘP khai báo
+# volume chứ không thay (bài học `0105`/`0108`), nên một lớp phủ không gỡ được
+# `driver_opts`. Chồng KIỂM NGHIỆM (`0270`, P309) dùng `compose.prod.yml` mà KHÔNG
+# dùng tệp này — dữ liệu giả của nó là volume Docker thường, `down -v` là sạch, và
+# nó về mặt vật lý không chạm được tới `data/` của hệ thật.
+#
+# Thư mục phải CÓ SẴN trước khi volume được tạo (`cai-dat.sh` tạo). Không cần chỉnh
+# chủ sở hữu: đã đo (08/11) Postgres · Redis · RabbitMQ của bản ghim đều khởi động
+# bằng root và tự `chown` thư mục dữ liệu trống; MinIO và Caddy chạy root.
+# =============================================================================
+
+x-bind: &bind
+  driver: local
+
+volumes:
+  pgdata:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/postgres" }
+  redisdata:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/redis" }
+  mqdata:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/rabbitmq" }
+  miniodata:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/minio" }
+  caddy_data:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/caddy" }
+  caddy_config:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/data/caddy-config" }
+  pgbackup:
+    <<: *bind
+    driver_opts: { type: none, o: bind, device: "${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/backup" }

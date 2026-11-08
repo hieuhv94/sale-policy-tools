@@ -1,58 +1,31 @@
 # Triển khai Chính sách bán hàng lên máy chủ
 
-Từ một máy chủ trắng tới màn hình đăng nhập, theo đúng thứ tự phải làm.
-
-**Đọc hết mục 1 trước khi đụng tới máy chủ.** Sáu thứ trong đó cần người khác
-quyết, và thiếu một thứ là dừng ở giữa chừng.
+> **Cài trên một VPS: đọc [06-CAI-DAT-VPS.md](06-CAI-DAT-VPS.md) trước** `sửa 08/11` (`0270`).
+> Từ `0270` cả việc cài là MỘT lệnh — `sudo ./cai-dat.sh` — đọc MỘT tệp cấu hình
+> `/etc/csbh/csbh.env`: nó tự cài Docker, kiểm DNS, đăng nhập registry, sinh bí mật, dựng hệ, tạo
+> tài khoản Quản trị đầu tiên, cài cron và tác tử. Tài liệu này giữ phần CHIỀU SÂU mà hướng dẫn ngắn
+> không chứa: chuẩn bị (§1), thư (§4), dữ liệu ban đầu (§5), nghiệm thu (§6), nâng cấp từ bản cũ (§8).
 
 | Xong rồi thì đọc tiếp | |
 | --- | --- |
-| [05-VAN-HANH.md](05-VAN-HANH.md) | sao lưu, phục hồi, sự cố, nâng cấp |
+| [05-VAN-HANH.md](05-VAN-HANH.md) | sao lưu, phục hồi, sự cố, cập nhật |
 | [03-HUONG-DAN-SU-DUNG.md](03-HUONG-DAN-SU-DUNG.md) | dành cho người dùng cuối |
 | [RPO-RTO.md](../deploy/RPO-RTO.md) | cam kết mất bao nhiêu dữ liệu, bao lâu chạy lại |
 
 ---
 
-## Trình tự — làm từ trên xuống, không đảo
+## Trình tự — bốn bước `sửa 08/11`
 
-Mười ba bước. Cột cuối nói bước ấy **bắt buộc phải sau bước nào**, và vì sao —
-đảo thứ tự ở những chỗ ấy thì hỏng, chứ không phải chỉ bất tiện.
+Tới `0269` là mười ba bước tay. Từ `0270`:
 
-### Trước khi đụng tới máy chủ
-
-| # | Bước | Phải sau | Vì sao |
+| # | Bước | Lệnh | Vì sao phải theo thứ tự |
 | --- | --- | --- | --- |
-| 1 | Chốt sáu thứ ở [mục 1](#1-chuẩn-bị) | — | mỗi thứ thiếu là dừng ở một chỗ khác nhau |
-| 2 | Trỏ **DNS** về IP máy chủ | 1 | Caddy xin chứng chỉ ở bước 6; DNS chưa trỏ thì không có HTTPS, và Let's Encrypt có hạn mức theo tuần nên thử lại nhiều lần là bị khoá |
-| 3 | Dựng máy chủ: Docker, múi giờ, NTP, tường lửa, đĩa | — | có thể làm song song với 2 |
+| 1 | Chốt sáu thứ ở [mục 1](#1-chuẩn-bị) và **trỏ DNS** về IP máy chủ | — | bộ cài kiểm DNS trước khi Caddy xin chứng chỉ; Let's Encrypt khoá theo tuần nếu hỏng nhiều lần |
+| 2 | Giải nén bộ cài, chạy lần đầu, **điền** tệp cấu hình | `sudo ./cai-dat.sh` · `sudo nano /etc/csbh/csbh.env` | lần đầu bộ cài chỉ tạo tệp từ mẫu rồi dừng |
+| 3 | Chạy lại bộ cài | `sudo ./cai-dat.sh` | mười hai bước, mỗi bước in `▶`/`✔`; hỏng ở đâu thì nói việc phải làm |
+| 4 | Đăng nhập, **đổi mật khẩu**, tạo một tài khoản thật và kiểm thư mời tới | *(trên màn hình)* | cho tới khi đổi mật khẩu, mọi đường API trả 403; thư đầu-cuối là bước hay hỏng nhất |
 
-### Trên máy chủ
-
-| # | Bước | Lệnh | Phải sau | Vì sao |
-| --- | --- | --- | --- | --- |
-| 4 | Giải nén, đăng nhập registry | `docker login` | 3 | |
-| 5 | Khai cấu hình và sinh bí mật | `./cai-dat.sh` | 4 | hỏi tên miền, SMTP, tên miền nhận thư |
-| 6 | Kéo ảnh, migration, dựng hệ | *(bước 5 tự gọi)* | **2**, 5 | cấu hình thư sai thì service **không khởi động** — sửa `.env` rồi `./csbh len` |
-| 7 | Tài khoản Quản trị đầu tiên | `./csbh mo-tai-khoan` | 6 | **chỉ chạy được một lần**: nó từ chối khi CSDL đã có tài khoản |
-| 8 | Đăng nhập giao diện, **đổi mật khẩu** | *(trên màn hình)* | 7 | cho tới lúc này **mọi đường API trả 403** — bước 9 và 10 đều chặn |
-| 9 | Kiểm thư đầu-cuối: tạo một tài khoản thật, nhận thư mời, kích hoạt | *(trên màn hình)* | 8 | bước hay bị bỏ nhất và hỏng nhiều nhất |
-| 10 | Nạp danh mục ban đầu | tự khai, **hoặc** `./csbh nap-danh-muc` | 8 | lệnh nạp đòi tài khoản đã đổi mật khẩu, và từ chối khi danh mục đã có sản phẩm. **Văn bản mẫu KHÔNG cần nạp** `sửa 30/08` |
-| 11 | Nghiệm thu: vòng mười bước, xuất hợp đồng, `pg_stat_archiver`, `dien-tap` | | 10 | phải có sản phẩm mới lập được hồ sơ |
-| 12 | Cài lịch tự động | `cp deploy/cron.mau /etc/cron.d/csbh` | 6 | làm được sớm hơn, nhưng **đừng giao khi chưa làm** |
-| 12b | Cài tác tử vận hành `0254` | `deploy/systemd/csbh-tac-tu.service` — `05-VAN-HANH` §2 | 6 | thiếu thì nút *Sao lưu ngay* xám và thẻ Sức khoẻ không thấy container hạ tầng; sao lưu theo lịch không phụ thuộc nó |
-| 13 | *(tuỳ chọn)* mở đường hầm cho người khác xem | `./csbh mo-thu-nghiem` | 10 | hệ trống trơn thì không có gì để xem |
-
-### Bốn chỗ đảo thứ tự là hỏng
-
-- **DNS sau khi dựng** (2 sau 6) — Caddy đã thử xin chứng chỉ và thất bại; mỗi
-  lần dựng lại là một lần thử nữa vào hạn mức của Let's Encrypt
-- **Nạp dữ liệu trước khi đổi mật khẩu** (10 trước 8) — `nap-danh-muc` dừng và
-  nói ra, nhưng nếu tự khai bằng tay thì mọi thao tác trả 403 mà màn hình chỉ nói
-  "không có quyền"
-- **Tạo tài khoản quản trị lần hai** (7 sau khi đã có tài khoản) — lệnh từ chối;
-  quên mật khẩu thì dùng *Quên mật khẩu*, không phải chạy lại lệnh mồi
-- **Giao cho người dùng trước khi cài cron** (giao trước 12) — hệ chạy bình
-  thường, và bản sao lưu không chạy suốt nhiều tháng mà không ai biết
+Sau đó: khai danh mục (§5) và nghiệm thu (§6).
 
 ---
 
@@ -129,20 +102,19 @@ duy nhất có thể chạm tới.
 
 ### Bản giao gồm gì
 
-Một tệp nén `csbh-<phiên bản>.tar.gz`, khoảng 70 KB. Nó **không chứa ảnh Docker**
-— máy chủ kéo ảnh từ registry.
+Một tệp nén `csbh-<phiên bản>.tar.gz`, khoảng 80 KB. Nó **không chứa ảnh Docker**
+— máy chủ kéo ảnh từ registry. Chỉ cần cho LẦN CÀI ĐẦU: từ `0270` chương trình (compose,
+`csbh`, tài liệu) đi kèm ảnh `ops` và được bung lại ở mỗi lượt `csbh cap-nhat`.
 
-```
-csbh-1.0.0/
+```text
+csbh-1.4.0/
   README.md            Điểm bắt đầu, một trang
-  cai-dat.sh           Cài lần đầu
-  csbh                 Lệnh vận hành hằng ngày:  ./csbh help
-  .env.mau             Bản khai môi trường
-  deploy/              Ba tệp compose + cấu hình Postgres. KHÔNG sửa.
-  deploy/cron.mau      Lịch sao lưu và dọn dữ liệu
-  deploy/systemd/      Unit systemd của tác tử vận hành
-  mau-van-ban/         Bốn mẫu .docx để tải lên nếu muốn
-  tai-lieu/            Bốn tài liệu
+  cai-dat.sh           Cài / áp lại cấu hình:  sudo ./cai-dat.sh
+  csbh.env.mau         Mẫu tệp cấu hình DUY NHẤT (bộ cài chép thành /etc/csbh/csbh.env)
+  csbh · lib-buoc.sh   Lệnh vận hành (bộ cài đặt nó ở /usr/local/bin/csbh)
+  deploy/              Tệp compose, cấu hình Postgres, mẫu cron và unit tác tử. KHÔNG sửa.
+  mau-van-ban/         Ba mẫu .docx để tải lên nếu muốn
+  tai-lieu/            06-CAI-DAT-VPS · 04-TRIEN-KHAI · 05-VAN-HANH · 03-HDSD · RPO-RTO
 ```
 
 Ba ảnh nằm chung **một repo**, phân biệt bằng **thẻ** — registry chỉ có hai cấp
@@ -165,71 +137,37 @@ vẫn ở lại registry làm đường về một bản cụ thể. Ảnh MinIO
 
 ---
 
-## 2. Cài đặt
+## 2. Cài đặt `sửa 08/11`
 
-```sh
-tar -xzf csbh-1.0.0.tar.gz
-cd csbh-1.0.0
-docker login <registry>
-./cai-dat.sh
-```
+Xem [06-CAI-DAT-VPS.md](06-CAI-DAT-VPS.md) §2 — các bước, bảng khoá của tệp cấu hình, và cách xử
+từng bước hỏng. Những điều dưới đây là LÝ DO của thiết kế, giữ lại cho người sau:
 
-`cai-dat.sh` làm bốn việc rồi dừng lại ở việc thứ năm:
-
-1. Kiểm Docker và Compose
-2. **Sinh bí mật ngay trên máy chủ này** vào `secrets/` — mật khẩu Postgres,
-   MinIO, RabbitMQ và khoá ký JWT
-3. Hỏi tên miền, SMTP, tên miền nhận thư; ghi vào `.env`
-4. Kéo ảnh, chạy migration, dựng mười service và biên mạng
-5. Dừng lại, nhắc bạn tạo tài khoản quản trị
-
-Chạy lại được: những gì đã có thì giữ nguyên.
-
-> **Bí mật sinh tại chỗ, không đi kèm bản giao.** Một bộ bí mật đóng gói sẵn là
-> bộ bí mật mà mọi bản cài dùng chung, và nó đã đi qua ít nhất một lần chép tệp.
+> **Bí mật nội bộ sinh tại chỗ, không đi kèm bản giao** (`0105`). Một bộ bí mật đóng gói sẵn là bộ
+> bí mật mọi bản cài dùng chung.
 >
-> **`.env` KHÔNG chứa mật khẩu nào.** Postgres và MinIO đọc thẳng từ
-> `secrets/*.txt`. Chép mật khẩu sang `.env` nữa là dựng ra bản sao thứ hai của
-> cùng một bí mật, và chúng sẽ lệch nhau vào ngày ai đó đổi một bên.
+> **Tệp cấu hình CÓ mật khẩu người dùng khai** (SMTP, Google, Quản trị đầu, token registry — `0270`),
+> nhưng **không compose nào nhắc tới các khoá ấy**, nên chúng không vào container và không hiện ở
+> `docker inspect` (lý do `0106`). `csbh` ghi chúng thành tệp trong `<workspace>/secrets/` ở mỗi lượt
+> `len`/`cap-nhat`; tệp cấu hình là NGUỒN, tệp trong `secrets/` là bản dẫn xuất.
 >
-> **Trên máy đã từng chạy bản demo**, `.env` khai `COMPOSE_PROJECT_NAME=csbh-prod`
-> — nó quyết định tên volume dữ liệu. Trùng tên với chồng khác nghĩa là dùng
-> chung volume `pgdata`, mà **Postgres đặt mật khẩu chỉ ở lần khởi tạo đầu tiên**:
-> volume cũ giữ mật khẩu cũ, và mọi lệnh chạm CSDL hỏng với
-> `password authentication failed`. Giữ nguyên dòng ấy.
+> **`COMPOSE_PROJECT_NAME=csbh-prod`** quyết định tên volume. Trùng tên với chồng khác là dùng chung
+> volume `pgdata`, mà **Postgres đặt mật khẩu chỉ ở lần khởi tạo đầu tiên** — bộ cài từ chối tên `csbh`.
+>
+> **Bí mật mới + dữ liệu cũ = hỏng chắc chắn** (`0113`): bộ cài dừng khi thấy `data/postgres` có dữ
+> liệu mà `secrets/` trống.
 
 ---
 
-## 3. Tài khoản Quản trị đầu tiên
+## 3. Tài khoản Quản trị đầu tiên `sửa 08/11`
 
-```sh
-./csbh mo-tai-khoan
-```
-
-Hỏi tên đăng nhập, thư, họ tên, mật khẩu. Mật khẩu **không hiện ra màn hình** và
-không vào lịch sử shell.
-
-Bốn chốt chặn:
-
-- Không có giá trị mặc định nào — thiếu một thứ thì dừng
-- Mật khẩu phải qua **đúng luật của phần mềm**: tối thiểu 10 ký tự, có chữ và số
-- **Từ chối nếu CSDL đã có tài khoản.** Đây là lệnh mồi, không phải lệnh tạo
-  người dùng — chạy lần hai trên hệ đang sống là một cách đặt lại mật khẩu quản
-  trị mà không màn hình nào ghi lại
-- **Bắt buộc đổi mật khẩu ở lần đăng nhập đầu**, vì mật khẩu này vừa đi qua dòng lệnh
-
-> **Lệnh này KHÔNG gửi thư nào.** Mọi tài khoản khác nhận một thư mời kèm liên
-> kết kích hoạt — đó là đường duy nhất để chúng có mật khẩu. Tài khoản mồi thì
-> ngược lại: không có ai ở trên nó để gửi thư mời, nên nó nhận mật khẩu thẳng từ
-> dòng lệnh và được đánh dấu đã kích hoạt luôn.
->
-> Đăng nhập bằng chính mật khẩu vừa nhập. Đường thư được kiểm ở **bước 9**, khi
-> bạn tạo tài khoản thứ hai trên giao diện.
-
-Quên mật khẩu quản trị về sau thì dùng *Quên mật khẩu* trên màn hình đăng nhập.
+Bộ cài tạo từ bốn khoá `ADMIN_*` của tệp cấu hình, **chỉ khi CSDL chưa có tài khoản nào**, rồi xoá
+trắng `ADMIN_MAT_KHAU`. Mật khẩu đi tới `bootstrap-admin` qua một tệp tạm trong `secrets/` (xoá ngay
+sau), không qua dòng lệnh. Bốn chốt của `bootstrap-admin` giữ nguyên: không giá trị mặc định · đúng
+luật mật khẩu (≥ 10 ký tự, có chữ và số) · từ chối khi đã có tài khoản · **bắt đổi mật khẩu ở lần
+đăng nhập đầu**. Tài khoản này **không nhận thư mời** — đường thư được kiểm khi bạn tạo tài khoản thứ
+hai. Lệnh tay `csbh mo-tai-khoan` vẫn còn cho trường hợp đặc biệt.
 
 > Cho tới khi đổi mật khẩu lần đầu, **mọi đường API trả 403** — kể cả danh mục.
-> Đăng nhập trên giao diện và đổi trước khi làm mục 5.
 
 ---
 
@@ -616,24 +554,15 @@ Ba việc còn lại phải biết:
 
 ---
 
-## 7. Lịch tự động — bắt buộc cài
+## 7. Lịch tự động và tác tử `sửa 08/11`
 
-```sh
-sudo cp deploy/cron.mau /etc/cron.d/csbh
-sudo chmod 644 /etc/cron.d/csbh
-sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
-```
+Bộ cài ghi `/etc/cron.d/csbh` (sao lưu CSDL và kho tệp theo lịch đặt trên trang *Vận hành* — cron
+hỏi mỗi 15 phút; diễn tập phục hồi ngày 8 hằng tháng) và `/etc/systemd/system/csbh-tac-tu.service`
+(tác tử vận hành, `0254`) với đường tuyệt đối, rồi bật tác tử. Log cron ở `<workspace>/logs/cron/`.
+Chạy lại bộ cài là ghi lại cả hai.
 
-Sao lưu CSDL và kho tệp theo lịch đã cấu hình (cron hỏi mỗi 15 phút) · diễn tập phục hồi
-ngày 8 hằng tháng. Dọn dữ liệu do `sla-worker` tự chạy.
-
-Cài kèm **tác tử vận hành** (`0254`, một unit systemd) — cách cài ở `05-VAN-HANH.md` §2.
-
-> **Không cài cron là bỏ mất một nửa cam kết phục hồi.** Các lệnh chạy được từ
-> lúc bàn giao, nhưng chúng chỉ chạy khi có người gõ. Một cam kết RPO mà phụ
-> thuộc vào việc ai đó nhớ gõ lệnh là một cam kết không có thật.
-
-Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
+> **Không có cron là bỏ mất một nửa cam kết phục hồi.** Một cam kết RPO phụ thuộc vào việc ai đó nhớ
+> gõ lệnh là một cam kết không có thật — nên từ `0270` bước này không còn là việc tay.
 
 ---
 

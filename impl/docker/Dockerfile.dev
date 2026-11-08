@@ -5,6 +5,8 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # nền đã gỡ ở `0250` nhưng gói để lại — gỡ nó là dựng lại ảnh kiểm, không được gì.
 # `0246` — `openssl` cho gói bí mật của chuyển máy: bộ kiểm chạy CHÍNH
 # `scripts/chuyen-may.sh` (mã hoá, giải mã, sai mật khẩu) — cùng gói ảnh `ops` có.
-RUN apk add --no-cache git postgresql16-client postgresql16 curl openssl
+# `0270` — `bash` cho `scripts/cai-dat.sh` (bash: `pipefail`, mảng gom lỗi cấu hình):
+# bộ kiểm chạy CHÍNH bộ cài với lệnh giả. Máy khách (Ubuntu/Debian) luôn có bash.
+RUN apk add --no-cache git postgresql16-client postgresql16 curl openssl bash
 WORKDIR /app
 ENV CI=1

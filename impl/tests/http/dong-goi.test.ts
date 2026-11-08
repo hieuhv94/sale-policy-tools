@@ -10,7 +10,8 @@
  * mỏng dễ mục nhất: danh sách tệp.
  */
 import { execFile } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
@@ -20,47 +21,53 @@ const chay = promisify(execFile);
 const SH = readFileSync('scripts/dong-goi.sh', 'utf8');
 
 describe('`0105` bản đóng gói', () => {
-  it('mọi tệp mà `dong-goi.sh` chép đều có thật', () => {
-    /*
-     * Rút đường dẫn NGUỒN của từng lệnh `cp`: mọi tham số trừ tham số cuối
-     * (đích), và bỏ qua những tham số mang biến shell hay ký tự đại diện.
-     */
-    const nguon: string[] = [];
-    for (const dong of SH.split('\n')) {
-      const m = /^\s*cp\s+(.+)$/.exec(dong);
-      if (!m?.[1]) continue;
-      const phan = m[1].trim().split(/\s+/);
-      for (const p of phan.slice(0, -1)) {
-        if (p.startsWith('-') || p.includes('$') || p.includes('*')) continue;
-        nguon.push(p);
-      }
-    }
+  // `0270`: danh sách tệp của bản cài nằm ở `scripts/ban-cai.sh` — MỘT định nghĩa cho
+  // gói giao lần đầu (`dong-goi.sh goi`) lẫn lượt `csbh cap-nhat` (bung từ ảnh ops).
+  const BC = readFileSync('scripts/ban-cai.sh', 'utf8');
 
-    // Ca này chỉ có nghĩa khi nó thật sự tìm thấy thứ để kiểm.
-    expect(nguon.length, 'không rút được đường dẫn nào — biểu thức đã lạc hậu').toBeGreaterThan(5);
-    for (const p of nguon) {
-      expect(existsSync(p), `dong-goi.sh chép "${p}" nhưng tệp không tồn tại`).toBe(true);
+  it('`goi` dựng chương trình bằng `ban-cai.sh`, không tự liệt kê tệp', () => {
+    expect(SH).toContain('sh scripts/ban-cai.sh . "$goc" "$IMG"');
+    const goi = /\ngoi\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    expect(goi, 'goi() chép tệp chương trình bằng tay — hai danh sách sẽ trôi').not.toMatch(/cp (deploy|scripts|docs)\//);
+  });
+
+  it('mọi tệp mà `ban-cai.sh` chép đều có thật', () => {
+    // Đường nguồn dạng "$goc/<đường>" không mang biến nào khác.
+    const nguon = [...BC.matchAll(/"\$goc\/([^"$]+)"/g)].map((m) => m[1]!).filter((p) => p !== 'VERSION' || true);
+    expect(nguon.length, 'không rút được đường dẫn nào — biểu thức đã lạc hậu').toBeGreaterThan(8);
+    for (const p of nguon) expect(existsSync(p), `ban-cai.sh chép "${p}" nhưng tệp không tồn tại`).toBe(true);
+    // Vòng compose: các tệp BẮT BUỘC phải có (compose.kiem.yml là tuỳ chọn tới P309).
+    for (const t of ['compose.yml', 'compose.prod.yml', 'compose.du-lieu.yml', 'compose.tunnel.yml']) {
+      expect(BC).toContain(t);
+      expect(existsSync(`deploy/${t}`), t).toBe(true);
     }
   });
 
-  it('ba tệp người vận hành CHẠY đều nằm trong gói', () => {
-    // Thiếu một trong ba thì bản giao là một thư mục đọc được mà không dùng được.
-    for (const p of ['scripts/cai-dat.sh', 'scripts/csbh', 'deploy/cron/csbh.cron']) {
-      expect(SH, `gói thiếu ${p}`).toContain(p);
+  it('các tệp người vận hành CHẠY đều nằm trong bản cài', () => {
+    for (const p of ['scripts/cai-dat.sh', 'scripts/csbh', 'scripts/lib-buoc.sh', 'deploy/cron/csbh.cron', 'deploy/systemd/csbh-tac-tu.service']) {
+      expect(BC, `bản cài thiếu ${p}`).toContain(p.replace(/^/, '$goc/'));
+      expect(existsSync(p), `${p} không tồn tại`).toBe(true);
+    }
+    expect(BC).toContain('"$goc/deploy/env.mau" > "$dich/csbh.env.mau"');
+  });
+
+  it('bốn tài liệu đều nằm trong bản cài', () => {
+    for (const p of ['docs/03-HUONG-DAN-SU-DUNG.md', 'docs/04-TRIEN-KHAI.md', 'docs/05-VAN-HANH.md', 'deploy/RPO-RTO.md']) {
+      expect(BC, `bản cài thiếu ${p}`).toContain(`$goc/${p}`);
       expect(existsSync(p), `${p} không tồn tại`).toBe(true);
     }
   });
 
-  it('bốn tài liệu đều nằm trong gói', () => {
-    for (const p of [
-      'docs/03-HUONG-DAN-SU-DUNG.md',
-      'docs/04-TRIEN-KHAI.md',
-      'docs/05-VAN-HANH.md',
-      'deploy/RPO-RTO.md',
-    ]) {
-      expect(SH, `gói thiếu ${p}`).toContain(p);
-      expect(existsSync(p), `${p} không tồn tại`).toBe(true);
+  it('CHẠY THẬT: `ban-cai.sh` dựng ra đúng hình dạng thư mục chương trình', async () => {
+    const dich = mkdtempSync(join(tmpdir(), 'ban-cai-'));
+    await chay('sh', ['scripts/ban-cai.sh', '.', dich, 'kho/csbh']);
+    for (const t of ['csbh', 'cai-dat.sh', 'lib-buoc.sh', 'VERSION', 'csbh.env.mau', 'deploy/compose.prod.yml',
+      'deploy/compose.du-lieu.yml', 'deploy/postgres/postgresql.conf', 'deploy/cron/csbh.cron',
+      'deploy/systemd/csbh-tac-tu.service', 'tai-lieu/04-TRIEN-KHAI.md']) {
+      expect(existsSync(join(dich, t)), t).toBe(true);
     }
+    expect(readFileSync(join(dich, 'csbh.env.mau'), 'utf8')).toMatch(/^CSBH_IMAGE=kho\/csbh$/m);
+    expect(readFileSync(join(dich, 'tai-lieu/04-TRIEN-KHAI.md'), 'utf8')).not.toContain('../deploy/RPO-RTO.md');
   });
 
   it('`0106` `.env.mau` khai tên dự án compose, và KHÔNG mang mật khẩu nào', () => {
@@ -84,57 +91,50 @@ describe('`0105` bản đóng gói', () => {
     expect(prod).toContain('MINIO_ROOT_PASSWORD_FILE');
   });
 
-  it('`0112` `cai-dat.sh` hỏi ra stderr, trả lời ra stdout', async () => {
+  it('`0270` bí mật NGƯỜI DÙNG khai trong csbh.env KHÔNG BAO GIỜ được compose nhắc tới', () => {
     /*
-     * `hoi()` luôn được gọi trong `$( )`, mà command substitution BẮT TOÀN BỘ
-     * stdout. In lời nhắc ra stdout thì hỏng hai lần cùng lúc: màn hình không
-     * hiện câu hỏi nào — script trông như treo trong khi nó đang đứng ở `read` —
-     * và lời nhắc trở thành MỘT PHẦN của câu trả lời, nên `.env` nhận nguyên
-     * chuỗi `  Tên miền … [csbh.nutricare.vn]: csbh.nutricare.vn`.
-     *
-     * Ca này chạy CHÍNH hàm ấy, rút thẳng từ tệp thật, chứ không đọc bằng mắt:
-     * `>&2` là một ký tự dễ mất trong một lượt sửa, và mất nó thì không có gì đỏ
-     * ở tầng nào khác.
+     * Từ `0270` tệp cấu hình duy nhất mang cả mật khẩu SMTP, secret Google, mật khẩu
+     * Quản trị đầu và token registry. Compose chỉ đưa vào container những biến NÓ NHẮC
+     * TỚI — nên chỉ cần không compose nào nhắc tới bốn khoá ấy là chúng không bao giờ
+     * hiện ở `docker inspect` (lý do `0106`). Container đọc tệp dẫn xuất qua `*_FILE`.
      */
-    const sh = readFileSync('scripts/cai-dat.sh', 'utf8');
-    const ham = /^hoi\(\) \{[\s\S]*?^\}/m.exec(sh)?.[0];
-    expect(ham, 'không rút được hàm hoi() — biểu thức đã lạc hậu').toBeDefined();
-
-    const { stdout, stderr } = await chay('sh', [
-      '-c',
-      `${ham}\nx=$(hoi "Ten mien" "mac-dinh.vn" </dev/null)\nprintf '%s' "$x"`,
-    ]);
-
-    // Câu trả lời SẠCH — không dính một chữ nào của lời nhắc.
-    expect(stdout).toBe('mac-dinh.vn');
-    // Và lời nhắc vẫn tới được mắt người dùng.
-    expect(stderr).toContain('Ten mien');
-    expect(stderr).toContain('mac-dinh.vn');
+    const mau = readFileSync('deploy/env.mau', 'utf8');
+    for (const k of ['MAIL_PASSWORD', 'GOOGLE_CLIENT_SECRET', 'ADMIN_MAT_KHAU', 'REGISTRY_TOKEN']) {
+      expect(mau, `${k} phải có trong csbh.env.mau`).toMatch(new RegExp(`^${k}=`, 'm'));
+      for (const t of readdirSync('deploy').filter((x) => /^compose.*\.yml$/.test(x))) {
+        expect(readFileSync(join('deploy', t), 'utf8'), `${t} nhắc tới \${${k}}`).not.toMatch(new RegExp(`\\$\\{${k}[:}-]`));
+      }
+    }
   });
 
-  it('`0113` `cai-dat.sh` chặn khi bí mật MỚI gặp volume dữ liệu CŨ', () => {
+  it('`0270` `cai-dat.sh` KHÔNG HỎI GÌ — mọi thông tin đọc từ tệp cấu hình', () => {
     /*
-     * Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo thư mục dữ liệu đầu
-     * tiên. Nên `secrets/` chưa có + volume đã có = mật khẩu sắp sinh chắc chắn
-     * không khớp, và lượt `len` ngay sau sẽ chết ở migrate.
-     *
-     * Đã xảy ra ba lần (`0106`, `0111`, và một lượt cài thật), báo lỗi ở ba chỗ
-     * khác nhau — không chỗ nào là chỗ còn NGĂN được. Đây là chỗ ấy.
+     * Thay ca `0112` (lời nhắc ra stderr): bộ cài thôi hỏi. Một lệnh `read` lọt vào
+     * là bộ cài đứng chờ bàn phím — chạy qua `ssh host 'sudo ./cai-dat.sh'` hay từ một
+     * công cụ tự động là TREO, không lỗi nào.
      */
     const sh = readFileSync('scripts/cai-dat.sh', 'utf8');
+    const ma = sh.split('\n').filter((d) => !/^\s*#/.test(d)).join('\n');
+    expect(ma).not.toMatch(/(^|[\s;|&(])read\s/m);
+    expect(sh).toMatch(/^#!\/usr\/bin\/env bash$/m);
+    expect(sh).toContain('set -euo pipefail');
+    expect(sh).toContain('ENV_TEP="${CSBH_ENV:-/etc/csbh/csbh.env}"');
+  });
 
-    // Điều kiện phải là CẢ HAI vế, không phải một.
-    expect(sh).toContain('! -f secrets/pg_password.txt');
-    expect(sh).toContain('_pgdata');
-    expect(sh).toContain('docker volume inspect');
-
-    // Tên volume suy từ COMPOSE_PROJECT_NAME, không viết cứng: mỗi nơi cài một tên.
-    expect(sh).toContain('COMPOSE_PROJECT_NAME');
-
-    // Và nói ra HAI đường xử lý — chúng khác nhau hẳn.
-    expect(sh).toContain('down -v');
-    expect(sh).toContain('KHÔNG có gì đáng giữ');
-    expect(sh).toContain('CÓ dữ liệu');
+  it('`0113` `cai-dat.sh` chặn khi bí mật MỚI gặp dữ liệu CŨ', () => {
+    /*
+     * Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo thư mục dữ liệu đầu
+     * tiên. Nên `secrets/` chưa có + dữ liệu đã có = mật khẩu sắp sinh chắc chắn
+     * không khớp, và lượt `len` ngay sau sẽ chết ở migrate.
+     *
+     * Từ `0270` dữ liệu nằm ở `<workspace>/data/postgres` (bind) — chốt hỏi CẢ thư
+     * mục ấy lẫn volume tên cũ. Ca chạy thật ở `cai-dat.test.ts`.
+     */
+    const sh = readFileSync('scripts/cai-dat.sh', 'utf8');
+    expect(sh).toContain('! -f "$WS/secrets/pg_password.txt"');
+    expect(sh).toContain('"$WS/data/postgres"');
+    expect(sh).toContain('docker volume inspect "${DU_AN}_pgdata"');
+    expect(sh).toContain('DU_AN="$(doc_env COMPOSE_PROJECT_NAME)"');
   });
 
   it('`0108` khai `*_FILE` thì PHẢI đặt biến trực tiếp về RỖNG', () => {

@@ -93,19 +93,20 @@ x-node: &node
     # Đường dẫn TRONG container; thư mục máy chủ khai ở `volumes` bên dưới.
     CSBH_LOG_DIR: /var/log/csbh
   volumes:
-    # `../secrets`, KHÔNG phải `./secrets`.
+    # ĐƯỜNG TUYỆT ĐỐI trong WORKSPACE (`0270`), không còn `../secrets`.
     #
-    # Đường dẫn tương đối trong compose tính theo thư mục của TỆP COMPOSE, không
-    # theo nơi gõ lệnh. Hai tệp compose nằm trong `deploy/`, còn bộ cài đặt
-    # secrets · .env · csbh ở thư mục cha. Viết `./secrets` thì container gắn
-    # `deploy/secrets` — một thư mục không tồn tại — và triệu chứng là mười
-    # service cùng chết với `ENOENT /run/secrets/role_password.txt`, một câu
-    # không nhắc gì tới đường dẫn tương đối. Đã dính đúng lỗi này lúc chạy thử.
-    - ../secrets:/run/secrets:ro
+    # Tới `0269` bộ cài và dữ liệu nằm chung một thư mục, nên `../secrets` (tính theo
+    # thư mục TỆP COMPOSE — bài học `0105`) là đủ. Từ `0270` chương trình ở
+    # `/opt/csbh/releases/<bản>/` (thay ở mỗi lượt cập nhật), còn bí mật, log, sao lưu
+    # nằm trong WORKSPACE do `csbh.env` khai — một đường tương đối từ chương trình
+    # sang workspace là vô nghĩa. `./csbh` xuất `CSBH_WORKSPACE`, `CSBH_LOG_DIR`,
+    # `CSBH_LOG_ARCHIVE`, `CSBH_BACKUP_MIRROR` dưới dạng đường TUYỆT ĐỐI; thiếu một
+    # biến thì compose dừng và nói tên nó, thay vì gắn một thư mục rỗng.
+    - ${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/secrets:/run/secrets:ro
     # Tệp log của từng service (`0249`). Gắn từ MÁY CHỦ chứ không phải volume
     # Docker: log phải sống qua mọi lần dựng lại container — lý do duy nhất nó tồn
     # tại — và người vận hành SSH vào phải đọc được bằng `less`.
-    - ${CSBH_LOG_DIR:-../logs}:/var/log/csbh
+    - ${CSBH_LOG_DIR:?thiếu CSBH_LOG_DIR}:/var/log/csbh
   networks: [ internal ]
 
 services:
@@ -137,7 +138,7 @@ services:
       POSTGRES_PASSWORD: ""
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_password.txt
     volumes:
-      - ../secrets:/run/secrets:ro
+      - ${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/secrets:/run/secrets:ro
 
   minio:
     # ẢNH NHÂN BẢN trong kho của ta (`0247`), không phải `minio/minio`: MinIO đã
@@ -153,7 +154,7 @@ services:
       MINIO_ROOT_PASSWORD: ""
       MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password.txt
     volumes:
-      - ../secrets:/run/secrets:ro
+      - ${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/secrets:/run/secrets:ro
 
   # Mailpit của `compose.yml` KHÔNG chạy ở đây. Nó không bị gỡ khỏi file hạ tầng
   # (bản demo cần), mà bị vô hiệu bằng profile — một service không nằm trong
@@ -196,10 +197,10 @@ services:
       # gửi thư, nó chỉ đọc danh sách để so.
       MAIL_ALLOWLIST: ${MAIL_ALLOWLIST}
     volumes:
-      - ../secrets:/run/secrets:ro
+      - ${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/secrets:/run/secrets:ro
       - pgbackup:/backup
-      - ${CSBH_BACKUP_MIRROR:-../backup-mirror}:/mirror
-      - ${CSBH_LOG_ARCHIVE:-../logarchive}:/logarchive
+      - ${CSBH_BACKUP_MIRROR:?thiếu CSBH_BACKUP_MIRROR}:/mirror
+      - ${CSBH_LOG_ARCHIVE:?thiếu CSBH_LOG_ARCHIVE}:/logarchive
     networks: [ internal ]
 
   identity:
@@ -274,10 +275,10 @@ services:
     # `volumes` của service THAY danh sách của x-node (YAML không gộp danh sách) — nên
     # khai lại cả bí mật lẫn thư mục log, rồi mới thêm hai thư mục sao lưu (`0253`).
     volumes:
-      - ../secrets:/run/secrets:ro
-      - ${CSBH_LOG_DIR:-../logs}:/var/log/csbh
+      - ${CSBH_WORKSPACE:?thiếu CSBH_WORKSPACE}/secrets:/run/secrets:ro
+      - ${CSBH_LOG_DIR:?thiếu CSBH_LOG_DIR}:/var/log/csbh
       - pgbackup:/backup
-      - ${CSBH_BACKUP_MIRROR:-../backup-mirror}:/mirror
+      - ${CSBH_BACKUP_MIRROR:?thiếu CSBH_BACKUP_MIRROR}:/mirror
 
   reporting:
     <<: *node

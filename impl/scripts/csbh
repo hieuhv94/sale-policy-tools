@@ -6,34 +6,98 @@
 # docker compose — nên đây là lớp mỏng bọc lại, với đúng những việc họ cần và
 # đúng những câu cảnh báo đi kèm.
 #
-# Đặt cạnh `.env` và thư mục `deploy/`. Chạy từ chính thư mục đó.
+# BA CHỖ của một bản cài (`0270`), mỗi chỗ một vai:
+#
+#   chương trình  thư mục chứa CHÍNH tệp này và `deploy/` — `/opt/csbh/current/`
+#                 trên máy khách, thay ở mỗi lượt cập nhật; `csbh` KHÔNG ghi gì vào đây;
+#   cấu hình      MỘT tệp `/etc/csbh/csbh.env` (đè được bằng `CSBH_ENV=<tệp>` — chỉ bộ
+#                 kiểm và người gỡ lỗi dùng);
+#   workspace     `CSBH_WORKSPACE` khai trong tệp cấu hình (mặc định `/srv/csbh`):
+#                 bí mật, dữ liệu, sao lưu, log, trạng thái chạy. `csbh` chạy TRONG nó.
+#
+# Tới `0269` cả ba là một thư mục (bộ cài), nên mọi đường dẫn viết tương đối. Tách ra
+# để thay chương trình không bao giờ cuốn theo `.env`, `secrets/` hay dữ liệu.
 set -eu
 
-cd "$(dirname "$0")"
+CT="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+ENV_TEP="${CSBH_ENV:-/etc/csbh/csbh.env}"
 
-# `nhap-chuyen-may` là lệnh DUY NHẤT chạy khi CHƯA có `.env` (`0246`): nó chạy
-# trên một bộ cài vừa giải nén, và chính nó mang `.env` của máy cũ tới.
+# Giá trị của một khoá trong tệp cấu hình (dòng cuối thắng, như compose đọc).
+doc_env() { grep -E "^$1=" "$ENV_TEP" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+# `nhap-chuyen-may` là lệnh DUY NHẤT chạy khi CHƯA có tệp cấu hình (`0246`): nó chạy
+# trên một bộ cài vừa giải nén, và chính nó mang cấu hình của máy cũ tới.
 if [ "${1:-}" != "nhap-chuyen-may" ]; then
-  [ -f .env ] || { echo "Không thấy .env. Chạy ./cai-dat.sh trước." >&2; exit 1; }
+  [ -f "$ENV_TEP" ] || { echo "Không thấy $ENV_TEP. Cài đặt bằng: sudo ./cai-dat.sh" >&2; exit 1; }
+  [ -r "$ENV_TEP" ] || { echo "Không đọc được $ENV_TEP — chạy bằng tài khoản csbh hoặc sudo." >&2; exit 1; }
 
   # Tên dự án compose quyết định tên volume dữ liệu. Thiếu nó thì compose lấy tên
   # thư mục, và trên một máy đã từng chạy bản demo thì tên ấy có thể trùng — chung
   # volume `pgdata` nghĩa là mật khẩu Postgres của bản demo thắng, và mọi lệnh
-  # chạm CSDL hỏng với "password authentication failed". Xem `.env.mau`.
-  grep -qE '^COMPOSE_PROJECT_NAME=.' .env || {
-    echo "Thiếu COMPOSE_PROJECT_NAME trong .env. Thêm dòng: COMPOSE_PROJECT_NAME=csbh-prod" >&2
+  # chạm CSDL hỏng với "password authentication failed". Xem `csbh.env.mau`.
+  grep -qE '^COMPOSE_PROJECT_NAME=.' "$ENV_TEP" || {
+    echo "Thiếu COMPOSE_PROJECT_NAME trong $ENV_TEP. Thêm dòng: COMPOSE_PROJECT_NAME=csbh-prod" >&2
     exit 1
   }
 fi
 
-# Lớp phủ đường hầm bật theo MỘT TỆP DẤU, không theo lệnh đang gõ (`0107`).
+# Đặt các đường của workspace thành ĐƯỜNG TUYỆT ĐỐI rồi XUẤT ra môi trường: compose
+# nội suy `${CSBH_WORKSPACE}`… từ đây (biến môi trường thắng `--env-file`), nên
+# `csbh.env` được phép ghi tương đối theo workspace. `dat_workspace` gọi lại được —
+# `nhap-chuyen-may` gọi nó sau khi đã mang tệp cấu hình của máy cũ tới.
+dat_workspace() {
+  WS="$(doc_env CSBH_WORKSPACE)"; WS="${WS:-/srv/csbh}"
+  case "$WS" in /?*) ;; *) echo "CSBH_WORKSPACE phải là một đường tuyệt đối (đang là: '$WS')." >&2; exit 1 ;; esac
+  duong_ws() { v="$(doc_env "$1")"; [ -n "$v" ] || v="$2"; case "$v" in /*) echo "$v" ;; *) echo "$WS/$v" ;; esac; }
+  CSBH_WORKSPACE="$WS"
+  CSBH_LOG_DIR="$(duong_ws CSBH_LOG_DIR logs)"
+  CSBH_LOG_ARCHIVE="$(duong_ws CSBH_LOG_ARCHIVE logarchive)"
+  CSBH_BACKUP_MIRROR="$(duong_ws CSBH_BACKUP_MIRROR backup-mirror)"
+  # Hai bí mật do NGƯỜI DÙNG khai trong `csbh.env` (xem `dong_bo_bi_mat`): có giá trị
+  # thì service đọc tệp dẫn xuất, rỗng thì biến `_FILE` rỗng — service hiểu là tắt.
+  MAIL_PASSWORD_FILE=""; [ -n "$(doc_env MAIL_PASSWORD)" ] && MAIL_PASSWORD_FILE=/run/secrets/mail_password.txt
+  GOOGLE_CLIENT_SECRET_FILE=""; [ -n "$(doc_env GOOGLE_CLIENT_SECRET)" ] && GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret.txt
+  # `SITE_URL` bỏ trống là `https://<SITE_ADDRESS>` — bớt một chỗ khai trùng (`0270`).
+  SITE_URL="$(doc_env SITE_URL)"; [ -n "$SITE_URL" ] || SITE_URL="https://$(doc_env SITE_ADDRESS)"
+  export CSBH_WORKSPACE CSBH_LOG_DIR CSBH_LOG_ARCHIVE CSBH_BACKUP_MIRROR MAIL_PASSWORD_FILE GOOGLE_CLIENT_SECRET_FILE SITE_URL
+  RUN="$WS/run"
+  DC="docker compose --env-file $ENV_TEP -f $CT/deploy/compose.yml -f $CT/deploy/compose.prod.yml"
+  # Dữ liệu sống bind vào workspace — CHỈ chồng thật (xem đầu tệp ấy).
+  [ -f "$CT/deploy/compose.du-lieu.yml" ] && DC="$DC -f $CT/deploy/compose.du-lieu.yml"
+  # Đường hầm thử nghiệm: địa chỉ tạm nằm ở `run/thu-nghiem`, KHÔNG ghi vào tệp cấu
+  # hình (`csbh` không có quyền ghi `/etc/csbh/`). Xuất ra môi trường là đè được.
+  if [ -f "$RUN/thu-nghiem" ]; then
+    DC="$DC -f $CT/deploy/compose.tunnel.yml"
+    while IFS= read -r dong; do
+      case "$dong" in SITE_ADDRESS=*|SITE_URL=*) export "${dong?}" ;; esac
+    done < "$RUN/thu-nghiem"
+  fi
+}
+
+if [ "${1:-}" != "nhap-chuyen-may" ]; then
+  dat_workspace
+  [ -d "$WS" ] || { echo "Workspace $WS chưa có. Cài đặt bằng: sudo ./cai-dat.sh" >&2; exit 1; }
+  mkdir -p "$RUN" "$WS/tmp" 2>/dev/null || true
+  cd "$WS"
+fi
+
+# Dẫn xuất hai bí mật NGƯỜI DÙNG khai trong `csbh.env` ra `secrets/` (`0270`).
 #
-# Không có nó thì `./csbh log` hay `./csbh trang-thai` chạy trong lúc đường hầm
-# đang lên sẽ không thấy `cloudflared`, và compose kêu nó là container mồ côi.
-# Tệ hơn: `./csbh len` sẽ dựng lại caddy mà bỏ mất lớp phủ, tức là âm thầm hạ
-# nới lỏng hạn mức đăng nhập xuống trong khi hệ vẫn đang ra Internet.
-DC="docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml"
-[ -f .thu-nghiem ] && DC="$DC -f deploy/compose.tunnel.yml"
+# Container không bao giờ thấy giá trị thật qua biến môi trường (`0106` — `docker
+# inspect` in mọi biến): compose KHÔNG nhắc tới `MAIL_PASSWORD`/`GOOGLE_CLIENT_SECRET`,
+# nên chúng không vào container; container đọc tệp dẫn xuất. `csbh.env` là NGUỒN —
+# tệp ở `secrets/` ghi lại ở mỗi lượt `len`/`cap-nhat`, nên hai chỗ không lệch nhau
+# được lâu hơn một lượt chạy. Giá trị rỗng → xoá tệp.
+dong_bo_bi_mat() {
+  for cap in MAIL_PASSWORD:mail_password.txt GOOGLE_CLIENT_SECRET:google_client_secret.txt; do
+    k=${cap%%:*}; t="$WS/secrets/${cap#*:}"; v="$(doc_env "$k")"
+    if [ -n "$v" ]; then
+      ( umask 077; printf '%s' "$v" > "$t.tam" ) && mv "$t.tam" "$t"
+    else
+      rm -f "$t"
+    fi
+  done
+}
 
 usage() {
   cat <<'HET'
@@ -135,7 +199,7 @@ chay_theo_lich() {
   # Hai việc sao lưu không chạy chồng nhau: cùng đọc/ghi thư mục sao lưu, cùng tranh
   # đĩa. Khoá tệp tự nhả khi tiến trình chết — không có khoá mồ côi.
   if command -v flock > /dev/null 2>&1; then
-    exec 9> "$PWD/.khoa-sao-luu"
+    exec 9> "$RUN/khoa-sao-luu"
     # Theo lịch: bỏ qua, thoát 0 (cron không có gì phải báo). Gõ tay / tác tử: mã 75 —
     # người bấm "Sao lưu ngay" phải thấy lượt của mình KHÔNG chạy, không phải "xong" (`0254`).
     flock -n 9 || {
@@ -191,11 +255,11 @@ sao_luu_csdl() { $DC run --rm -T -e GIU_TOI_DA="$1" ops backup; }
 # `0250` — BẢN CHỤP theo mốc, giữ tối đa N bản chụp.
 sao_luu_kho_tep() {
   giu="$1"
-  luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
+  luu="$(doc_env COMPOSE_PROJECT_NAME)_pgbackup"
   moc="${CSBH_MOC:-$(date -u +%Y%m%dT%H%M%SZ)}"
   echo "==> chụp kho tệp vào bản sao lưu ($moc, giữ tối đa $giu bản)"
   mc_sh "GOC=/backup/kho-tep CU=/backup/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${luu}:/backup"
-  guong="$(duong_may CSBH_BACKUP_MIRROR ../backup-mirror)"
+  guong="$CSBH_BACKUP_MIRROR"
   if [ -d "$guong" ]; then
     echo "==> chụp sang bản sao ngoài: $guong"
     mc_sh "GOC=/mirror/kho-tep CU=/mirror/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${guong}:/mirror"
@@ -300,13 +364,6 @@ cac_ban | head -n "-$GIU" | while read -r cu; do
 done
 '
 
-# Đường dẫn trên máy của một thư mục mà compose khai TƯƠNG ĐỐI theo `deploy/`.
-duong_may() {
-  v="$(grep -E "^$1=" .env 2>/dev/null | cut -d= -f2- || true)"
-  [ -n "$v" ] || v="$2"
-  case "$v" in /*) echo "$v" ;; *) echo "$PWD/deploy/$v" ;; esac
-}
-
 hoi_mat_khau() {
   stty -echo 2>/dev/null || true
   printf '%s' "$1" >&2; read -r MK; echo "" >&2
@@ -360,7 +417,7 @@ id_cloudflared() { $DC ps -q cloudflared 2>/dev/null || true; }
 # Không kéo được thì chưa chắc phải dừng — cùng lý lẽ `len` (`0107`): máy cách
 # ly nạp ảnh bằng `docker load`. Nhưng chỉ đi tiếp khi CẢ BA ảnh có trên máy.
 keo_anh_latest() {
-  kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
+  kho="$(doc_env CSBH_IMAGE)"
   thieu=""
   for tp in $ANH_TA; do
     docker pull "${kho}:${tp}-latest" >/dev/null 2>&1 || {
@@ -398,7 +455,7 @@ so_phien_ban() { nhan_anh "$(kho_anh):ops-latest"; }
 # Ảnh MinIO nhân bản cũng là ảnh của kho ta nên cũng chạy `minio-latest`; nó không
 # mang nhãn phiên bản phần mềm (nó là MinIO), nên chỉ ba ảnh kia trả lời "bản nào".
 ANH_TA="service web ops minio"
-kho_anh() { grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-; }
+kho_anh() { doc_env CSBH_IMAGE; }
 nhan_anh() {
   docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' "$1" 2>/dev/null || true
 }
@@ -437,6 +494,43 @@ keo_anh_neu_thieu() {
 # Thẻ cục bộ giữ đường lùi của một lượt cập nhật. Chỉ nằm trên máy, không bao giờ đẩy.
 THE_LUI="truoc-cap-nhat"
 
+# --- Thư mục chương trình theo bản (`0270`) --------------------------------------
+#
+#   /opt/csbh/releases/<bản>/   csbh · cai-dat.sh · deploy/ · tai-lieu/ (từ `scripts/ban-cai.sh`)
+#   /opt/csbh/current -> releases/<bản>
+#
+# `cap-nhat` bung chương trình ĐI KÈM ảnh ops mới vào `releases/<bản mới>/`, chạy
+# migration + dựng lại bằng CHÍNH compose ấy, xong mới đổi `current`. Hết bẫy *"nâng
+# cấp chỉ đổi ảnh, compose phải chép tay"*. Chỉ áp khi `csbh` đang chạy từ cây ấy —
+# máy phát triển và bộ kiểm chạy từ một thư mục thường, nhánh này tự tắt.
+GOC_CT="${CSBH_CHUONG_TRINH:-/opt/csbh}"
+co_cay_ban() { [ -d "$GOC_CT/releases" ] && [ -L "$GOC_CT/current" ]; }
+
+# bung_ban <bản> — chương trình đi kèm ảnh `ops-latest` TRÊN MÁY vào releases/<bản>.
+bung_ban() {
+  rm -rf "$GOC_CT/releases/$1.partial"
+  mkdir -p "$GOC_CT/releases/$1.partial"
+  docker run --rm -e CSBH_IMAGE="$(kho_anh)" -v "$GOC_CT/releases/$1.partial:/ra" \
+    "$(kho_anh):ops-latest" ban-cai /ra > /dev/null || { rm -rf "$GOC_CT/releases/$1.partial"; return 1; }
+  rm -rf "$GOC_CT/releases/$1"
+  mv "$GOC_CT/releases/$1.partial" "$GOC_CT/releases/$1"
+}
+
+# Đổi `current` NGUYÊN TỬ (liên kết tạm rồi `mv -T`): không có khoảnh khắc nào
+# `current` vắng mặt — cron và tác tử gọi `/opt/csbh/current/csbh` bất cứ lúc nào.
+doi_current() {
+  ln -sfn "releases/$1" "$GOC_CT/current.tam"
+  mv -T "$GOC_CT/current.tam" "$GOC_CT/current"
+}
+
+# Giữ 3 bản gần nhất, KHÔNG BAO GIỜ xoá bản `current` trỏ tới.
+don_ban_cu() {
+  dang="$(basename "$(readlink "$GOC_CT/current")")"
+  ls -1t "$GOC_CT/releases" | grep -v '\.partial$' | tail -n +4 | while read -r b; do
+    [ "$b" = "$dang" ] || rm -rf "${GOC_CT:?}/releases/$b"
+  done
+}
+
 # Trả mọi `-truoc-cap-nhat` về `-latest` (lùi ảnh). Thiếu một cái thì không đụng cái nào.
 tra_anh_cu() {
   k="$(kho_anh)"
@@ -452,39 +546,8 @@ migration_cuoi() {
   q_ops "SELECT filename FROM sys.schema_migration ORDER BY filename DESC LIMIT 1"
 }
 
-# --- Hiển thị BƯỚC (`0270`, yêu cầu 08/11) ---------------------------------------
-#
-# Lệnh dài (cài, cập nhật, lùi) phải nói rõ bước nào ĐANG chạy và bước nào ĐÃ XONG:
-#
-#   [2/7] ▶ Sao lưu CSDL trước khi kéo ảnh…
-#   [2/7] ✔ Sao lưu CSDL trước khi kéo ảnh  (14 giây)
-#   [3/7] ✘ Kéo ảnh mới — HỎNG sau 3 giây
-#
-# `buoc_tong N` đặt tổng số bước; `buoc "tên"` đóng bước trước (✔) rồi mở bước mới;
-# `buoc_xong` đóng bước cuối; `buoc_bo "lý do"` đóng bước hiện tại là BỎ QUA (–).
-# Bước đang mở mà lệnh thoát với mã khác 0 thì `trap` in ✘ — không có bước nào
-# "treo" ở ▶ trên màn hình khi script đã chết. Ra STDOUT, không màu khi không phải
-# terminal (log cron/tệp nhật ký đọc được).
-if [ -t 1 ]; then _X=$(printf '\033[32m'); _D=$(printf '\033[31m'); _V=$(printf '\033[33m'); _H=$(printf '\033[1m'); _0=$(printf '\033[0m')
-else _X=''; _D=''; _V=''; _H=''; _0=''; fi
-BUOC_TONG=0; BUOC_SO=0; BUOC_TEN=''; BUOC_LUC=0
-buoc_tong() { BUOC_TONG=$1; BUOC_SO=0; BUOC_TEN=''; trap '_buoc_thoat $?' EXIT; }
-_buoc_dong() {
-  [ -n "$BUOC_TEN" ] || return 0
-  printf '%s[%s/%s] %s %s%s  (%s giây)\n' "$1" "$BUOC_SO" "$BUOC_TONG" "$2" "$BUOC_TEN" "$_0" "$(( $(date +%s) - BUOC_LUC ))"
-  BUOC_TEN=''
-}
-buoc() {
-  _buoc_dong "$_X" '✔'
-  BUOC_SO=$((BUOC_SO + 1)); BUOC_TEN=$1; BUOC_LUC=$(date +%s)
-  printf '\n%s[%s/%s] ▶ %s…%s\n' "$_H" "$BUOC_SO" "$BUOC_TONG" "$BUOC_TEN" "$_0"
-}
-buoc_xong() { _buoc_dong "$_X" '✔'; }
-buoc_bo() { BUOC_TEN="$BUOC_TEN — bỏ qua: $1"; _buoc_dong "$_V" '–'; }
-_buoc_thoat() {
-  if [ "$1" != 0 ] && [ -n "$BUOC_TEN" ]; then BUOC_TEN="$BUOC_TEN — HỎNG"; _buoc_dong "$_D" '✘'
-  else _buoc_dong "$_X" '✔'; fi
-}
+# --- Hiển thị BƯỚC (`0270`) — ở `lib-buoc.sh`, dùng chung với `cai-dat.sh`. ---------
+. "$CT/lib-buoc.sh"
 
 # --- Tác tử vận hành (`0254`) ------------------------------------------------
 #
@@ -505,7 +568,7 @@ _buoc_thoat() {
 q_pg() { printf '%s\n' "$1" | $DC exec -T postgres psql -U postgres -d csbh -v ON_ERROR_STOP=1 -qtA -f - 2>/dev/null; }
 
 HA_TANG="postgres redis rabbitmq minio gotenberg caddy"
-TT=".tac-tu"   # thư mục trạng thái cạnh .env: mốc log, mốc các việc định kỳ
+TT="${RUN:-.}/tac-tu"   # trạng thái của tác tử trong workspace: mốc log, mốc các việc định kỳ
 
 bay_gio_giay() { echo "${CSBH_EPOCH:-$(date +%s)}"; }     # CSBH_EPOCH: chỉ bộ kiểm đặt
 den_luot() { [ "$(( $(bay_gio_giay) - $(cat "$TT/luot-$1" 2>/dev/null || echo 0) ))" -ge "$2" ]; }
@@ -570,7 +633,7 @@ ghi_container() {
 }
 
 ghi_docker() {
-  du_an="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)"
+  du_an="$(doc_env COMPOSE_PROJECT_NAME)"
   q_pg "SELECT ops.ghi_docker(\$csbh_j\$$du_an\$csbh_j\$,
           \$csbh_j\$$(docker system df --format json 2>/dev/null)\$csbh_j\$,
           \$csbh_j\$$(docker system df -v --format json 2>/dev/null)\$csbh_j\$)" > /dev/null
@@ -650,7 +713,8 @@ case "${1:-help}" in
   len)
     buoc_tong 3
     # Kéo CHỈ KHI thiếu ảnh (`0270`); kéo hỏng mà đủ ảnh thì đi tiếp — xem `keo_anh`.
-    buoc "Kiểm ảnh trên máy"
+    buoc "Kiểm ảnh trên máy, cập nhật bí mật từ csbh.env"
+    dong_bo_bi_mat
     keo_anh_neu_thieu || exit 1
     # `migrate` chạy TRƯỚC, và là điều kiện của mọi service — `depends_on` đã khai
     # `service_completed_successfully`, nên `up -d` tự chờ. Gọi riêng ở đây để
@@ -661,7 +725,7 @@ case "${1:-help}" in
     $DC up -d --wait
     buoc_xong
     echo ""
-    echo "  Xong — phiên bản $(phien_ban_may). Mở $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
+    echo "  Xong — phiên bản $(phien_ban_may). Mở $SITE_URL"
     ;;
   xuong)        $DC down ;;
   trang-thai)   $DC ps ;;
@@ -711,7 +775,7 @@ case "${1:-help}" in
     for tp in $ANH_TA; do
       docker image inspect "${k}:${tp}-latest" > /dev/null 2>&1 && docker tag "${k}:${tp}-latest" "${k}:${tp}-${THE_LUI}"
     done
-    migration_cuoi > "$PWD/.migration-truoc-cap-nhat" || true
+    migration_cuoi > "$RUN/migration-truoc-cap-nhat" || true
 
     buoc "Kéo ảnh mới"
     for tp in $ANH_TA; do
@@ -721,8 +785,21 @@ case "${1:-help}" in
         exit 1
       }
     done
+    # Chương trình (compose · csbh · tài liệu) ĐI KÈM ảnh mới: bung vào releases/<bản>,
+    # rồi mọi bước sau chạy bằng compose ấy. `current` CHƯA đổi — hỏng là còn nguyên bản cũ.
+    if co_cay_ban; then
+      so="$(nhan_anh "${k}:ops-latest")"; so="${so:-moi}"
+      readlink "$GOC_CT/current" > "$RUN/release-truoc-cap-nhat"
+      bung_ban "$so" || {
+        tra_anh_cu || true
+        echo "  Không bung được chương trình của bản ${so}. Đã trả ảnh cũ; hệ vẫn chạy bản ${cu}." >&2
+        exit 1
+      }
+      CT="$GOC_CT/releases/$so"; dat_workspace
+    fi
 
     buoc "Chạy migration CSDL"
+    dong_bo_bi_mat
     $DC run --rm -T ops migrate || {
       echo "  Migration hỏng. Dữ liệu có thể đã đổi một phần — lùi bằng bản sao lưu vừa tạo:" >&2
       echo "    ./csbh phuc-hoi <tệp mới nhất>   rồi   ./csbh lui-lai" >&2
@@ -734,6 +811,7 @@ case "${1:-help}" in
       echo "  Dựng lại hỏng. Lùi về bản ${cu}:  ./csbh lui-lai" >&2
       exit 1
     }
+    if co_cay_ban; then doi_current "$so"; don_ban_cu; fi
     buoc_xong
     echo ""
     echo "  Xong: ${cu} → $(phien_ban_may)."
@@ -746,7 +824,7 @@ case "${1:-help}" in
     # không ai kiểm. Khi ấy DỪNG và chỉ sang phục hồi từ bản sao lưu, không đoán hộ.
     buoc_tong 3
     buoc "Kiểm có lùi ảnh được không"
-    truoc="$(cat "$PWD/.migration-truoc-cap-nhat" 2>/dev/null || true)"
+    truoc="$(cat "$RUN/migration-truoc-cap-nhat" 2>/dev/null || true)"
     nay="$(migration_cuoi)"
     if [ -z "$truoc" ] || [ "$truoc" != "$nay" ]; then
       cat >&2 <<HET
@@ -759,6 +837,12 @@ HET
     fi
     buoc "Trả ảnh về bản trước cập nhật"
     tra_anh_cu
+    # Chương trình cũng về bản trước (compose của ảnh cũ).
+    truoc_ct="$(cat "$RUN/release-truoc-cap-nhat" 2>/dev/null || true)"
+    if co_cay_ban && [ -n "$truoc_ct" ] && [ -d "$GOC_CT/$truoc_ct" ]; then
+      doi_current "$(basename "$truoc_ct")"
+      CT="$GOC_CT/$truoc_ct"; dat_workspace
+    fi
     buoc "Dựng lại các service và chờ healthcheck"
     $DC up -d --wait
     buoc_xong
@@ -949,7 +1033,7 @@ HET
   sao-luu-tep)  chay_theo_lich SAO_LUU_KHO_TEP 7 0200 "${2:-}" sao_luu_kho_tep ;;
   phuc-hoi-tep)
     # `./csbh phuc-hoi-tep [mốc]` — mặc định bản chụp MỚI NHẤT (`0250`).
-    luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
+    luu="$(doc_env COMPOSE_PROJECT_NAME)_pgbackup"
     ban="${2:-}"
     case "$ban" in
       ''|[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) ;;
@@ -987,7 +1071,7 @@ HET
 
   Ra hai tệp trong ./chuyen-may/<giờ>/:
     chuyen-may-<giờ>.tar   CSDL + kho tệp + nhật ký kiểm toán đã trích + bảng kê
-    bi-mat-<giờ>.enc       .env + secrets/, MÃ HOÁ bằng mật khẩu bạn đặt
+    bi-mat-<giờ>.enc       csbh.env + secrets/, MÃ HOÁ bằng mật khẩu bạn đặt
 
   Chép CẢ HAI sang máy mới, theo HAI đường khác nhau nếu được. Mất mật khẩu là
   không mở được gói bí mật — và không có nó thì máy mới không mở được CSDL.
@@ -1010,7 +1094,7 @@ HET
     #    quá hạn) mà không qua gateway.
     echo "==> chặn lối vào"
     $DC stop caddy gateway sla-worker
-    [ -f .thu-nghiem ] && $DC stop cloudflared || true
+    [ -f "$RUN/thu-nghiem" ] && $DC stop cloudflared || true
 
     # 2. XẢ: mọi sự kiện đã ghi phải tới đích trước khi chụp. Một lá thư nằm trong
     #    outbox lúc xuất sẽ được máy mới gửi lại (đúng); một tin đã rời outbox mà
@@ -1044,7 +1128,7 @@ HET
     $DC run --rm -T --user "$NGUOI" -v "$ra/goi:/xuat" ops chuyen-may xuat-csdl /xuat
     echo "==> xuất kho tệp"
     mc_sh 'mc mirror --quiet l /xuat/tep' --user "$NGUOI" -v "$ra/goi:/xuat"
-    la="$(duong_may CSBH_LOG_ARCHIVE ../logarchive)"
+    la="$CSBH_LOG_ARCHIVE"
     if [ -d "$la" ]; then
       echo "==> nhật ký kiểm toán đã trích: $la"
       cp -a "$la/." "$ra/goi/logarchive/"
@@ -1052,8 +1136,8 @@ HET
     {
       # Số phiên bản đọc từ ẢNH đang chạy (`0270` — `.env` không còn con số nào).
       echo "PHIEN_BAN=$(phien_ban_may)"
-      echo "SITE_URL=$(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
-      echo "COMPOSE_PROJECT_NAME=$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)"
+      echo "SITE_URL=$SITE_URL"
+      echo "COMPOSE_PROJECT_NAME=$(doc_env COMPOSE_PROJECT_NAME)"
       echo "XUAT_LUC=$luc"
     } > "$ra/goi/thong-tin.txt"
     echo "==> bảng kê"
@@ -1066,8 +1150,14 @@ HET
     $DC run --rm -T --user "$NGUOI" -v "$ra:/ra" ops chuyen-may dong-goi /ra/goi "/ra/chuyen-may-$luc.tar"
     rm -rf "$ra/goi"
     echo "==> gói bí mật"
+    # Gói bí mật mang `.env` + `secrets/` (định dạng của `0246`, `chuyen-may.sh` không
+    # đổi). Từ `0270` hai thứ ấy nằm ở hai chỗ — `/etc/csbh/csbh.env` và
+    # `<workspace>/secrets` — nên dựng một thư mục tạm đúng hình dạng cũ rồi gắn nó.
+    bm="$WS/tmp/bi-mat-$luc"
+    rm -rf "$bm"; ( umask 077; mkdir -p "$bm" ) && cp "$ENV_TEP" "$bm/.env" && cp -a "$WS/secrets" "$bm/secrets"
     CSBH_MAT_KHAU="$mk1" $DC run --rm -T --user "$NGUOI" -e CSBH_MAT_KHAU \
-      -v "$PWD:/cai:ro" -v "$ra:/ra" ops chuyen-may bi-mat-dong /cai "/ra/bi-mat-$luc.enc"
+      -v "$bm:/cai:ro" -v "$ra:/ra" ops chuyen-may bi-mat-dong /cai "/ra/bi-mat-$luc.enc"
+    rm -rf "$bm"
     cat <<HET
 
   Xong. Hai tệp ở $ra:
@@ -1075,6 +1165,7 @@ $(ls -1 "$ra" | sed 's/^/    /')
 
   Máy này ĐANG TẮT phần mềm (CSDL và kho tệp vẫn chạy). Trên máy MỚI:
     1. giải nén bộ cài (bản nào cũng được — lệnh nhập tự kéo đúng bản $(phien_ban_may)) — KHÔNG chạy cai-dat.sh
+       (máy mới chưa có Docker thì cài Docker trước)
     2. ./csbh nhap-chuyen-may <gói dữ liệu> <gói bí mật>
 
   Thôi chuyển thì bật lại máy này: ./csbh len
@@ -1086,14 +1177,16 @@ HET
     { [ -f "$goi" ] && [ -f "$bm" ]; } || {
       echo "dùng: ./csbh nhap-chuyen-may <chuyen-may-….tar> <bi-mat-….enc>" >&2; exit 2; }
 
-    # Chỉ chạy trên một bộ cài VỪA GIẢI NÉN. Đã có `.env`, `secrets/` hay volume
-    # CSDL nghĩa là máy này đang có một hệ — nhập đè lên nó là mất hệ ấy, và chốt
-    # `0113` (bí mật mới + volume cũ) sẽ làm CSDL không mở được.
-    [ ! -f .env ] || { echo "Đã có .env ở đây — máy này đã cài. Giải nén bộ cài vào một thư mục MỚI." >&2; exit 1; }
-    ! ls secrets/*.txt > /dev/null 2>&1 || { echo "Đã có secrets/ ở đây — máy này đã cài." >&2; exit 1; }
-    [ -f .env.mau ] || { echo "Không thấy .env.mau — đây không phải thư mục bộ cài." >&2; exit 1; }
+    # Chỉ chạy trên một máy CHƯA CÀI. Đã có tệp cấu hình hay volume CSDL nghĩa là máy
+    # này đang có một hệ — nhập đè lên nó là mất hệ ấy, và chốt `0113` (bí mật mới +
+    # volume cũ) sẽ làm CSDL không mở được. Workspace của máy cũ được kiểm ở dưới,
+    # sau khi đọc được nó từ gói.
+    [ ! -f "$ENV_TEP" ] || { echo "Đã có $ENV_TEP — máy này đã cài. Không nhập đè." >&2; exit 1; }
+    [ -f "$CT/csbh.env.mau" ] || { echo "Không thấy csbh.env.mau cạnh lệnh này — đây không phải thư mục bộ cài." >&2; exit 1; }
+    [ -w "$(dirname "$ENV_TEP")" ] || [ -w "$(dirname "$(dirname "$ENV_TEP")")" ] || {
+      echo "Cần quyền ghi $(dirname "$ENV_TEP") — chạy bằng sudo." >&2; exit 1; }
 
-    kho="$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-)"
+    kho="$(grep -E '^CSBH_IMAGE=' "$CT/csbh.env.mau" | cut -d= -f2-)"
     # Ảnh ops nào cũng mở được gói (định dạng gói không đổi theo bản); ĐÚNG bản thì
     # chốt ở dưới, sau khi đọc được gói nói máy cũ chạy bản nào.
     anh="${kho}:ops-latest"
@@ -1102,7 +1195,7 @@ HET
 
     goi="$(cd "$(dirname "$goi")" && pwd)/$(basename "$goi")"
     bm="$(cd "$(dirname "$bm")" && pwd)/$(basename "$bm")"
-    tam="$PWD/.nhap-tam"
+    tam="$(mktemp -d "${TMPDIR:-/tmp}/csbh-nhap.XXXXXX")"
     rm -rf "$tam"; mkdir -p "$tam"
 
     hoi_mat_khau '  Mật khẩu của gói bí mật: '
@@ -1140,8 +1233,25 @@ HET
     docker image inspect "${kho}:minio-latest" > /dev/null 2>&1 || docker pull "${kho}:minio-latest" > /dev/null || {
       echo "Không kéo được ${kho}:minio-latest." >&2; rm -rf "$tam"; exit 1; }
 
-    cp "$tam/bi-mat/.env" .env && chmod 600 .env
-    mkdir -p secrets && cp -a "$tam/bi-mat/secrets/." secrets/ && chmod 600 secrets/*
+    # Tệp cấu hình của máy cũ → `/etc/csbh/csbh.env`; workspace ĐỌC TỪ chính tệp ấy.
+    ws_moi="$(grep -E '^CSBH_WORKSPACE=' "$tam/bi-mat/.env" | tail -1 | cut -d= -f2-)"
+    ws_moi="${ws_moi:-/srv/csbh}"
+    if [ -e "$ws_moi/secrets" ] || [ -e "$ws_moi/data/postgres" ]; then
+      echo "Workspace $ws_moi đã có bí mật hoặc dữ liệu — máy này đã cài. Không nhập đè." >&2
+      rm -rf "$tam"; exit 1
+    fi
+    mkdir -p "$(dirname "$ENV_TEP")"
+    ( umask 027; cp "$tam/bi-mat/.env" "$ENV_TEP" )
+    # Gói xuất trước `0270` không có `CSBH_WORKSPACE` (và còn `CSBH_TAG`): ghi rõ ra.
+    grep -qE '^CSBH_WORKSPACE=' "$ENV_TEP" || printf '\nCSBH_WORKSPACE=%s\n' "$ws_moi" >> "$ENV_TEP"
+    sed -i '/^CSBH_TAG=/d' "$ENV_TEP"
+    dat_workspace
+    mkdir -p "$WS/secrets" "$WS/data/postgres" "$WS/data/redis" "$WS/data/rabbitmq" "$WS/data/minio" \
+      "$WS/data/caddy" "$WS/data/caddy-config" "$WS/backup" "$RUN" "$WS/tmp" \
+      "$CSBH_LOG_DIR" "$CSBH_LOG_ARCHIVE" "$CSBH_BACKUP_MIRROR"
+    chmod 700 "$WS/secrets"
+    cp -a "$tam/bi-mat/secrets/." "$WS/secrets/" && chmod 600 "$WS/secrets"/*
+    cd "$WS"
     echo "==> dựng hạ tầng"
     $DC up -d --wait postgres minio rabbitmq redis
 
@@ -1160,7 +1270,7 @@ HET
       b=${d%/}; b=${b##*/}
       mc mb --ignore-existing "l/$b" > /dev/null && mc mirror --overwrite --quiet "$d" "l/$b" || exit 1
     done' --user "$NGUOI" -v "$tam/goi:/vao:ro"
-    la="$(duong_may CSBH_LOG_ARCHIVE ../logarchive)"
+    la="$CSBH_LOG_ARCHIVE"
     if [ -n "$(ls -A "$tam/goi/logarchive" 2>/dev/null)" ]; then
       echo "==> nhật ký kiểm toán đã trích -> $la"
       mkdir -p "$la" && cp -a "$tam/goi/logarchive/." "$la/"
@@ -1191,18 +1301,44 @@ HET
     rm -rf "$tam"
     cat <<HET
 
-  Xong. Máy này giờ chạy đúng dữ liệu của máy cũ: $(grep -E '^SITE_URL=' .env | cut -d= -f2-)
+  Xong. Máy này giờ chạy đúng dữ liệu của máy cũ: $SITE_URL
 
   Còn lại, theo thứ tự:
     1. Trỏ DNS của tên miền về máy này (nếu đổi máy chủ).
-    2. Địa chỉ phần mềm ĐỔI thì sửa SITE_URL trong .env, sửa redirect URI ở Google
-       Console (nếu bật đăng nhập Google), rồi ./csbh len.
-    3. Cài lịch tự động: cp deploy/cron.mau /etc/cron.d/csbh (xem tai-lieu/04-TRIEN-KHAI.md).
+    2. Địa chỉ phần mềm ĐỔI thì sửa SITE_ADDRESS trong $ENV_TEP, sửa redirect URI ở
+       Google Console (nếu bật đăng nhập Google).
+    3. sudo ./cai-dat.sh — cài lịch tự động, tác tử, và áp lại cấu hình (KHÔNG đụng dữ liệu).
     4. Tắt hẳn máy cũ — đừng để hai máy cùng chạy và cùng gửi thư.
 
 HET
     ;;
   don-du-lieu)  ops retention ;;
+
+  so-tai-khoan)
+    # Số tài khoản trong CSDL — `cai-dat.sh` hỏi để biết đây có phải lần cài đầu.
+    # In rỗng khi CSDL chưa trả lời: người gọi KHÔNG được hiểu rỗng là "0".
+    q_ops "SELECT count(*) FROM idn.app_user" ;;
+
+  tao-quan-tri-dau)
+    # Tài khoản Quản trị ĐẦU TIÊN từ `csbh.env` (`0270`) — bản không hỏi của
+    # `mo-tai-khoan`, cho `cai-dat.sh`. Bốn chốt của `bootstrap-admin` giữ nguyên (từ
+    # chối khi đã có tài khoản, luật mật khẩu, miền thư, bắt đổi mật khẩu lần đầu).
+    #
+    # Mật khẩu đi qua TỆP trong `secrets/` (container gắn sẵn ở /run/secrets), không
+    # qua `-e`: `docker inspect` của container `run` in mọi biến. Tệp xoá ngay sau.
+    t="$WS/secrets/admin_mat_khau.txt"
+    v="$(doc_env ADMIN_MAT_KHAU)"
+    [ -n "$v" ] || { echo "Thiếu ADMIN_MAT_KHAU trong $ENV_TEP." >&2; exit 1; }
+    ( umask 077; printf '%s' "$v" > "$t" )
+    set +e
+    $DC run --rm -T \
+      -e ADMIN_USERNAME="$(doc_env ADMIN_TEN_DANG_NHAP)" -e ADMIN_EMAIL="$(doc_env ADMIN_EMAIL)" \
+      -e ADMIN_FULL_NAME="$(doc_env ADMIN_HO_TEN)" -e ADMIN_PASSWORD_FILE=/run/secrets/admin_mat_khau.txt \
+      ops bootstrap-admin
+    ma=$?
+    set -e
+    rm -f "$t"
+    exit $ma ;;
 
   mo-tai-khoan)
     printf 'Tên đăng nhập: '; read -r u
@@ -1263,15 +1399,16 @@ HET
     # Cất cấu hình cũ NGUYÊN VĂN để `dong-thu-nghiem` trả lại đúng như trước.
     # Ghi lại bằng cách đọc `.env` chứ không nhớ trong đầu: người mở đường hầm
     # và người đóng nó có thể là hai người, cách nhau vài ngày.
-    if [ ! -f .thu-nghiem ]; then
-      { grep -E '^SITE_ADDRESS=' .env; grep -E '^SITE_URL=' .env; } > .thu-nghiem
-    fi
-
+    # `0270`: KHÔNG sửa tệp cấu hình nữa. Địa chỉ tạm ghi ở `run/thu-nghiem`, và
+    # `csbh` xuất nó ra môi trường ở mọi lượt chạy (biến môi trường thắng
+    # `--env-file`). Đóng đường hầm = xoá tệp ấy — không có gì phải "trả lại".
+    #
     # Caddy phải thôi tự xin chứng chỉ: `:80` là địa chỉ KHÔNG có tên miền, nên
     # HTTPS tự động tắt. TLS do biên Cloudflare lo. Xem `docs/04-TRIEN-KHAI.md`.
-    sed -i 's|^SITE_ADDRESS=.*|SITE_ADDRESS=:80|' .env
+    echo "SITE_ADDRESS=:80" > "$RUN/thu-nghiem"
+    export SITE_ADDRESS=:80
 
-    DC="$DC -f deploy/compose.tunnel.yml"
+    DC="$DC -f $CT/deploy/compose.tunnel.yml"
     echo "==> dựng lại biên mạng ở cổng 80 và mở đường hầm"
     $DC up -d --force-recreate caddy cloudflared
 
@@ -1291,8 +1428,8 @@ HET
     # SITE_URL là thứ TRÌNH DUYỆT thấy, nên nó là `https://` dù Caddy chạy HTTP.
     # Đặt `http://` ở đây là mọi lời gọi API bị CORS từ chối, trong khi màn hình
     # đăng nhập vẫn hiện ra bình thường — kiểu hỏng khó lần nhất.
-    sed -i "s|^SITE_URL=.*|SITE_URL=${dia}|" .env
-    touch .thu-nghiem
+    echo "SITE_URL=${dia}" >> "$RUN/thu-nghiem"
+    export SITE_URL="$dia"
 
     echo "==> dựng lại các service đọc địa chỉ ấy"
     $DC up -d --force-recreate gateway identity notification
@@ -1306,21 +1443,16 @@ HET
     ;;
 
   dong-thu-nghiem)
-    [ -f .thu-nghiem ] || { echo "Đường hầm không chạy."; exit 0; }
-    DC="$DC -f deploy/compose.tunnel.yml"
+    [ -f "$RUN/thu-nghiem" ] || { echo "Đường hầm không chạy."; exit 0; }
     echo "==> đóng đường hầm"
     $DC rm -sf cloudflared
-    # Trả `.env` về NGUYÊN VĂN hai dòng đã cất, rồi xoá tệp dấu — thứ tự này để
-    # một lượt hỏng ở giữa vẫn còn tệp dấu, tức là còn biết mình đang dở dang.
-    while IFS= read -r dong; do
-      ten=${dong%%=*}
-      sed -i "s|^${ten}=.*|${dong}|" .env
-    done < .thu-nghiem
-    rm -f .thu-nghiem
+    # Xoá tệp dấu là trả về cấu hình trong csbh.env — không có gì phải ghi lại.
+    rm -f "$RUN/thu-nghiem"
+    unset SITE_ADDRESS SITE_URL
+    dat_workspace
     echo "==> dựng lại theo cấu hình cũ"
-    docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml \
-      up -d --force-recreate caddy gateway identity notification
-    echo "  Xong. Đã trả về $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
+    $DC up -d --force-recreate caddy gateway identity notification
+    echo "  Xong. Đã trả về $SITE_URL"
     ;;
 
   psql)         shift; $DC run --rm ops psql "$@" ;;

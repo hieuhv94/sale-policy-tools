@@ -463,7 +463,7 @@ describe('SEC-10 cổng mở ra ngoài', () => {
 
     const csbh = readFileSync('scripts/csbh', 'utf8');
     // Lớp phủ chỉ bật khi có TỆP DẤU, hoặc trong đúng lệnh mở đường hầm.
-    expect(csbh).toContain('.thu-nghiem');
+    expect(csbh).toContain('$RUN/thu-nghiem');
     expect(csbh).toMatch(/mo-thu-nghiem\)/);
     expect(csbh).toMatch(/dong-thu-nghiem\)/);
   });

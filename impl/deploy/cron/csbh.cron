@@ -1,8 +1,8 @@
 # Lịch vận hành Chính sách bán hàng (`0105`).
 #
-# Cài:  sudo cp cron.mau /etc/cron.d/csbh && sudo chmod 644 /etc/cron.d/csbh
-# Sửa `/opt/csbh` thành đường dẫn thật của bộ cài, và `csbh` thành tài khoản
-# chạy docker trên máy chủ.
+# MẪU — `cai-dat.sh` ghi nó ra `/etc/cron.d/csbh` (`0270`), thay `__CSBH__` bằng
+# lệnh `csbh` của bản đang chạy và `__LOG__` bằng `<workspace>/logs/cron`. Không cài
+# tay nữa; chạy lại `sudo ./cai-dat.sh` là ghi lại tệp này.
 #
 # VÌ SAO PHẢI CÓ TỆP NÀY. Lịch sao lưu (giờ chạy, tần suất, số bản giữ) do Quản
 # trị đặt trên trang Vận hành và nằm trong CSDL (`0251`), nhưng thứ ĐÁNH THỨC việc
@@ -22,9 +22,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Sao lưu CSDL và kho tệp THEO LỊCH ĐÃ CẤU HÌNH — hỏi mỗi 15 phút, chạy khi tới
 # giờ. Hai lệnh dùng chung một khoá tệp nên không bao giờ chạy chồng nhau.
-*/15 * * * *   csbh  cd /opt/csbh && ./csbh sao-luu --neu-den-han     >> /var/log/csbh-sao-luu.log 2>&1
-*/15 * * * *   csbh  cd /opt/csbh && ./csbh sao-luu-tep --neu-den-han >> /var/log/csbh-sao-luu.log 2>&1
+*/15 * * * *   csbh  __CSBH__ sao-luu --neu-den-han     >> __LOG__/sao-luu.log 2>&1
+*/15 * * * *   csbh  __CSBH__ sao-luu-tep --neu-den-han >> __LOG__/sao-luu.log 2>&1
 
 # DIỄN TẬP phục hồi hằng tháng, ngày 8, 03:30 — vào CSDL nháp, không đụng dữ
 # liệu thật. RTO 60 phút là con số ĐO ĐƯỢC; không diễn tập thì nó thành ước lượng.
-30 3 8 * *   csbh  cd /opt/csbh && ./csbh dien-tap    >> /var/log/csbh-dien-tap.log 2>&1
+30 3 8 * *   csbh  __CSBH__ dien-tap    >> __LOG__/dien-tap.log 2>&1

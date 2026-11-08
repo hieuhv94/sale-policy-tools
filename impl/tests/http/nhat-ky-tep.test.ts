@@ -188,7 +188,8 @@ describe('compose gắn thư mục log cho mọi service ứng dụng', () => {
       // Thiếu một trong hai là log lặng lẽ biến mất: có biến mà không gắn thì tệp
       // nằm TRONG container và chết theo nó; gắn mà không có biến thì không ghi gì.
       expect(xNode).toMatch(/^\s+CSBH_LOG_DIR: \/var\/log\/csbh$/m);
-      expect(xNode).toMatch(/^\s+- \$\{CSBH_LOG_DIR:-[^}]+\}:\/var\/log\/csbh$/m);
+      // `0270`: production đòi biến BẮT BUỘC (`:?`, `csbh` xuất đường tuyệt đối trong workspace); demo giữ mặc định (`:-`).
+      expect(xNode).toMatch(/^\s+- \$\{CSBH_LOG_DIR:[-?][^}]+\}:\/var\/log\/csbh$/m);
       // Mười một service đều kế thừa x-node.
       const keThua = nguon.match(/^ {4}<<: \*node$/gm) ?? [];
       expect(keThua.length).toBe(11);
@@ -196,6 +197,6 @@ describe('compose gắn thư mục log cho mọi service ứng dụng', () => {
   );
 
   it('env.mau khai CSBH_LOG_DIR cho máy chủ', () => {
-    expect(readFileSync(join(IMPL, 'deploy', 'env.mau'), 'utf8')).toMatch(/^CSBH_LOG_DIR=\.\.\/logs$/m);
+    expect(readFileSync(join(IMPL, 'deploy', 'env.mau'), 'utf8')).toMatch(/^CSBH_LOG_DIR=logs$/m); // `0270`: tương đối theo CSBH_WORKSPACE
   });
 });

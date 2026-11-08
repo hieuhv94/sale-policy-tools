@@ -160,31 +160,8 @@ day() {
 goi() {
   goc="${RA}/csbh-${TAG}"
   rm -rf "$goc"
-  mkdir -p "$goc/deploy/postgres" "$goc/deploy/caddy" "$goc/tai-lieu"
-
-  # --- Thứ máy chủ CẦN để chạy ----------------------------------------------
-  cp deploy/compose.yml deploy/compose.prod.yml deploy/compose.tunnel.yml "$goc/deploy/"
-  cp deploy/postgres/postgresql.conf deploy/postgres/pg_hba.conf "$goc/deploy/postgres/"
-  # Caddyfile đã nướng trong ảnh; chép thêm một bản để người vận hành ĐỌC ĐƯỢC
-  # cấu hình biên mạng mà không phải mở ảnh ra.
-  cp deploy/caddy/Caddyfile "$goc/deploy/caddy/Caddyfile.tham-khao"
-
-  # --- Tài liệu -------------------------------------------------------------
-  cp docs/04-TRIEN-KHAI.md docs/05-VAN-HANH.md docs/03-HUONG-DAN-SU-DUNG.md "$goc/tai-lieu/"
-  cp deploy/RPO-RTO.md "$goc/tai-lieu/"
-  # Trong kho mã, `RPO-RTO.md` nằm ở `deploy/` nên tài liệu trỏ tới `../deploy/`.
-  # Trong bản giao, cả bốn tài liệu nằm chung một thư mục. Một liên kết chết
-  # trong tài liệu vận hành là chỗ người ta bỏ cuộc đi tìm.
-  sed -i 's|\.\./deploy/RPO-RTO\.md|RPO-RTO.md|g' "$goc/tai-lieu/"*.md
-
-  # --- Thứ người vận hành chạy ----------------------------------------------
-  cp scripts/csbh "$goc/csbh"
-  cp scripts/cai-dat.sh "$goc/cai-dat.sh"
-  cp deploy/cron/csbh.cron "$goc/deploy/cron.mau"
-  # `0254` — tác tử vận hành, cài bằng systemd (cách cài ghi ngay trong tệp).
-  mkdir -p "$goc/deploy/systemd"
-  cp deploy/systemd/csbh-tac-tu.service "$goc/deploy/systemd/"
-  chmod +x "$goc/csbh" "$goc/cai-dat.sh"
+  # Thư mục CHƯƠNG TRÌNH dựng bằng CHÍNH script mà ảnh `ops` dùng khi cập nhật (`0270`).
+  sh scripts/ban-cai.sh . "$goc" "$IMG"
 
   # --- Ba mẫu .docx ---------------------------------------------------------
   #
@@ -194,27 +171,29 @@ goi() {
   mkdir -p "$goc/mau-van-ban"
   cp templates/*.docx "$goc/mau-van-ban/"
 
-  # --- Bản khai môi trường --------------------------------------------------
-  sed -e "s|__IMAGE__|${IMG}|" deploy/env.mau > "$goc/.env.mau"
-
   cat > "$goc/README.md" <<HET
 # Chính sách bán hàng (CSBH) — bản ${TAG}
 
-Bắt đầu ở **tai-lieu/04-TRIEN-KHAI.md**. Nó dẫn từ máy chủ trắng tới màn hình
-đăng nhập, và nói rõ những gì phải chuẩn bị TRƯỚC khi đụng tới máy chủ.
+Cài trên một VPS Ubuntu 22.04/24.04 hoặc Debian 12 TRẮNG, bằng MỘT lệnh:
+
+    sudo ./cai-dat.sh              # lần đầu: tạo /etc/csbh/csbh.env rồi dừng
+    sudo nano /etc/csbh/csbh.env   # điền: tên miền, SMTP, tài khoản Quản trị đầu, registry…
+    sudo ./cai-dat.sh              # cài Docker, kiểm thử, dựng hệ, cài lịch tự động
+
+Cập nhật lên bản mới:            sudo csbh cap-nhat
+Lệnh vận hành hằng ngày:         csbh help
 
 | Tệp | Là gì |
 |---|---|
-| \`cai-dat.sh\` | Cài lần đầu. Hỏi từng thứ cần khai rồi tự dựng. |
-| \`csbh\` | Lệnh vận hành hằng ngày: \`./csbh help\` |
-| \`.env.mau\` | Bản khai môi trường. Chép thành \`.env\` rồi điền. |
-| \`deploy/\` | Hai tệp compose và cấu hình Postgres. Không sửa. |
-| \`deploy/cron.mau\` | Đánh thức việc sao lưu theo lịch (hỏi mỗi 15 phút) và diễn tập phục hồi. |
+| \`cai-dat.sh\` | Cài đặt / áp lại cấu hình. Không hỏi gì — đọc /etc/csbh/csbh.env. |
+| \`csbh.env.mau\` | Mẫu tệp cấu hình DUY NHẤT của hệ. |
+| \`csbh\` | Lệnh vận hành: \`csbh help\` |
+| \`deploy/\` | Tệp compose, cấu hình Postgres, mẫu lịch tự động và tác tử. Không sửa. |
 | \`mau-van-ban/\` | Ba mẫu .docx để Quản trị tải lên nếu muốn. |
 | \`tai-lieu/\` | Triển khai · Vận hành · Hướng dẫn sử dụng · Cam kết phục hồi. |
 
-Bản này KHÔNG chứa ảnh Docker — máy chủ kéo chúng về từ registry. Cần đăng nhập
-registry trước khi cài; xem tài liệu triển khai.
+Bản này KHÔNG chứa ảnh Docker — máy chủ kéo chúng từ registry bằng tài khoản khai
+trong csbh.env. Hướng dẫn từng bước: tai-lieu/06-CAI-DAT-VPS.md.
 HET
 
   mkdir -p "$RA"
@@ -226,7 +205,7 @@ HET
   echo "  Gói xong: $(cd "$(dirname "$tep")" && pwd)/$(basename "$tep")"
   echo "  Kích thước: $(du -h "$tep" | cut -f1)"
   echo ""
-  echo "  Chép lên máy chủ rồi:  tar -xzf csbh-${TAG}.tar.gz && cd csbh-${TAG} && ./cai-dat.sh"
+  echo "  Chép lên máy chủ rồi:  tar -xzf csbh-${TAG}.tar.gz && cd csbh-${TAG} && sudo ./cai-dat.sh"
   echo ""
 }
 

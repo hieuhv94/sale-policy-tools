@@ -14,7 +14,7 @@
  * Chạy CHÍNH `scripts/csbh` với một `docker` giả đặt đầu `PATH`, ghi mọi lượt gọi ra tệp.
  */
 import { execFile } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -53,14 +53,16 @@ type Kq = { ma: number; ra: string; loi: string; goi: string; d: string };
 async function csbh(lenh: string[], dat: Record<string, string> = {}, truoc?: (d: string) => void): Promise<Kq> {
   const d = mkdtempSync(join(tmpdir(), 'csbh-cn-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
+  copyFileSync('scripts/lib-buoc.sh', join(d, 'lib-buoc.sh'));
+  mkdirSync(join(d, 'run'), { recursive: true });
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nSITE_URL=https://csbh.test\n');
+  writeFileSync(join(d, '.env'), `COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nSITE_URL=https://csbh.test\nCSBH_WORKSPACE=${d}\n`);
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   truoc?.(d);
   const nhatKy = join(d, 'goi.log');
   writeFileSync(nhatKy, '');
-  const env = { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, ...dat };
+  const env = { ...process.env, CSBH_ENV: join(d, ".env"), PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, ...dat };
   try {
     const r = await chay('sh', [join(d, 'csbh'), ...lenh], { env, cwd: d });
     return { ma: 0, ra: r.stdout, loi: r.stderr, goi: readFileSync(nhatKy, 'utf8'), d };
@@ -138,7 +140,7 @@ describe('`0270` cap-nhat', () => {
 
   it('ghi lại migration cuối TRƯỚC khi kéo — thứ `lui-lai` cần để biết có lùi được không', async () => {
     const r = await csbh(['cap-nhat']);
-    expect(readFileSync(join(r.d, '.migration-truoc-cap-nhat'), 'utf8').trim()).toBe('0132_noi_dung_khoan_cpbh.sql');
+    expect(readFileSync(join(r.d, 'run', 'migration-truoc-cap-nhat'), 'utf8').trim()).toBe('0132_noi_dung_khoan_cpbh.sql');
   });
 });
 
@@ -175,7 +177,7 @@ describe('`0270` hiển thị BƯỚC — bước nào đang chạy, bước nà
 });
 
 describe('`0270` lui-lai', () => {
-  const daCapNhat = (mig: string) => (d: string) => writeFileSync(join(d, '.migration-truoc-cap-nhat'), `${mig}\n`);
+  const daCapNhat = (mig: string) => (d: string) => writeFileSync(join(d, 'run', 'migration-truoc-cap-nhat'), `${mig}\n`);
 
   it('chưa có migration mới → trả ảnh `-truoc-cap-nhat` về `-latest` rồi dựng', async () => {
     const r = await csbh(['lui-lai'], {}, daCapNhat('0132_noi_dung_khoan_cpbh.sql'));

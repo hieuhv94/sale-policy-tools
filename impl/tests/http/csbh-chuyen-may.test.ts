@@ -15,7 +15,7 @@
  * đường nhập đi được tới cuối.
  */
 import { spawn } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -33,7 +33,7 @@ case "$*" in
   *"chuyen-may bi-mat-mo"*)
     [ "\${BI_MAT_MA:-0}" = 0 ] || { echo "bi-mat-mo: SAI mật khẩu, hoặc gói bí mật hỏng." >&2; exit 1; }
     mkdir -p "$ra/bi-mat/secrets"
-    printf 'COMPOSE_PROJECT_NAME=csbh-prod\\nCSBH_IMAGE=kho/csbh\\nSITE_URL=https://csbh.test\\n' > "$ra/bi-mat/.env"
+    printf 'COMPOSE_PROJECT_NAME=csbh-prod\\nCSBH_IMAGE=kho/csbh\\nSITE_URL=https://csbh.test\\nCSBH_WORKSPACE=%s\\n' "$WS_GIA" > "$ra/bi-mat/.env"
     echo x > "$ra/bi-mat/secrets/pg_password.txt" ;;
   *"chuyen-may mo-goi"*)
     mkdir -p "$ra/goi/tep" "$ra/goi/logarchive"
@@ -47,27 +47,44 @@ case "$*" in
 esac
 `;
 
-type KetQua = { ma: number; ra: string; loi: string; goi: string; d: string };
+type KetQua = { ma: number; ra: string; loi: string; goi: string; d: string; ws: string; envTep: string };
 
+/**
+ * `0270`: BA chỗ — chương trình `d/` (csbh · lib-buoc.sh · csbh.env.mau), tệp cấu hình
+ * `d/etc/csbh.env` (`CSBH_ENV`), workspace `d/ws`. Lệnh nhập tạo thư mục tạm dưới
+ * `TMPDIR` (= `d/tmp-he`) — ca đầu đòi nó sạch sau lượt chạy.
+ */
 async function chay(lenh: string[], vao: string, o: { env?: string; dat?: Record<string, string> } = {}): Promise<KetQua> {
   const d = mkdtempSync(join(tmpdir(), 'csbh-cm-'));
+  const ws = join(d, 'ws');
+  const envTep = join(d, 'etc', 'csbh.env');
   copyFileSync('scripts/csbh', join(d, 'csbh'));
+  copyFileSync('scripts/lib-buoc.sh', join(d, 'lib-buoc.sh'));
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env.mau'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
-  if (o.env !== undefined) writeFileSync(join(d, '.env'), o.env);
+  writeFileSync(join(d, 'csbh.env.mau'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
+  mkdirSync(join(d, 'etc'), { recursive: true });
+  mkdirSync(join(d, 'tmp-he'), { recursive: true });
+  if (o.env !== undefined) {
+    writeFileSync(envTep, `${o.env}CSBH_WORKSPACE=${ws}\n`);
+    mkdirSync(join(ws, 'secrets'), { recursive: true });
+    writeFileSync(join(ws, 'secrets', 'pg_password.txt'), 'x');
+  }
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   const nhatKy = join(d, 'goi.log');
   writeFileSync(nhatKy, '');
   for (const t of ['goi.tar', 'bi-mat.enc']) writeFileSync(join(d, t), 'x');
-  const env = { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, CSBH_CHO_XA_GIAY: '0', ...o.dat };
+  const env = {
+    ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, CSBH_CHO_XA_GIAY: '0',
+    CSBH_ENV: envTep, WS_GIA: ws, TMPDIR: join(d, 'tmp-he'), ...o.dat,
+  };
   return new Promise((ok) => {
     const p = spawn('sh', [join(d, 'csbh'), ...lenh], { cwd: d, env });
     let ra = '';
     let loi = '';
     p.stdout.on('data', (b) => (ra += b));
     p.stderr.on('data', (b) => (loi += b));
-    p.on('close', (ma) => ok({ ma: ma ?? 1, ra, loi, goi: readFileSync(nhatKy, 'utf8'), d }));
+    p.on('close', (ma) => ok({ ma: ma ?? 1, ra, loi, goi: readFileSync(nhatKy, 'utf8'), d, ws, envTep }));
     p.stdin.end(vao);
   });
 }
@@ -153,11 +170,13 @@ describe('`0246` nhap-chuyen-may', () => {
     ]);
     expect(r.goi.trimEnd().split('\n').pop()).toMatch(/up -d --wait$/);
     expect(r.goi).toMatch(/-e RESTORE_DB=csbh /);
-    expect(readFileSync(join(r.d, '.env'), 'utf8')).toContain('SITE_URL=https://csbh.test');
+    // `0270`: cấu hình máy cũ → tệp cấu hình; bí mật → <workspace>/secrets.
+    expect(readFileSync(r.envTep, 'utf8')).toContain('SITE_URL=https://csbh.test');
     // Ảnh trên máy đã đúng bản máy cũ → KHÔNG kéo thẻ số nào.
     expect(r.goi).not.toMatch(/^pull kho\/csbh:(service|web|ops)-/m);
-    expect(existsSync(join(r.d, 'secrets', 'pg_password.txt'))).toBe(true);
-    expect(existsSync(join(r.d, '.nhap-tam')), 'thư mục tạm phải được dọn').toBe(false);
+    expect(existsSync(join(r.ws, 'secrets', 'pg_password.txt'))).toBe(true);
+    for (const t of ['data/postgres', 'data/minio', 'backup', 'run']) expect(existsSync(join(r.ws, t)), t).toBe(true);
+    expect(readdirSync(join(r.d, 'tmp-he')), 'thư mục tạm phải được dọn').toEqual([]);
   });
 
   it('ĐỐI CHIẾU LỆCH → không migrate, không bật phần mềm, thoát 1', async () => {
@@ -171,7 +190,7 @@ describe('`0246` nhap-chuyen-may', () => {
   it('SAI mật khẩu → không ra .env, không dựng gì', async () => {
     const r = await nhap({ BI_MAT_MA: '1' });
     expect(r.ma).toBe(1);
-    expect(existsSync(join(r.d, '.env'))).toBe(false);
+    expect(existsSync(r.envTep)).toBe(false);
     expect(r.goi).not.toContain('up -d');
   });
 
@@ -193,7 +212,7 @@ describe('`0246` nhap-chuyen-may', () => {
     const r = await nhap({ TAG_GOI: '1.0.5', PULL_HONG: '1' });
     expect(r.ma).toBe(1);
     expect(r.loi).toContain('kho/csbh:service-1.0.5');
-    expect(existsSync(join(r.d, '.env'))).toBe(false);
+    expect(existsSync(r.envTep)).toBe(false);
     expect(r.goi).not.toContain('up -d');
   });
 
@@ -219,7 +238,7 @@ describe('`0246` nhap-chuyen-may', () => {
   it('chạy được khi CHƯA có .env — mọi lệnh khác thì không', async () => {
     const r = await chay(['trang-thai'], '');
     expect(r.ma).toBe(1);
-    expect(r.loi).toContain('Không thấy .env');
+    expect(r.loi).toContain('Không thấy');
   });
 });
 
@@ -244,6 +263,6 @@ describe('`0246` sao-luu-tep', () => {
   it('`0251` ĐẢO chốt 05/11 cũ ("chưa chạy định kỳ"): kho tệp có lịch riêng, cron hỏi mỗi 15 phút', () => {
     // Khách hàng chốt 05/11 khi duyệt trang Vận hành: bản sao kho tệp cũng có giờ chạy và
     // số bản giữ cấu hình được — nên nó PHẢI có trong cron, theo lịch.
-    expect(readFileSync('deploy/cron/csbh.cron', 'utf8')).toMatch(/^\*\/15 .*\.\/csbh sao-luu-tep --neu-den-han/m);
+    expect(readFileSync('deploy/cron/csbh.cron', 'utf8')).toMatch(/^\*\/15 .*__CSBH__ sao-luu-tep --neu-den-han/m);
   });
 });

@@ -22181,3 +22181,74 @@ THAY bằng ca `0270` canh bốn mắt xích (Dockerfile nhận biến · lượ
 `.env` thôi có số).
 
 `make test` đầy đủ (demo tắt): **3364/3364 xanh.**
+
+## P308 — `0270` Cài cả hệ trên VPS bằng MỘT lệnh, đọc MỘT tệp cấu hình; chương trình tách khỏi workspace
+
+Chặng hai của kế hoạch VPS. Yêu cầu 08/11: *"một bash script cài và chạy cả hệ; mọi cấu hình trong một
+file env"*, kèm *"cần workspace riêng cho production"* và *"cho phép chọn đường dẫn workspace trong env"*.
+Tới `0269` một lượt cài là mười ba bước tay (cài Docker, `docker login`, `cai-dat.sh` hỏi từng câu, mật
+khẩu SMTP gõ vào `secrets/`, `mo-tai-khoan`, chép cron, chép unit tác tử, `sed` đường dẫn).
+
+**BA CHỖ, mỗi chỗ một vai** — thứ đáng nhớ nhất của chặng:
+- **chương trình** `/opt/csbh/releases/<bản>/` + `current` (thay ở mỗi lượt cập nhật; `csbh` không ghi gì vào đây);
+- **cấu hình** `/etc/csbh/csbh.env` — một tệp duy nhất. Nó KHÔNG nằm trong workspace vì chính nó khai
+  `CSBH_WORKSPACE`: phải đọc tệp mới biết workspace ở đâu;
+- **workspace** `${CSBH_WORKSPACE}` (mặc định `/srv/csbh`): `secrets/` · `data/` · `backup/` · `logs/` · `run/` · `tmp/`.
+
+**Dữ liệu vào `data/` mà KHÔNG đổi tên volume**: lớp `compose.du-lieu.yml` khai `pgdata`, `miniodata`…
+là bind (`driver_opts`). Tách tệp vì compose GỘP khai báo volume (bài học `0105`/`0108`) — một lớp phủ
+không gỡ được `driver_opts`, và chồng kiểm nghiệm (P309) phải chạy trên volume thường để `down -v` là
+sạch. Đo trước (08/11, bind vào thư mục root rỗng): Postgres · Redis · RabbitMQ của bản ghim **tự `chown`**
+và khởi động bình thường (uid 70 / 999 / 100) — nên bộ cài chỉ `mkdir`, và **cấm `chown -R` data/**.
+
+**Bí mật người dùng trong tệp cấu hình mà vẫn không lộ ở `docker inspect`** (giữ lý do `0106`): compose
+chỉ đưa vào container biến NÓ NHẮC TỚI, nên chỉ cần không compose nào nhắc `MAIL_PASSWORD`,
+`GOOGLE_CLIENT_SECRET`, `ADMIN_MAT_KHAU`, `REGISTRY_TOKEN` (có ca quét). `csbh` dẫn xuất hai tệp
+`secrets/mail_password.txt`, `google_client_secret.txt` ở MỖI lượt `len`/`cap-nhat` và tự đặt
+`*_FILE`; mật khẩu Quản trị đầu đi qua một tệp tạm trong `secrets/` (xoá ngay) tới `bootstrap-admin`,
+rồi bộ cài XOÁ TRẮNG dòng ấy khỏi tệp cấu hình.
+
+**`cai-dat.sh` viết lại bằng bash, KHÔNG hỏi gì, 12 bước hiện `▶`/`✔`** (`lib-buoc.sh` dùng chung với
+`csbh`): kiểm HĐH → kiểm tệp cấu hình (gom MỌI lỗi in một lần) → Docker/múi giờ/NTP/tài khoản `csbh` →
+workspace → DNS (so `getent` với `hostname -I`, không hỏi dịch vụ ngoài; `--bo-kiem-dns`) → `docker login`
+qua stdin → kéo ảnh CHỈ KHI THIẾU → **chương trình bung TỪ ẢNH `ops`** (`ban-cai`, không lấy từ gói — ảnh
+`-latest` có thể mới hơn gói) → bí mật (chốt `0113` giữ, giờ hỏi cả `data/postgres`) → `csbh len` → Quản
+trị đầu (chỉ khi `so-tai-khoan` = 0) → cron + unit tác tử với đường tuyệt đối → kiểm khói (`/api/readyz`
+qua HTTPS + mở được cổng SMTP, KHÔNG ghi dữ liệu). Đổi `CSBH_WORKSPACE` sau khi cài → dừng, in lệnh dời,
+không dựng workspace trống thứ hai (CSDL trống mới trông như "mất hết").
+
+**Lệch so với kế hoạch, có chủ ý**: kế hoạch ghi *"ufw mở 22/80/443"*; bản làm **không tự bật ufw** —
+bật trên máy SSH ở cổng khác 22 là tự khoá mình ở ngoài. ufw đang chạy thì chỉ mở thêm 80/443.
+
+**`scripts/ban-cai.sh` là MỘT danh sách tệp của bản cài** cho hai người gọi: `dong-goi.sh goi` (gói lần
+đầu) và `csbh-ops ban-cai` (trong ảnh, cho `cap-nhat`). `cap-nhat` bung bản mới vào `releases/<bản>`,
+chạy migration + dựng bằng CHÍNH compose ấy, xong mới đổi `current` (liên kết tạm + `mv -T`, không có
+khoảnh khắc nào `current` vắng); `lui-lai` trả cả ảnh lẫn `current`. Hết bẫy *"nâng cấp chỉ đổi ảnh,
+compose phải chép tay"* ghi ở `0241`, `0250`, `0251`, `1.3.0`.
+
+**Đường hầm thử nghiệm thôi sửa tệp cấu hình** (`csbh` không có quyền ghi `/etc/csbh/`): địa chỉ tạm
+ở `run/thu-nghiem`, `csbh` xuất ra môi trường (biến môi trường thắng `--env-file`); đóng = xoá tệp.
+
+**Ba lỗi của chính chặng, ca kiểm bắt được**: (1) **trùng tên biến** — `cai-dat.sh` đặt `NHAT_KY`, đúng
+tên biến các lệnh giả dùng để ghi lời gọi, nên từ bước 4 mọi lời gọi đi vào tệp nhật ký cài đặt (đổi
+`TEP_NHAT_KY`); (2) `exec > >(tee) 2>&1` **dồn stderr sang stdout** — câu báo lỗi thôi ra stderr (giờ hai
+`tee` riêng); (3) `TT="$RUN/tac-tu"` ở cấp đầu tệp chạy trước khi `nhap-chuyen-may` kịp đặt `RUN`.
+
+**Phá lại chín lượt**: token trên dòng lệnh (2 đỏ) · không xoá `ADMIN_MAT_KHAU` (1) · bỏ chốt `0113` (1) ·
+bỏ kiểm DNS (2) · luôn kéo ảnh (1) · tạo Quản trị khi đã có (1) · stderr dồn stdout (5) · compose nhắc
+`MAIL_PASSWORD` (1) · **tự bật ufw — XANH ở lượt đầu**: ca hỏi chuỗi `ufw enable` mà lệnh phá là
+`ufw --force enable`; đổi sang regex `^ufw .*\benable\b`, đỏ lại đúng chỗ. Kèm một lượt phá **TREO** thay
+vì đỏ: `docker login` giả đọc stdin, mà spawn của ca kiểm để stdin mở — giờ ca kiểm đóng stdin
+(`stdio: ['ignore', …]`), và đó cũng là bất biến thật: bộ cài không được đọc bàn phím.
+
+**Không kiểm được ở bộ kiểm (đã nêu ở đầu `cai-dat.test.ts`)**: nhánh cài Docker bằng apt, quyền sở hữu
+thật (`chown` giả), kết nối SMTP. Ảnh kiểm (Alpine) thêm `bash`; `runuser` không có nên ca kiểm gọi
+`csbh` thẳng (máy thật luôn có `runuser` của `util-linux`). Chưa dựng thật trên VPS — làm ở cuối P309.
+
+Tài liệu: **`impl/docs/06-CAI-DAT-VPS.md`** (mới — hướng dẫn một trang cho người cài, có trong gói);
+`04-TRIEN-KHAI` Trình tự 13 bước → 4, §2/§3/§7 viết lại; `05-VAN-HANH` §2 và bảng *Chỗ dữ liệu nằm*.
+
+`make typecheck` sạch. `make test` 3395/3397 — hai đỏ ở `nhat-ky-tep.test.ts` khẳng định dạng cũ
+`${CSBH_LOG_DIR:-../logs}` / `CSBH_LOG_DIR=../logs`; sửa theo dạng mới, chạy lại tệp ấy 23/23.
+
+**3397/3397 xanh.**

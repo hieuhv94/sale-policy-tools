@@ -48,13 +48,10 @@ tải và xoá ghi vào nhật ký kiểm toán.
 
 ---
 
-## 2. Lịch tự động — bắt buộc cài
+## 2. Lịch tự động `sửa 08/11`
 
-```sh
-sudo cp deploy/cron.mau /etc/cron.d/csbh
-sudo chmod 644 /etc/cron.d/csbh
-sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
-```
+`sudo ./cai-dat.sh` ghi `/etc/cron.d/csbh` với đường tuyệt đối (`0270`) — không cài tay nữa.
+Log ở `<workspace>/logs/cron/`.
 
 | Việc | Khi nào | Vì sao |
 |---|---|---|
@@ -67,29 +64,25 @@ Vận hành: tần suất (6 giờ · 12 giờ · ngày · tuần), giờ chạy
 đếm giờ — `--neu-den-han` hỏi CSDL "đã tới mốc chưa" và chạy đúng một lượt cho mỗi mốc.
 Lượt hỏng được thử lại sau một giờ. Máy tắt qua nhiều mốc thì khởi động lại chạy MỘT
 lượt bù. **CSDL không trả lời** thì vẫn sao lưu theo lịch mặc định trong 15 phút từ giờ
-mặc định. Hai việc dùng chung khoá tệp `.khoa-sao-luu` nên không chạy chồng nhau — cần
+mặc định. Hai việc dùng chung khoá tệp `<workspace>/run/khoa-sao-luu` nên không chạy chồng nhau — cần
 lệnh `flock` (gói `util-linux`, có sẵn trên mọi bản Linux phổ biến).
 
 ### Tác tử vận hành `mới 06/11 — 0254`
 
 Nút **Sao lưu ngay**, trạng thái sáu container hạ tầng, log hạ tầng và cỡ từng volume trên
 trang Vận hành đến từ **tác tử** — `./csbh tac-tu`, một vòng lặp chạy dưới systemd trên máy
-chủ (không container nào cầm `docker.sock`). Cài một lần:
+chủ (không container nào cầm `docker.sock`). `sudo ./cai-dat.sh` cài và bật nó (`0270`); kiểm:
 
 ```sh
-sudo cp deploy/systemd/csbh-tac-tu.service /etc/systemd/system/
-sudo sed -i 's|/opt/csbh|<đường dẫn thật>|; s|^User=.*|User=<tài khoản chạy docker>|' \
-  /etc/systemd/system/csbh-tac-tu.service
-sudo systemctl daemon-reload && sudo systemctl enable --now csbh-tac-tu
 systemctl status csbh-tac-tu        # phải "active (running)"
 ```
 
-Tài khoản chạy tác tử phải gõ được `docker` (nhóm `docker`) và đọc được `.env`. Mỗi 10 giây
+Tác tử chạy bằng tài khoản hệ thống `csbh` (nhóm `docker`, đọc được `/etc/csbh/csbh.env`). Mỗi 10 giây
 tác tử báo "còn sống" và nhận việc web đang chờ; mỗi phút ghi trạng thái container; mỗi 5
 phút chép log của postgres · redis · rabbitmq · minio · gotenberg · caddy vào thư mục log
 chung (`<CSBH_LOG_DIR>/dang-ghi/<tên>-<ngày>.log`, nén hằng đêm cùng log ứng dụng) — ghi QUA
 container `van-hanh`, nên `van-hanh` dừng thì lượt sau thu lại từ chỗ cũ, không mất dòng; mỗi giờ
-đo cỡ volume và ảnh Docker. Trạng thái của nó (mốc log) nằm ở `.tac-tu/` cạnh `.env`.
+đo cỡ volume và ảnh Docker. Trạng thái của nó (mốc log) nằm ở `<workspace>/run/tac-tu/`.
 
 **Tác tử dừng thì chỉ nút Sao lưu ngay xám đi** — trang nói "máy chủ chưa sẵn sàng nhận
 lệnh" sau 60 giây không nhịp. Sao lưu theo lịch vẫn do cron chạy. Tác tử chỉ chạy được
@@ -438,14 +431,19 @@ email trỏ đúng địa chỉ ấy. Cấu hình cũ cất trong tệp `.thu-ng
 
 ## 6. Chỗ dữ liệu nằm
 
+Từ `0270` mọi thứ của riêng máy nằm trong WORKSPACE (`CSBH_WORKSPACE` ở `/etc/csbh/csbh.env`,
+mặc định `/srv/csbh`) — volume giữ tên cũ nhưng bind vào thư mục dưới đây (`deploy/compose.du-lieu.yml`).
+
 | Thứ | Ở đâu | Mất thì sao |
 |---|---|---|
-| CSDL | volume `pgdata` | mất hết. Phục hồi từ sao lưu. |
-| Tệp đính kèm, bản mềm, mẫu văn bản | volume `miniodata` | hồ sơ còn, file mở ra báo lỗi có tên — trừ phần đã `sao-luu-tep` |
-| Bản sao lưu CSDL + bản chụp kho tệp | `backup-mirror/` và volume `pgbackup` | không phục hồi được |
-| Tệp log của mười service | `logs/` (`CSBH_LOG_DIR`) | mất dấu vết tra lỗi; hệ vẫn chạy |
-| Chứng chỉ TLS | volume `caddy_data` | Caddy xin lại; Let's Encrypt có hạn mức theo tuần |
-| Bí mật | `secrets/` | **không dựng lại được** — mất khoá JWT là mọi phiên chết, mất mật khẩu Postgres là không mở được CSDL |
+| Cấu hình | `/etc/csbh/csbh.env` | dựng lại được từ mẫu, nhưng mật khẩu SMTP/registry phải khai lại |
+| CSDL | `<workspace>/data/postgres` (volume `pgdata`) | mất hết. Phục hồi từ sao lưu. |
+| Tệp đính kèm, bản mềm, mẫu văn bản | `<workspace>/data/minio` (volume `miniodata`) | hồ sơ còn, file mở ra báo lỗi có tên — trừ phần đã `sao-luu-tep` |
+| Bản sao lưu CSDL + bản chụp kho tệp | `<workspace>/backup` (volume `pgbackup`) và `CSBH_BACKUP_MIRROR` | không phục hồi được |
+| Tệp log của mười một service | `<workspace>/logs/` (`CSBH_LOG_DIR`) | mất dấu vết tra lỗi; hệ vẫn chạy |
+| Chứng chỉ TLS | `<workspace>/data/caddy` (volume `caddy_data`) | Caddy xin lại; Let's Encrypt có hạn mức theo tuần |
+| Bí mật | `<workspace>/secrets/` | **không dựng lại được** — mất khoá JWT là mọi phiên chết, mất mật khẩu Postgres là không mở được CSDL |
+| Chương trình | `/opt/csbh/releases/<bản>/` | `csbh cap-nhat` hoặc chạy lại bộ cài là có lại — không chứa dữ liệu |
 
 > `secrets/` **không** nằm trong bản sao lưu tự động, có chủ ý: bản sao lưu được
 > chép đi nơi khác, còn bí mật thì không nên. Sao lưu nó **một lần, thủ công**,

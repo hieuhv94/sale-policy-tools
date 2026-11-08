@@ -2,10 +2,8 @@
 # thái container, thu log hạ tầng, đo cỡ volume. Chạy NGOÀI container với quyền docker của
 # máy chủ, để không container nào phải cầm docker.sock.
 #
-# Cài (thay /opt/csbh bằng thư mục bộ cài và csbh bằng tài khoản chạy docker):
-#   sudo cp deploy/systemd/csbh-tac-tu.service /etc/systemd/system/
-#   sudo sed -i 's|/opt/csbh|<thư mục bộ cài>|; s|^User=.*|User=<tài khoản>|' /etc/systemd/system/csbh-tac-tu.service
-#   sudo systemctl daemon-reload && sudo systemctl enable --now csbh-tac-tu
+# MẪU — `cai-dat.sh` ghi nó ra `/etc/systemd/system/` và bật (`0270`), thay `__CSBH__`
+# bằng `/opt/csbh/current/csbh` và `__WS__` bằng workspace. Không cài tay nữa.
 #
 # Tác tử dừng thì chỉ nút "Sao lưu ngay" xám đi — sao lưu theo lịch vẫn do cron chạy.
 [Unit]
@@ -16,8 +14,8 @@ Requires=docker.service
 [Service]
 Type=simple
 User=csbh
-WorkingDirectory=/opt/csbh
-ExecStart=/opt/csbh/csbh tac-tu
+WorkingDirectory=__WS__
+ExecStart=__CSBH__ tac-tu
 Restart=always
 RestartSec=10
 # Một lượt sao lưu đang chạy nền được đợi tới 30 phút khi dừng dịch vụ.

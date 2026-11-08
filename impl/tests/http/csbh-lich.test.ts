@@ -10,7 +10,7 @@
  * ở đây chỉ kiểm lệnh shell làm ĐÚNG theo câu trả lời ấy.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -34,13 +34,15 @@ type Kq = { ma: number; ra: string; goi: string; capNhat: string; d: string };
 function chay(lenh: string[], dat: Record<string, string> = {}): Promise<Kq> {
   const d = mkdtempSync(join(tmpdir(), 'csbh-lich-'));
   copyFileSync('scripts/csbh', join(d, 'csbh'));
+  copyFileSync('scripts/lib-buoc.sh', join(d, 'lib-buoc.sh'));
+  mkdirSync(join(d, 'run'), { recursive: true });
   chmodSync(join(d, 'csbh'), 0o755);
-  writeFileSync(join(d, '.env'), 'COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\n');
+  writeFileSync(join(d, '.env'), `COMPOSE_PROJECT_NAME=csbh-prod\nCSBH_IMAGE=kho/csbh\nCSBH_WORKSPACE=${d}\n`);
   writeFileSync(join(d, 'docker'), DOCKER_GIA);
   chmodSync(join(d, 'docker'), 0o755);
   const nhatKy = join(d, 'goi.log');
   writeFileSync(nhatKy, '');
-  const env = { ...process.env, PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, LICH: '', ...dat };
+  const env = { ...process.env, CSBH_ENV: join(d, ".env"), PATH: `${d}:${process.env.PATH}`, NHAT_KY: nhatKy, LICH: '', ...dat };
   return new Promise((ok) => {
     const p = spawn('sh', [join(d, 'csbh'), ...lenh], { cwd: d, env });
     let ra = '';
@@ -167,15 +169,16 @@ describe('`0251` hai việc sao lưu không chạy chồng nhau', () => {
   it('khoá đang bị giữ → lượt sau bỏ qua ngay, không hỏi CSDL, không sao lưu', async () => {
     const d0 = await chay(['phien-ban']);
     // giữ khoá ở CHÍNH thư mục bộ cài của lượt sau
-    const giu = spawn('flock', [join(d0.d, '.khoa-sao-luu'), 'sleep', '5']);
+    const giu = spawn('flock', [join(d0.d, 'run', 'khoa-sao-luu'), 'sleep', '5']);
     await new Promise((r) => setTimeout(r, 300));
     try {
       copyFileSync('scripts/csbh', join(d0.d, 'csbh'));
+      copyFileSync('scripts/lib-buoc.sh', join(d0.d, 'lib-buoc.sh'));
       const nhatKy = join(d0.d, 'goi.log');
       writeFileSync(nhatKy, '');
       const p = spawnSync('sh', [join(d0.d, 'csbh'), 'sao-luu', '--neu-den-han'], {
         cwd: d0.d,
-        env: { ...process.env, PATH: `${d0.d}:${process.env.PATH}`, NHAT_KY: nhatKy, LICH: 'co 5' },
+        env: { ...process.env, CSBH_ENV: join(d0.d, ".env"), PATH: `${d0.d}:${process.env.PATH}`, NHAT_KY: nhatKy, LICH: 'co 5' },
         encoding: 'utf8',
       });
       expect(p.status).toBe(0);
@@ -190,7 +193,7 @@ describe('`0251` hai việc sao lưu không chạy chồng nhau', () => {
 describe('`0251` lịch cron', () => {
   const cron = readFileSync('deploy/cron/csbh.cron', 'utf8');
   const csbh = readFileSync('scripts/csbh', 'utf8');
-  const lenhCron = [...cron.matchAll(/^[^#\n].*\.\/csbh ([a-z-]+)/gm)].map((m) => m[1]!);
+  const lenhCron = [...cron.matchAll(/^[^#\n].*__CSBH__ ([a-z-]+)/gm)].map((m) => m[1]!);
 
   it('mỗi lệnh cron gọi là một lệnh con CÓ THẬT của ./csbh — gõ sai tên thì cron im lặng không làm gì', () => {
     expect(lenhCron.length).toBeGreaterThan(0);
@@ -198,9 +201,9 @@ describe('`0251` lịch cron', () => {
   });
 
   it('hai việc sao lưu hỏi mỗi 15 phút với --neu-den-han; không còn giờ cứng', () => {
-    expect(cron).toMatch(/^\*\/15 \* \* \* \* .*\.\/csbh sao-luu --neu-den-han/m);
-    expect(cron).toMatch(/^\*\/15 \* \* \* \* .*\.\/csbh sao-luu-tep --neu-den-han/m);
-    expect(cron).not.toMatch(/^\d+ \d+ \* \* \* .*\.\/csbh sao-luu\b/m);
+    expect(cron).toMatch(/^\*\/15 \* \* \* \* .*__CSBH__ sao-luu --neu-den-han/m);
+    expect(cron).toMatch(/^\*\/15 \* \* \* \* .*__CSBH__ sao-luu-tep --neu-den-han/m);
+    expect(cron).not.toMatch(/^\d+ \d+ \* \* \* .*__CSBH__ sao-luu\b/m);
   });
 
   it('không còn dòng dọn dữ liệu (sla-worker tự chạy theo lịch) hay trích kiểm toán (đã gỡ)', () => {
