@@ -22101,3 +22101,14 @@ chỗ: CLAUDE.md, KIEN-TRUC ×2, 02-CHAY-DEMO; giờ 83), sửa xong tệp ấy 
 `tests/web` + `tests/http/{tai-lieu,tieu-de-cot}`:
 
 **1179/1179 xanh.**
+
+## P305 — `0269` Chữ rê chuột của dấu nội dung CPBH là nguyên văn, không tiền tố
+
+Khách hàng: *"nội dung khi kéo chuột vào dấu hỏi chấm không cần phải có tiền tố CPBH, chỉ cần có nguyên văn phần
+nội dung thôi"*. `title` của `DauNoiDungKhoan` từ *"CPBH 2: Quà tặng kèm"* thành *"Quà tặng kèm"* — dấu đã đứng
+ngay cạnh con số của khoản ấy, tiền tố chỉ lặp lại điều mắt đang thấy. **`aria-label` GIỮ tên khoản** (*"Nội dung
+CPBH 2: …"*): trình đọc màn hình không thấy ô đang đứng, và một câu trần giữa mười ô CPBH là không biết của khoản
+nào — chỗ duy nhất hai đường đọc nói khác nhau, có chủ ý. Phá lại (trả tiền tố) → ca `title` đỏ. Demo chạy bản
+mới. Typecheck xanh; `tests/web`:
+
+**1166/1166 xanh.**

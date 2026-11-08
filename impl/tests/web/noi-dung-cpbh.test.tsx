@@ -137,7 +137,8 @@ describe('`0268` bảng: dấu ? cạnh ĐÚNG con số của khoản có nội 
     expect(dau).toHaveLength(1);
     const nut = dau[0] as HTMLElement;
     expect(nut.getAttribute('aria-label')).toBe('Nội dung CPBH 2: Quà tặng kèm');
-    expect(nut.getAttribute('title')).toBe('CPBH 2: Quà tặng kèm');
+    // `0269` — chữ rê chuột là NGUYÊN VĂN nội dung, không tiền tố tên khoản.
+    expect(nut.getAttribute('title')).toBe('Quà tặng kèm');
     // Ô chứa dấu là ô mang con số 1.000 (khoản 2), không phải ô tổng hay khoản 1.
     expect(nut.closest('td')!.textContent).toContain('1.000');
   });

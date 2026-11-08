@@ -647,9 +647,15 @@ export function OQuyDinh({ d }: { d: DongSanPham }) {
 export function DauNoiDungKhoan({ d, k }: { d: DongSanPham; k: number }) {
   const nd = d.cpbhNoiDung?.[k]?.trim();
   if (!nd) return null;
-  const cau = `${nhanCpbh(k)}: ${nd}`;
+  /*
+   * `0269` — chữ hiện khi rê chuột là NGUYÊN VĂN nội dung, không tiền tố *CPBH n:*
+   * (khách hàng: dấu đã nằm ngay cạnh con số của khoản ấy, tiền tố chỉ lặp lại
+   * điều mắt đang thấy). `aria-label` GIỮ tên khoản: trình đọc màn hình không
+   * "thấy" ô đang đứng, và *"Nội dung: Quà tặng"* giữa mười ô CPBH là không biết
+   * của khoản nào.
+   */
   return (
-    <button type="button" className="dau-hoi dau-noi-dung" title={cau} aria-label={`Nội dung ${cau}`}>
+    <button type="button" className="dau-hoi dau-noi-dung" title={nd} aria-label={`Nội dung ${nhanCpbh(k)}: ${nd}`}>
       ?
     </button>
   );
