@@ -22569,3 +22569,8 @@ một hàm quay-lại riêng → đổi thành `dong` (Huỷ = đóng hộp, b�
 
 **3463/3463 xanh.**
 
+
+## P318 — Phiên bản `1.3.2`
+
+`VERSION` → `1.3.2` (gói `P317`). `1.3.1` đã trên registry với ảnh TRƯỚC `0277`; ghi đè thẻ số sẽ cho một số phiên bản hai nội dung và mất đường lùi,
+nên lên số mới. Không migration nào. **Đẩy ảnh lên registry ở bước kế tiếp.**
