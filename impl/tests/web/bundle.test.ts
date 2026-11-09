@@ -18,20 +18,54 @@ const DIST = 'apps/web/dist/assets';
 /** Trần của `FE-38`: gói dùng chung ≤ 250KB sau khi nén. */
 const TRAN_KB = 250;
 
+/** Trần của phần tải THEO NHU CẦU (`0273`): các chunk `lazy`, mỗi chunk. */
+const TRAN_CHUNK_KB = 60;
+
 let kbJs = 0;
 let kbCss = 0;
+/** Chunk không nằm trong `index.html` — chỉ tải khi người dùng mở trang tương ứng. */
+const chunkLazy: { tep: string; kb: number }[] = [];
 
 beforeAll(async () => {
-  await exec('pnpm', ['build:web'], { maxBuffer: 20 * 1024 * 1024 });
+  /*
+   * Dựng bản PRODUCTION (`0273`). Vitest đặt `NODE_ENV=test`, và `exec` kế thừa nó:
+   * Vite khi ấy gói React bản PHÁT TRIỂN (cả cảnh báo và đường gỡ lỗi), ra ~1MB thô
+   * thay vì ~500KB — ca đo này từng đo một gói mà người dùng KHÔNG BAO GIỜ tải.
+   * Lệch ấy ăn sạch khoảng trống: trước `0273` gói đo được 248,9KB trên trần 250KB,
+   * nên bất kỳ tính năng nào cũng làm ca đỏ; gói thật chỉ ~175KB nén.
+   */
+  await exec('pnpm', ['build:web'], {
+    maxBuffer: 20 * 1024 * 1024,
+    env: { ...process.env, NODE_ENV: 'production' },
+  });
+  /*
+   * "Tải ngay" = tệp mà `index.html` nhắc tới. Trước `0273` ca này cộng MỌI tệp
+   * trong `dist/assets`, đúng chỉ vì chưa từng có chunk nào tách ra — nên "mọi tệp"
+   * và "tệp tải ngay" là một. Giờ trang Hướng dẫn là chunk `lazy`, và đếm nó vào
+   * ngân sách tải ngay là phạt đúng thứ đã được dời khỏi đường tải đầu tiên.
+   * Chunk lazy có trần RIÊNG bên dưới, để chúng không phình ra vô hạn.
+   */
+  const html = readFileSync('apps/web/dist/index.html', 'utf8');
   for (const tep of readdirSync(DIST)) {
     const b = readFileSync(join(DIST, tep));
     const kb = gzipSync(b).byteLength / 1024;
+    if (!html.includes(`assets/${tep}`)) {
+      if (tep.endsWith('.js')) chunkLazy.push({ tep, kb });
+      continue;
+    }
     if (tep.endsWith('.js')) kbJs += kb;
     if (tep.endsWith('.css')) kbCss += kb;
   }
 }, 300_000);
 
 describe('FE-38 gói dùng chung', () => {
+  it(`mỗi chunk tải theo nhu cầu dưới ${TRAN_CHUNK_KB}KB nén, và trang Hướng dẫn thật sự tách riêng`, () => {
+    expect(chunkLazy.length, 'không chunk lazy nào — trang Hướng dẫn lại nằm trong gói chính?').toBeGreaterThan(0);
+    for (const c of chunkLazy) {
+      expect(c.kb, `${c.tep} ${c.kb.toFixed(1)}KB nén`).toBeLessThan(TRAN_CHUNK_KB);
+    }
+  });
+
   it(`JS + CSS sau khi nén dưới ${TRAN_KB}KB`, () => {
     const tong = kbJs + kbCss;
     expect(kbJs, 'không tìm thấy gói JS nào — build hỏng?').toBeGreaterThan(0);

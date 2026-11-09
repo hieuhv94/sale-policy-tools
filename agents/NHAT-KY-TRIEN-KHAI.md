@@ -22395,3 +22395,47 @@ làm riêng, có ca kiểm riêng, khi được yêu cầu.
 **Việc người dùng phải làm để lỗi này biến mất trên VPS**: `deploy/compose.yml` nằm trong ảnh `ops`
 (`ban-cai`), nên phải **dựng lại và đẩy ảnh** (`make dong-goi` rồi `make day-anh`) rồi chạy lại `cai-dat.sh`
 — bộ cài bung chương trình từ ảnh `ops` nên tự lấy tệp compose mới.
+
+## P312 — `0273` Trang *Hướng dẫn* (chặng 1: khung, phần chung, Trình dược viên) — CHỈ FRONTEND
+
+Khách hàng yêu cầu một trang **Hướng dẫn** cho mọi người dùng, mô tả nghiệp vụ theo từng vai trò và đi lần
+lượt từng trang. Khung đã duyệt, ba quyết định chốt khi hỏi: **có ảnh minh hoạ**, **mỗi người chỉ thấy hướng
+dẫn của vai trò mình**, **chia chặng theo vai trò** (TDV trước). Chỉ sửa `apps/web` — không máy chủ, không
+migration, không hạ tầng.
+
+**Dữ liệu tách khỏi màn hình**: nội dung ở `lib/huong-dan.ts` (thuần `.ts` — `tests/http/` không bật `jsx`
+nên chỉ tệp `.ts` mới được ca đối chiếu import), màn hình ở `pages/HuongDan.tsx`. Bảng `HUONG_DAN_THEO_VAI_TRO`
+khoá theo `VaiTro` nên thêm vai trò mà quên viết là `tsc` đỏ. Trang nào mới có tên và mục đích thì
+`chiTiet: false` và màn hình nói thẳng *"đang được biên soạn"* — không để một mục trống, và ca kiểm đòi
+`chiTiet: true` phải có ít nhất một bước. Ca kiểm đối chiếu mọi nút *Mở trang này* với **menu của chính vai
+trò ấy**: Quản trị không vào được `/ho-so` (`0133`), nên một bước "mở hồ sơ" trong hướng dẫn của họ là chỉ
+đường tới trang 403.
+
+**Mục menu `huongDan`**: `QUYEN_XEM.huongDan = VAI_TRO`, đứng **CUỐI** `DIEU_HUONG` (sau cả *Vận hành*) —
+menu mọi vai trò vẫn là dãy con của mảng gốc. Ba ca ghim thứ tự menu của `0152`/`0169` phải thêm một dòng.
+
+**Ảnh thật, chụp bằng Chrome không giao diện + CDP** trên chồng demo `make demo-mau` (đăng nhập `tdv01`):
+11 ảnh ở `public/huong-dan/tdv/`. Không có công cụ có sẵn — một máy khách WebSocket ~60 dòng bằng thư viện
+chuẩn của Python. Hai chỗ đáng nhớ: React không nhận `input.value = …` (phải gọi setter gốc của
+`HTMLInputElement.prototype` rồi bắn `input`), và chọn một `<select>` phải đặt `selectedIndex` rồi bắn
+`change`. Ảnh hộp thoại *Gửi duyệt* và *Thêm sản phẩm* **được điền sẵn nhưng KHÔNG bấm Xác nhận** — chụp trên
+demo mà lỡ bấm là tạo hồ sơ thật. Ca kiểm đòi mọi ảnh được nhắc tới có thật trong `public/huong-dan/` và
+không ảnh nào dùng hai lần.
+
+**BÀI HỌC ĐẮT NHẤT: ca đo `FE-38` đo một gói người dùng KHÔNG BAO GIỜ tải.** Thêm trang → ca đỏ (259,6KB
+trên trần 250KB). Phản xạ đầu là tách `lazy`, và nó đúng — nội dung chữ của sáu vai trò chỉ cần khi mở
+trang (chunk riêng ~9KB nén, kiểu `huong-dan.css` đi theo cùng chunk). Nhưng sau khi tách vẫn **250,6KB**,
+và lượt đo baseline (stash) cho **248,9KB** — tức gói đã đứng sát trần từ trước. Lý do: vitest đặt
+`NODE_ENV=test`, `exec('pnpm build:web')` **kế thừa** nó, nên Vite gói React bản **phát triển** (~1MB thô thay
+vì ~500KB). Gói production thật chỉ **~175KB nén**. Sửa: dựng với `NODE_ENV=production` trong chính ca đo,
+**giữ nguyên trần 250KB**. Đây là một quyết định về ngân sách, không phải một cú vá: từ nay ca đo khẳng
+định điều nó luôn tuyên bố. Hai ca đo mới: ca tính **tải ngay** = chỉ tệp `index.html` nhắc tới (chunk
+`lazy` không bị phạt vì đã dời khỏi đường tải đầu), và một trần RIÊNG 60KB cho mỗi chunk `lazy` để chúng
+không phình vô hạn; ca ghim `App.tsx` nhập bằng `lazy`, không import tĩnh.
+
+**Chưa làm, đã nêu**: năm vai trò còn lại (TBP · Kế toán · Sale Admin · Ban lãnh đạo · Quản trị) mới có mô
+tả vai trò và danh sách trang; từng bước + ảnh viết ở các chặng sau. Chưa có mục lục dính khi cuộn.
+
+**Chạy**: `tests/web` **1185/1185 xanh** (ảnh `csbh-test` rời, `--network none` — demo đang bật nên không gõ
+lệnh `compose.test.yml`); `make test` đầy đủ chưa chạy vì không đụng máy chủ.
+

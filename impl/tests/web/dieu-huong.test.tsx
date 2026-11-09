@@ -258,7 +258,7 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
      * một mục quản trị lên trên là danh sách sáu mục kia vẫn đúng thứ tự trong
      * mảng gốc, mà trên màn hình thì có một mục lạ chen vào giữa.
      *
-     * `TDV` đại diện: năm vai trò ngoài Quản trị đều thấy đúng sáu mục này —
+     * `TDV` đại diện: năm vai trò ngoài Quản trị đều thấy đúng bảy mục này —
      * `QUYEN_XEM` cho cả sáu là `VAI_TRO` trừ `hoSo` (Quản trị đứng ngoài, xem
      * `0133`), nên khác biệt duy nhất nằm ở Quản trị.
      */
@@ -270,6 +270,8 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
         'Sản phẩm',
         'Chiết khấu',
         'Thống kê',
+        // `0273` — mục CUỐI của mọi vai trò.
+        'Hướng dẫn',
       ]);
     }
   });
@@ -295,6 +297,8 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
       'Nhật ký',
       // `0255` — trang Vận hành, mục CUỐI (mockup duyệt 05/11).
       'Vận hành',
+      // `0273` — *Hướng dẫn* đứng sau cả Vận hành: mục cuối của MỌI vai trò.
+      'Hướng dẫn',
     ]);
   });
 });

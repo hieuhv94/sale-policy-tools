@@ -186,6 +186,8 @@ export const QUYEN_XEM = {
    * lịch tự động. Máy chủ chặn cùng câu ấy ở mọi đường `/van-hanh` (`@Roles('QUAN_TRI')`).
    */
   vanHanh: ['QUAN_TRI'],
+  /** Hướng dẫn — mọi vai trò; mỗi người chỉ thấy phần của vai trò mình (`0273`). */
+  huongDan: VAI_TRO,
 } as const satisfies Record<string, readonly VaiTro[]>;
 
 export type MucXem = keyof typeof QUYEN_XEM;
@@ -273,6 +275,9 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },
   // Mục CUỐI của Quản trị (`0255`, mockup duyệt 05/11).
   { duong: '/van-hanh', nhan: 'Vận hành', muc: 'vanHanh' },
+  // Mục CUỐI của MỌI vai trò (`0273`): không ai cần nó hàng ngày, nên không chen vào
+  // giữa các mục công việc. Menu của mọi vai trò vẫn là một dãy con của mảng này.
+  { duong: '/huong-dan', nhan: 'Hướng dẫn', muc: 'huongDan' },
 ];
 
 export const dieuHuongCho = (vaiTro: string | undefined): MucDieuHuong[] =>

@@ -114,7 +114,16 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P309** (`0270`): **kiểm nghiệm đủ chức năng trên CHỒNG KIỂM RIÊNG** ở lần cài đầu (bước 10/14,
+Chặng gần nhất **P312** (`0273`, CHỈ FRONTEND): **trang *Hướng dẫn*** — mục CUỐI menu của mọi vai trò, mỗi người **chỉ thấy phần
+của vai trò mình** + phần chung; có ảnh chụp màn hình thật (`apps/web/public/huong-dan/<vai-trò>/`, chụp bằng Chrome không
+giao diện + CDP trên `make demo-mau`). **Mới viết đủ Trình dược viên**; năm vai trò kia có khung, trang nào chưa viết ghi
+*"đang được biên soạn"* (`chiTiet: false` ở `lib/huong-dan.ts`) — viết nốt theo từng chặng. Trang tải `lazy` (chunk riêng).
+**Ca đo `FE-38` từng đo gói React bản phát triển** (`NODE_ENV=test` kế thừa) — giờ dựng bản production, trần 250KB giữ nguyên.
+**`tests/web` 1185/1185 xanh.**
+
+Trước đó **P311** (`0272`): healthcheck RabbitMQ dùng `check_port_connectivity` thay `ping`.
+
+Trước đó **P309** (`0270`): **kiểm nghiệm đủ chức năng trên CHỒNG KIỂM RIÊNG** ở lần cài đầu (bước 10/14,
 đỏ thì không dựng chồng thật) và mỗi `cap-nhat` (bước 5/7, sau kéo ảnh, TRƯỚC migration; đỏ thì trả ảnh cũ) —
 `compose.kiem.yml` (dự án `csbh-kiem`, volume thường, không cổng, hộp thư giả bí danh `mailpit`, cờ
 `CSBH_KIEM_NGHIEM=1` mở chốt thư theo CẢ HAI chiều), compose chạy qua **`env -i`** (biến của chồng thật thắng

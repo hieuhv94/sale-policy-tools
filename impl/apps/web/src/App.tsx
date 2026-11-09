@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePhien } from './lib/auth.js';
 import { khop, useDuong } from './lib/router.js';
@@ -23,6 +23,12 @@ import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
 import { ThongKe } from './pages/ThongKe.js';
 import { NhatKy } from './pages/NhatKy.js';
 import { VanHanh } from './pages/VanHanh.js';
+/*
+  Trang Hướng dẫn tải THEO NHU CẦU (`0273`): nội dung chữ của sáu vai trò nặng cỡ
+  chục KB nén, mà người dùng chỉ mở nó thỉnh thoảng — để vào gói chính là đẩy gói
+  tải ngay vượt trần `FE-38` vì một trang ít ai mở. `lazy` tách nó thành chunk riêng.
+*/
+const HuongDan = lazy(() => import('./pages/HuongDan.js').then((m) => ({ default: m.HuongDan })));
 import { TrangChietKhau, TrangSanPham } from './pages/DanhMuc.js';
 
 export function App() {
@@ -257,6 +263,16 @@ export function noiDung(duong: string, vaiTro: string) {
 
   if (duong === '/van-hanh') {
     return xem(vaiTro, 'vanHanh') ? <VanHanh /> : <KhongCoQuyen />;
+  }
+
+  if (duong === '/huong-dan') {
+    return xem(vaiTro, 'huongDan') ? (
+      <Suspense fallback={<DangTai />}>
+        <HuongDan />
+      </Suspense>
+    ) : (
+      <KhongCoQuyen />
+    );
   }
 
   return <KhongCoManHinh />;

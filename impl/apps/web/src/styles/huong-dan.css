@@ -1,0 +1,98 @@
+/*
+ * Kiểu của trang Hướng dẫn (`0273`) — tệp RIÊNG, do chính trang nạp.
+ *
+ * Trang tải theo nhu cầu (`lazy` ở App.tsx), nên kiểu của nó đi theo cùng chunk
+ * thay vì nằm trong `app.css` và đè lên ngân sách tải ngay của `FE-38`. Màu và
+ * khoảng cách vẫn lấy từ token, như mọi tệp kiểu khác.
+ */
+.hd { max-width: 920px; }
+.hd-gioi-thieu { color: var(--mau-chu-phu); margin: 0 0 var(--k4); }
+.hd h2 { margin: var(--k5) 0 var(--k3); font-size: 1.25rem; }
+.hd h3 { margin: 0; font-size: 1.05rem; }
+.hd h4 { margin: 0 0 var(--k2); font-size: 0.95rem; }
+.hd p { line-height: 1.6; margin: 0 0 var(--k3); }
+.hd-muc-luc {
+  background: var(--mau-nen-phu);
+  border: 1px solid var(--mau-vien);
+  border-radius: 8px;
+  padding: var(--k3) var(--k4);
+  margin-bottom: var(--k4);
+}
+.hd-muc-luc ul { margin: 0; padding-left: var(--k4); }
+.hd-muc-luc > ul { padding-left: 0; list-style: none; }
+.hd-muc-luc > ul > li { margin-bottom: var(--k2); font-weight: 600; }
+.hd-muc-luc ul ul { font-weight: 400; columns: 2; column-gap: var(--k5); }
+.hd-muc-luc a { color: var(--mau-thuong-hieu); text-decoration: none; }
+.hd-muc-luc a:hover { text-decoration: underline; }
+.hd-hai-cot { display: grid; grid-template-columns: 1fr 1fr; gap: var(--k3); }
+.hd-khoi {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: 8px;
+  padding: var(--k3) var(--k4);
+  margin-bottom: var(--k3);
+}
+.hd-khoi ul, .hd-khoi ol { margin: 0; padding-left: var(--k5); line-height: 1.6; }
+.hd-trang {
+  border: 1px solid var(--mau-vien);
+  border-radius: 8px;
+  background: var(--mau-nen);
+  padding: var(--k4);
+  margin-bottom: var(--k4);
+  scroll-margin-top: var(--k5);
+}
+.hd-trang-dau { display: flex; align-items: center; justify-content: space-between; gap: var(--k3); margin-bottom: var(--k2); }
+.hd-so, .hd-buoc-so {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  background: var(--mau-thuong-hieu-nhat);
+  color: var(--mau-thuong-hieu);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.hd-muc-dich { color: var(--mau-chu-phu); }
+.hd-buoc { border-top: 1px solid var(--mau-vien); padding-top: var(--k3); margin-top: var(--k3); }
+.hd-chua-viet {
+  background: var(--mau-canh-bao-nen);
+  color: var(--mau-canh-bao);
+  border-radius: 6px;
+  padding: var(--k2) var(--k3);
+}
+.hd-anh { margin: var(--k3) 0 0; }
+.hd-anh img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: 6px;
+}
+.hd-anh figcaption { color: var(--mau-chu-nhat); font-size: 0.85rem; margin-top: var(--k1); }
+.hd-hoi-dap { border-top: 1px solid var(--mau-vien); padding-top: var(--k3); margin-top: var(--k3); }
+.hd-hoi-dap details { margin-bottom: var(--k2); }
+.hd-hoi-dap summary { cursor: pointer; font-weight: 600; }
+.hd-hoi-dap details p { margin: var(--k2) 0 0; color: var(--mau-chu-phu); }
+.hd-luong { list-style: none; display: flex; flex-wrap: wrap; gap: var(--k2); padding: 0; margin: 0 0 var(--k3); counter-reset: hd-luong; }
+.hd-luong li {
+  counter-increment: hd-luong;
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k1);
+  padding: var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-top: 3px solid var(--mau-thuong-hieu);
+  border-radius: 6px;
+  background: var(--mau-nen-phu);
+}
+.hd-luong li::before { content: counter(hd-luong); color: var(--mau-thuong-hieu); font-weight: 700; }
+.hd-luong li span { color: var(--mau-chu-phu); font-size: 0.875rem; }
+.hd-muc-chung { margin-bottom: var(--k4); scroll-margin-top: var(--k5); }
+@media (max-width: 640px) {
+  .hd-hai-cot { grid-template-columns: 1fr; }
+  .hd-muc-luc ul ul { columns: 1; }
+  .hd-trang-dau { flex-wrap: wrap; }
+}

@@ -108,6 +108,14 @@ const HinhVanHanh = (
   </Hinh>
 );
 
+// Trang Hướng dẫn (`0273`): một quyển sách mở.
+const HinhHuongDan = (
+  <Hinh>
+    <path d="M12 6.5C10.5 5.3 8 4.8 4.5 5v13c3.5-.2 6 .3 7.5 1.5 1.5-1.2 4-1.7 7.5-1.5V5c-3.5-.2-6 .3-7.5 1.5z" />
+    <path d="M12 6.5v13" />
+  </Hinh>
+);
+
 const HinhNhatKy = (
   <Hinh>
     <circle cx="12" cy="12" r="8.5" />
@@ -152,6 +160,8 @@ export function bieuTuongMuc(duong: string): ReactNode {
       return HinhNhatKy;
     case '/van-hanh':
       return HinhVanHanh;
+    case '/huong-dan':
+      return HinhHuongDan;
     default:
       return null;
   }

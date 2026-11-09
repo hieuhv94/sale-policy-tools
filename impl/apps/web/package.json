@@ -24,6 +24,8 @@
     "./tien-trinh": "./src/lib/tien-trinh.ts",
     "./kanban": "./src/lib/kanban.ts",
     "./kanban-ho-so": "./src/components/KanbanHoSo.tsx",
+    "./huong-dan": "./src/lib/huong-dan.ts",
+    "./huong-dan-ui": "./src/pages/HuongDan.tsx",
     "./van-hanh-ui": "./src/pages/VanHanh.tsx",
     "./nhat-ky-ui": "./src/pages/NhatKy.tsx",
     "./nguoi-xu-ly": "./src/lib/nguoi-xu-ly.ts",
