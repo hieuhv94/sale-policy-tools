@@ -694,14 +694,286 @@ const TBP: HuongDanVaiTro = {
 
 const KE_TOAN: HuongDanVaiTro = {
   tieuDe: 'Hướng dẫn cho Kế toán',
-  gioiThieu: 'Bạn tiếp nhận hồ sơ hai lần, xuất hợp đồng và có thể yêu cầu in lại bản cứng.',
-  lamGi: ['Tiếp nhận lần 1 (duyệt bản mềm) và lần 2 (duyệt bản cứng).', 'Xuất hợp đồng.', 'Trả lại hồ sơ kèm lý do, hoặc yêu cầu Sale Admin in lại.'],
-  khongLam: ['Không lập hồ sơ.', 'Chỉ thấy hồ sơ đã từng tới bàn bạn, tức sau khi Trưởng bộ phận ký.'],
-  ngayLamViec: ['Mở Tổng quan, xử lý các hồ sơ ở “Việc của tôi”.', 'Tiếp nhận lần 1 và xuất hợp đồng.', 'Khi bản cứng về, tiếp nhận lần 2 để hồ sơ có hiệu lực.'],
+  gioiThieu:
+    'Bạn tiếp nhận hồ sơ CSBH hai lần: lần 1 sau khi Trưởng bộ phận ký, lần 2 khi bản cứng đã ký được bàn giao. Bạn cũng là người xuất hợp đồng, và có thể bắt in lại bản cứng nếu bản giấy có lỗi. CSBH có hiệu lực đúng lúc bạn tiếp nhận lần 2.',
+  lamGi: [
+    'Tiếp nhận lần 1: kiểm tra hồ sơ sau khi Trưởng bộ phận ký, chọn Sale Admin xử lý tiếp.',
+    'Xuất hợp đồng bằng mẫu hợp đồng của công ty.',
+    'Tiếp nhận lần 2: đối chiếu bản cứng đã ký với bản mềm, rồi cho CSBH có hiệu lực.',
+    'Trả lại hồ sơ kèm lý do ở lần 1 hoặc lần 2, hoặc yêu cầu Sale Admin in lại bản cứng.',
+    'Đọc và viết bình luận trên hồ sơ để hỏi hoặc trao đổi.',
+  ],
+  khongLam: [
+    'Không lập hồ sơ, không sửa nội dung hồ sơ và không sửa thông tin khách hàng. Muốn đổi gì thì trả lại để Trình dược viên sửa.',
+    'Không ký số duyệt. Đó là việc của Trưởng bộ phận.',
+    'Chỉ thấy hồ sơ đã từng tới bàn bạn, tức sau khi Trưởng bộ phận đã ký. Hồ sơ còn đang chờ Trưởng bộ phận chưa hiện trong danh sách của bạn.',
+  ],
+  ngayLamViec: [
+    'Mở Tổng quan và đọc khối “Việc của tôi”: cả hồ sơ chờ tiếp nhận lần 1 lẫn lần 2 nằm chung một danh sách, hạn gần nhất đứng trước.',
+    'Hồ sơ vừa được Trưởng bộ phận ký: đọc rồi Tiếp nhận lần 1, hoặc Trả lại kèm lý do.',
+    'Xuất hợp đồng khi cần, từ sau tiếp nhận lần 1.',
+    'Khi Sale Admin bàn giao bản cứng: đối chiếu bản cứng với bản mềm và file scan, rồi Tiếp nhận lần 2, hoặc Trả lại, hoặc Yêu cầu in lại.',
+    'Cuối tuần, vào Thống kê xem lại số liệu theo kỳ.',
+  ],
   trang: [
-    trangChuaViet('tong-quan', 'Tổng quan', 'Việc đang chờ bạn tiếp nhận.', '/'),
-    trangChuaViet('tiep-nhan', 'Tiếp nhận và xuất hợp đồng', 'Hai lần tiếp nhận, xuất hợp đồng.', '/ho-so'),
-    trangChuaViet('thong-ke', 'Thống kê', 'Theo dõi số liệu theo kỳ.', '/thong-ke'),
+    {
+      id: 'tong-quan',
+      duong: '/',
+      ten: 'Tổng quan',
+      mucDich: 'Cho bạn biết hồ sơ nào đang chờ bạn tiếp nhận và hồ sơ nào sắp quá hạn.',
+      khoi: [
+        'Dải thẻ: Chờ KT duyệt L1, KT duyệt bản cứng, Sắp quá hạn, Quá hạn, Đang chờ, Đang có hiệu lực.',
+        'Việc của tôi: một danh sách duy nhất gồm cả lần 1 và lần 2.',
+        'Bảng hồ sơ theo từng Trình dược viên, ở cuối trang.',
+      ],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc dải thẻ',
+          noiDung: [
+            'Thẻ “Chờ KT duyệt L1” là hồ sơ chờ bạn tiếp nhận lần 1, thẻ “KT duyệt bản cứng” là hồ sơ chờ bạn tiếp nhận lần 2. Bấm vào thẻ nào thì mở danh sách hồ sơ đã lọc sẵn đúng bằng con số đó.',
+            'Mỗi bước có hạn 14 ngày, tính cả cuối tuần. Hồ sơ còn dưới 24 giờ có vạch đỏ ở bên trái và nằm ở thẻ “Sắp quá hạn”.',
+          ],
+          anh: ANH('ke-toan/tong-quan.png', 'Trang Tổng quan của Kế toán.'),
+        },
+        {
+          tieuDe: 'Xử lý “Việc của tôi”',
+          noiDung: [
+            'Cả hồ sơ lần 1 và lần 2 xếp chung một danh sách, theo hạn gần nhất trước, nên việc gấp nhất luôn ở đầu dù thuộc lần nào. Mỗi dòng có nhãn trạng thái có màu riêng để bạn biết ngay đó là lần nào.',
+            'Mỗi trang tối đa 5 hồ sơ. Không thấy hồ sơ nào nghĩa là bạn không còn việc, không phải hệ thống lỗi.',
+          ],
+        },
+        {
+          tieuDe: 'Xem từng Trình dược viên',
+          noiDung: [
+            'Bảng ở cuối trang đếm hồ sơ theo từng Trình dược viên. Bấm một dòng để mở đúng danh sách hồ sơ của người đó.',
+          ],
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Tôi biết có hồ sơ vừa gửi duyệt nhưng không thấy trong danh sách của mình?',
+          traLoi: 'Hồ sơ chỉ hiện với Kế toán sau khi Trưởng bộ phận đã ký, dù tên bạn đã được chọn từ lúc gửi duyệt. Khi Trưởng bộ phận trả hồ sơ về Trình dược viên thì bạn cũng không thấy nó.',
+        },
+      ],
+    },
+    {
+      id: 'khach-hang',
+      duong: '/khach-hang',
+      ten: 'Khách hàng',
+      mucDich: 'Tra cứu thông tin khách hàng của hồ sơ bạn đang tiếp nhận. Bạn chỉ xem, không sửa.',
+      khoi: ['Danh sách khách hàng, tìm theo tên, địa chỉ hoặc mã số thuế.', 'Chi tiết khách hàng, hồ sơ pháp lý và lịch sử các CSBH đã lập.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Tra cứu khách hàng',
+          noiDung: [
+            'Trong hồ sơ, bấm vào Mã khách hàng để mở trang khách hàng. Ở đó bạn xem được hồ sơ pháp lý, công nợ và lịch sử các CSBH trước đây của khách.',
+            'Chỉ Trình dược viên phụ trách mới sửa được thông tin khách hàng. Thấy thông tin sai thì trả lại hồ sơ kèm lý do để họ sửa.',
+          ],
+          anh: ANH('ke-toan/khach-hang.png', 'Danh sách khách hàng của Kế toán.'),
+        },
+      ],
+    },
+    {
+      id: 'danh-sach-ho-so',
+      duong: '/ho-so',
+      ten: 'Hồ sơ CSBH: danh sách',
+      mucDich: 'Nhìn các hồ sơ đã tới bàn bạn theo trạng thái, và tìm lại bất kỳ hồ sơ nào.',
+      khoi: ['Kanban theo trạng thái, hoặc dạng Bảng.', 'Bộ lọc và nút Xuất Excel.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc bảng Kanban',
+          noiDung: [
+            'Mỗi trạng thái một cột, theo đúng thứ tự luồng duyệt. Hai cột tô viền xanh “Việc của bạn” là Chờ KT duyệt L1 và KT duyệt bản cứng.',
+            'Các cột còn lại để bạn theo dõi hồ sơ đi tới đâu, ví dụ Sale Admin đang xử lý hay Sale Admin sửa bản cứng. Cột nào không có hồ sơ thì ẩn. Bấm nút gập ở đầu cột để thu gọn cột đó.',
+            'Nút Kanban | Bảng đổi sang dạng bảng. Kanban không kéo thả: đổi trạng thái hồ sơ bằng nút trên trang hồ sơ.',
+          ],
+          anh: ANH('ke-toan/ho-so-kanban.png', 'Danh sách hồ sơ dạng Kanban, hai cột Việc của bạn là Chờ KT duyệt L1 và KT duyệt bản cứng.'),
+        },
+        {
+          tieuDe: 'Lọc và xuất Excel',
+          noiDung: [
+            'Bộ lọc có 9 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ.',
+            'Nút Xuất Excel xuất đúng danh sách đang lọc.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'tiep-nhan-l1',
+      duong: '/ho-so',
+      ten: 'Tiếp nhận lần 1',
+      mucDich: 'Kiểm tra hồ sơ sau khi Trưởng bộ phận ký và chuyển nó sang Sale Admin, hoặc trả lại.',
+      khoi: [
+        'Thông tin chung, Tiến trình duyệt và bảng dòng sản phẩm.',
+        'Hai nút Tiếp nhận lần 1 và Trả lại (L1) ở góc trên bên phải.',
+        'Bình luận và Lịch sử.',
+      ],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc hồ sơ',
+          noiDung: [
+            'Mở hồ sơ ở trạng thái Chờ KT duyệt L1. Đọc thông tin khách hàng và công nợ, rồi rà bảng dòng sản phẩm: giá bán buôn, các khoản CPBH, giá thu về và tỷ lệ chiết khấu. Tỷ lệ màu đỏ là vượt ngưỡng chiết khấu, hệ thống chỉ đánh dấu chứ không chặn.',
+            'Nhãn Trạng thái từng dòng cho biết dòng so với phiên bản trước: Bổ sung, Đang áp dụng hoặc Chỉnh sửa. Dòng Chỉnh sửa có dấu tam giác cạnh giá trị đã đổi, rê chuột để xem giá trị cũ.',
+            'Tên khách hàng, địa chỉ và công nợ ở đây là thông tin lúc Trình dược viên gửi duyệt, đúng như sẽ in trên tờ giấy khách ký. Khối “Tiến trình duyệt” gọi bước của bạn là “KT duyệt bản mềm”.',
+          ],
+          anh: ANH('ke-toan/tiep-nhan-l1.png', 'Hồ sơ chờ Kế toán tiếp nhận lần 1, với hai nút Tiếp nhận lần 1 và Trả lại (L1).'),
+        },
+        {
+          tieuDe: 'Tiếp nhận lần 1 và chọn Sale Admin',
+          noiDung: [
+            'Bấm Tiếp nhận lần 1. Hộp thoại yêu cầu bạn chọn Sale Admin xử lý: người sẽ in bản cứng, trình Ban lãnh đạo ký, scan và bàn giao lại. Chọn xong bấm Xác nhận.',
+            'Chỉ người bạn chọn mới thấy hồ sơ trong hộp việc của họ. Hồ sơ chỉ hỏi chọn Sale Admin ở lượt đầu; nếu hồ sơ phải đi vòng thứ hai thì hộp không còn ô chọn.',
+          ],
+          anh: ANH('ke-toan/tiep-nhan-l1-hop-thoai.png', 'Hộp thoại Tiếp nhận lần 1, chọn Sale Admin xử lý.'),
+        },
+        {
+          tieuDe: 'Trả lại (L1)',
+          noiDung: [
+            'Nếu hồ sơ chưa đạt, bấm Trả lại (L1) và nhập lý do. Lý do bắt buộc, nên viết đủ rõ: sai ở đâu, cần sửa gì. Trình dược viên sẽ đọc đúng câu này ở khối “Lý do gần nhất”.',
+            'Hồ sơ về trạng thái Yêu cầu chỉnh sửa. Trình dược viên sửa xong gửi lại thì hồ sơ đi lại từ đầu vòng duyệt, bắt đầu từ Trưởng bộ phận.',
+          ],
+          anh: ANH('ke-toan/tra-lai.png', 'Hộp thoại Trả lại (L1), bắt buộc nhập lý do.'),
+        },
+        {
+          tieuDe: 'Trao đổi bằng bình luận',
+          noiDung: [
+            'Có điều cần hỏi Trình dược viên hay Sale Admin thì viết ở khối Bình luận, gõ @ để nhắc tên người đứng tên trên hồ sơ. Bạn xem và viết được bình luận từ lúc Trưởng bộ phận đã ký.',
+          ],
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Ô chọn Sale Admin trống, tôi không chọn được ai?',
+          traLoi: 'Chưa có tài khoản Sale Admin nào đang hoạt động. Nhờ Quản trị hệ thống tạo hoặc kích hoạt tài khoản rồi mở lại hộp thoại.',
+        },
+        {
+          hoi: 'Tôi trả lại nhầm một hồ sơ?',
+          traLoi: 'Hồ sơ đã về Trình dược viên và không rút lại được. Nhắn họ qua bình luận hoặc trực tiếp để sửa nhanh và gửi lại.',
+        },
+      ],
+    },
+    {
+      id: 'xuat-hop-dong',
+      duong: '/ho-so',
+      ten: 'Xuất hợp đồng',
+      mucDich: 'Tạo file PDF hợp đồng từ dữ liệu hồ sơ, bằng mẫu hợp đồng của công ty.',
+      khoi: ['Nút Xuất hợp đồng ở góc trên bên phải trang hồ sơ, có từ sau khi bạn tiếp nhận lần 1.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Xuất hợp đồng',
+          noiDung: [
+            'Mở hồ sơ đã qua tiếp nhận lần 1 và bấm Xuất hợp đồng. Chọn văn bản mẫu rồi bấm Xem để xem trước cả tờ giấy.',
+            'Tải PDF về máy rồi in từ đó, nên bản in ở mọi máy giống hệt nhau. Hệ thống không có nút In.',
+          ],
+          anh: ANH('ke-toan/xuat-hop-dong.png', 'Hồ sơ đã qua lần 1, có nút Xuất hợp đồng ở góc trên bên phải.'),
+        },
+        {
+          tieuDe: 'Chọn văn bản mẫu',
+          noiDung: [
+            'Mỗi mẫu có bố cục và tập cột bảng sản phẩm riêng. Chọn mẫu hợp đồng công ty đang dùng.',
+            'Hệ thống không lưu file hợp đồng. Mỗi lần bấm là dựng lại từ dữ liệu hiện tại của hồ sơ, nên nếu địa chỉ khách hàng vừa đổi thì bản mới mang địa chỉ mới.',
+          ],
+          anh: ANH('ke-toan/xuat-hop-dong-hop-thoai.png', 'Hộp thoại Xem hợp đồng, chọn văn bản mẫu.'),
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Ô chọn văn bản mẫu trống hoặc xuất hợp đồng báo lỗi?',
+          traLoi: 'Công ty chưa có mẫu hợp đồng nào đang áp dụng. Mẫu do Quản trị hệ thống tải lên ở trang Văn bản mẫu, nên báo Quản trị hoặc Sale Admin để bổ sung.',
+        },
+        {
+          hoi: 'Sao tôi không thấy nút Xuất hợp đồng?',
+          traLoi: 'Nút chỉ hiện sau khi hồ sơ đã được tiếp nhận lần 1. Hồ sơ còn ở Chờ KT duyệt L1 thì chưa có nút.',
+        },
+      ],
+    },
+    {
+      id: 'tiep-nhan-l2',
+      duong: '/ho-so',
+      ten: 'Tiếp nhận lần 2 và in lại',
+      mucDich: 'Nhận bản cứng đã ký, đối chiếu với bản mềm, rồi cho CSBH có hiệu lực, hoặc trả lại, hoặc yêu cầu in lại.',
+      khoi: [
+        'Khối Bản mềm và File SCAN bản cứng do Sale Admin đưa vào.',
+        'Ba nút: Tiếp nhận lần 2, Trả lại (L2), Yêu cầu in lại.',
+      ],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đối chiếu bản cứng',
+          noiDung: [
+            'Khi Sale Admin bàn giao, hồ sơ sang trạng thái KT duyệt bản cứng. Bạn nhận bản giấy đã ký, rồi mở khối Bản mềm và File SCAN bản cứng ở cuối trang hồ sơ để xem và tải về đối chiếu.',
+            'Bấm hình con mắt để xem tệp ngay trên màn hình, hoặc mũi tên xuống để tải. Hồ sơ thay thế một CSBH cũ còn có thêm khối bản mềm và bản cứng của phiên bản trước để so.',
+          ],
+          anh: ANH('ke-toan/ban-mem-ban-cung.png', 'Khối Bản mềm và File SCAN bản cứng của một hồ sơ.'),
+        },
+        {
+          tieuDe: 'Tiếp nhận lần 2',
+          noiDung: [
+            'Bản cứng đúng và đủ thì bấm Tiếp nhận lần 2. CSBH có hiệu lực ngay lúc này, không phải lúc Trưởng bộ phận ký.',
+            'Nếu khách hàng đang có một CSBH cũ, bản cũ hết hiệu lực cùng lúc. Mỗi khách hàng chỉ có một CSBH hiệu lực và không có ngày hết hạn.',
+          ],
+          anh: ANH('ke-toan/tiep-nhan-l2.png', 'Hồ sơ ở bước KT duyệt bản cứng với ba nút Tiếp nhận lần 2, Trả lại (L2), Yêu cầu in lại.'),
+        },
+        {
+          tieuDe: 'Chọn giữa Trả lại (L2) và Yêu cầu in lại',
+          noiDung: [
+            'Trả lại (L2): nội dung hồ sơ có vấn đề. Hồ sơ về Trình dược viên ở trạng thái Yêu cầu chỉnh sửa, và vòng duyệt đi lại từ đầu, bao gồm cả chữ ký của Trưởng bộ phận.',
+            'Yêu cầu in lại: nội dung đúng nhưng bản giấy có lỗi (thiếu dấu giáp lai, ký sai chỗ). Hồ sơ sang trạng thái Sale Admin sửa bản cứng. Sale Admin in lại, tải bản scan mới rồi bàn giao lại, và hồ sơ trở về bàn bạn. Cả hai nút đều bắt buộc nhập lý do.',
+          ],
+          anh: ANH('ke-toan/yeu-cau-in-lai.png', 'Hộp thoại Yêu cầu in lại, bắt buộc nhập lý do.'),
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Sau khi bấm Yêu cầu in lại, hồ sơ đi đâu?',
+          traLoi: 'Về Sale Admin ở trạng thái Sale Admin sửa bản cứng. Bản scan cũ vẫn còn để họ xem lỗi ở đâu. Khi họ bàn giao lại, hồ sơ trở về bàn bạn ở bước KT duyệt bản cứng.',
+        },
+        {
+          hoi: 'Hồ sơ đã có hiệu lực mà tôi phát hiện sai thì sao?',
+          traLoi: 'Hồ sơ đã có hiệu lực không sửa được. Muốn đổi, Trình dược viên lập phiên bản mới và nó đi lại luồng duyệt.',
+        },
+      ],
+    },
+    {
+      id: 'san-pham-chiet-khau',
+      duong: '/san-pham',
+      ten: 'Sản phẩm và Chiết khấu',
+      mucDich: 'Tra giá bán Công ty và quy định chiết khấu để đối chiếu khi tiếp nhận hồ sơ.',
+      khoi: ['Danh mục sản phẩm, giá hiện hành và lịch sử giá.', 'Quy định chiết khấu theo nhóm sản phẩm và loại khách hàng.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Tra khi tiếp nhận',
+          noiDung: [
+            'Hai trang này chỉ để xem. Khi một dòng vượt ngưỡng, bạn mở Chiết khấu để đọc quy định đang áp dụng cho nhóm sản phẩm và loại khách hàng đó.',
+            'Muốn đổi danh mục hoặc quy định thì nhờ Quản trị hệ thống.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'thong-ke',
+      duong: '/thong-ke',
+      ten: 'Thống kê',
+      mucDich: 'Nhìn lại khối lượng và tốc độ xử lý hồ sơ theo kỳ.',
+      khoi: ['Các biểu đồ theo tuần, tháng, quý, năm.', 'Nút xuất Excel.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Chọn kỳ và đọc biểu đồ',
+          noiDung: [
+            'Bốn nút Tuần, Tháng, Quý, Năm ở đầu trang. Kế toán mở lên theo tuần. Kỳ đang chạy chưa đủ ngày nên điểm cuối luôn thấp hơn thực tế, và được tô nhạt hơn.',
+            'Muốn biết một chỉ số tính theo mốc nào thì mở khối “Cách tính” ở cuối trang. Các chỉ số đo việc chạy hồ sơ CSBH, không đo doanh số bán hàng.',
+          ],
+          anh: ANH('ke-toan/thong-ke.png', 'Trang Thống kê của Kế toán.'),
+        },
+      ],
+    },
   ],
 };
 

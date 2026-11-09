@@ -114,7 +114,10 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P313** (`0274`, CHỈ FRONTEND): trang *Hướng dẫn* — viết đủ **Trưởng bộ phận** (7 trang, 10 ảnh `tbp/`). Còn Kế toán ·
+Chặng gần nhất **P314** (`0275`, CHỈ FRONTEND): trang *Hướng dẫn* — viết đủ **Kế toán** (9 trang, 12 ảnh `ke-toan/`). Còn Sale Admin ·
+Ban lãnh đạo · Quản trị. **`tests/web` 1187/1187 xanh.**
+
+Trước đó **P313** (`0274`, CHỈ FRONTEND): trang *Hướng dẫn* — viết đủ **Trưởng bộ phận** (7 trang, 10 ảnh `tbp/`). Còn Kế toán ·
 Sale Admin · Ban lãnh đạo · Quản trị. **`tests/web` 1186/1186 xanh.**
 
 Trước đó **P312** (`0273`, CHỈ FRONTEND): **trang *Hướng dẫn*** — mục CUỐI menu của mọi vai trò, mỗi người **chỉ thấy phần

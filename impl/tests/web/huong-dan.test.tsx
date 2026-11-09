@@ -130,7 +130,7 @@ describe('`0273` màn hình: mỗi người CHỈ thấy hướng dẫn của va
   });
 
   it('trang chưa viết từng bước nói thẳng điều đó, thay vì để một mục trống', () => {
-    vaiTro = 'KE_TOAN';
+    vaiTro = 'SALE_ADMIN';
     render(<HuongDan />);
     expect(screen.getAllByRole('note').length).toBeGreaterThan(0);
   });
@@ -140,7 +140,7 @@ describe('`0273` màn hình: mỗi người CHỈ thấy hướng dẫn của va
    * Danh sách là chốt chặn hai chiều — vai trò trong đây mà còn trang `chiTiet: false`
    * là đỏ, và vai trò ngoài đây thì ca trên vẫn đòi nó nói thẳng "đang biên soạn".
    */
-  it.each(['TDV', 'TBP'] as const)('%s đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', (v) => {
+  it.each(['TDV', 'TBP', 'KE_TOAN'] as const)('%s đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', (v) => {
     vaiTro = v;
     expect(HUONG_DAN_THEO_VAI_TRO[v].trang.every((t) => t.chiTiet)).toBe(true);
     render(<HuongDan />);

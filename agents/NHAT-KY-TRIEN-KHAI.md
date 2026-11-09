@@ -22464,3 +22464,29 @@ biên soạn" và ca "Mở trang này phải nằm trong menu của vai trò").
 
 **Còn lại**: Kế toán · Sale Admin · Ban lãnh đạo · Quản trị. **`tests/web` 1186/1186 xanh.**
 
+## P314 — `0275` Trang *Hướng dẫn* (chặng 3: Kế toán) — CHỈ FRONTEND
+
+Viết đủ hướng dẫn cho **Kế toán**: 9 trang (Tổng quan · Khách hàng · Hồ sơ CSBH danh sách · **Tiếp nhận lần 1** ·
+**Xuất hợp đồng** · **Tiếp nhận lần 2 và in lại** · Sản phẩm/Chiết khấu · Thống kê), 12 ảnh thật ở
+`public/huong-dan/ke-toan/` chụp bằng `kt01`. Chỉ đổi `lib/huong-dan.ts` + ảnh + hằng danh sách trong ca kiểm.
+
+**Điều đo ra khi mở bằng `kt01`, mà tài liệu chung không nói rõ**: (1) *Xuất hợp đồng* **không tải thẳng** — nó mở
+hộp *Xem hợp đồng* bắt chọn văn bản mẫu rồi bấm *Xem*; (2) ở bước *KT duyệt bản cứng* Kế toán có **bốn** nút (Xuất
+hợp đồng · Tiếp nhận lần 2 · Trả lại (L2) · Yêu cầu in lại) và nút *Xuất hợp đồng* **có từ sau tiếp nhận lần 1** chứ
+không chỉ ở một bước; (3) hộp *Tiếp nhận lần 1* có ô *Sale Admin xử lý* bắt buộc kèm dòng mô tả vai trò ấy
+(*"in bản cứng, trình Ban lãnh đạo ký, scan và bàn giao lại"*); (4) Tiến trình duyệt gọi bước của Kế toán ở L1 là
+**"KT duyệt bản mềm"** dù lúc ấy bản mềm chưa tồn tại — hướng dẫn nói thẳng điều này kẻo người đọc đi tìm bản mềm.
+
+**Hướng dẫn phải dạy khác nhau hai nút trông giống nhau**: *Trả lại (L2)* (nội dung sai → TDV, vòng duyệt đi lại từ
+đầu kể cả chữ ký TBP) và *Yêu cầu in lại* (nội dung đúng, bản giấy lỗi → Sale Admin sửa bản cứng, **không** đi lại từ
+đầu; hồ sơ trở về bàn Kế toán). Đây là chỗ người dùng thật hay nhầm và là lý do đáng viết nhất của chặng.
+
+**Ảnh**: hộp thoại điền sẵn lý do/người nhận nhưng KHÔNG bấm Xác nhận. Ảnh khối *Bản mềm / File SCAN* **cuộn trượt hai
+lần**: `scrollIntoView` đưa tiêu đề vào ngay dưới thanh trên cố định (cao 56px) nên tiêu đề bị che — phải cuộn thêm
+−90px; chỉ lộ ra khi xem ảnh. Lần này nhớ `close()` Chrome và đã dọn tiến trình thừa trước khi chạy.
+
+**Phá lại**: gỡ một ảnh + đánh dấu một trang chưa viết → 2 đỏ (ca ảnh có thật, ca *đã viết đủ*). Hằng danh sách vai trò
+*đã viết đủ* thêm `KE_TOAN`; ca "vai trò chưa viết nói thẳng đang biên soạn" đổi sang `SALE_ADMIN`.
+
+**Còn lại**: Sale Admin · Ban lãnh đạo · Quản trị. **`tests/web` 1187/1187 xanh.**
+
