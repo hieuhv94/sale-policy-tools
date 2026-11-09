@@ -2239,10 +2239,14 @@ dược viên**.
 
 ### Sửa, vô hiệu hoá, gửi lại thư mời
 
-- **Sửa** đổi được **họ tên, và chỉ họ tên**. **Vai trò cố định từ lúc tạo tài khoản** — không có
-  chức năng đổi vai trò. Hồ sơ ghi thẳng tên người xử lý lên chính nó, nên đổi vai trò là bỏ rơi
-  đúng những hồ sơ đang chờ người đó, và không ai khác cầm được. Cần đổi vai trò thì **vô hiệu hoá
-  tài khoản cũ** (kèm bàn giao, xem dưới) rồi **tạo tài khoản mới**.
+- **Sửa** — bấm **Xem** rồi **Sửa thông tin** (nút chỉ hiện ở tài khoản **chưa kích hoạt**).
+  - Tài khoản **chưa kích hoạt** sửa được **họ tên, tên tài khoản, email và vai trò**. Bấm
+    **Lưu và gửi thư mời mới**: thư mời cũ **chết ngay** và hệ thống gửi một thư mới tới email đang có
+    trong ô — kể cả khi bạn chỉ sửa họ tên. Dùng khi gõ sai email lúc tạo.
+  - Tài khoản **đã kích hoạt** chỉ đổi được **họ tên**. **Vai trò, tên tài khoản và email khoá** từ
+    lúc kích hoạt: hồ sơ ghi thẳng tên người xử lý lên chính nó, nên đổi vai trò là bỏ rơi đúng những
+    hồ sơ đang chờ người đó; email là nơi nhận thư đặt lại mật khẩu. Cần đổi vai trò thì **vô hiệu
+    hoá tài khoản cũ** (kèm bàn giao, xem dưới) rồi **tạo tài khoản mới**.
 - **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Đi qua
   **ba cửa** — xem mục dưới. Không có chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới
   tài khoản, xoá đi là mất dấu vết. Vô hiệu hoá là cách duy nhất để một tài khoản ngừng hoạt động.

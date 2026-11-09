@@ -295,8 +295,12 @@ function TheNguoiDung() {
         <HopThoaiXem
           u={mo.u}
           dong={() => datMo(null)}
-          xong={() => {
+          xong={(daGuiThu) => {
             datMo(null);
+            // `undefined` = không gửi thư nào (chỉ xem). `false` = đã sửa nhưng thư mới không đi được.
+            datThuHong(
+              daGuiThu === false ? 'Đã sửa tài khoản nhưng KHÔNG gửi được thư mời mới.' : null,
+            );
             taiLai();
           }}
         />
@@ -622,11 +626,13 @@ function HopThoaiXem({
 }: {
   u: NguoiDungDto;
   dong: () => void;
-  xong: () => void;
+  /** `daGuiThu`: có mặt khi vừa SỬA tài khoản — `false` là thư mời mới không đi được. */
+  xong: (daGuiThu?: boolean) => void;
 }) {
-  // Hộp thoại này CHỈ CÒN ĐỌC (`0031`). Nó từng mang một biểu mẫu gán "Trưởng
-  // bộ phận quản lý" và "Người quản lý" — hai liên kết không còn tồn tại. Việc
-  // chọn người xử lý đã chuyển sang từng hồ sơ, ở đúng bước gửi duyệt.
+  const [sua, datSua] = useState(false);
+  if (sua) return <BieuMauSua u={u} dong={dong} xong={xong} />;
+  // Phần xem CHỈ ĐỌC (`0031`); nút Sửa chỉ có ở tài khoản CHƯA kích hoạt (`0277`) — đúng
+  // luật của máy chủ, nơi chốt thật nằm.
   return (
     <HopThoai tieuDe={`Tài khoản ${u.username}`} dong={dong}>
       <dl className="bang-doc">
@@ -643,10 +649,127 @@ function HopThoaiXem({
       </dl>
 
       <div className="nhom-nut">
+        {u.activatedAt === null && (
+          <button type="button" className="nut nut-chinh" onClick={() => datSua(true)}>
+            Sửa thông tin
+          </button>
+        )}
         <button type="button" className="nut nut-nhe" onClick={dong}>
           Đóng
         </button>
       </div>
+    </HopThoai>
+  );
+}
+
+/**
+ * Sửa tài khoản CHƯA kích hoạt (`0277`): họ tên, tên tài khoản, email, vai trò.
+ *
+ * Lưu là **thư mời cũ chết ngay và một thư mới đi tới email hiện có trong ô** — máy chủ
+ * làm cả hai trong cùng một lượt sửa. Hộp xác nhận ở dưới nói trước điều đó, vì người
+ * nhận đang cầm thư cũ sẽ gặp "liên kết không còn hiệu lực" mà không hiểu vì sao.
+ */
+function BieuMauSua({
+  u,
+  dong,
+  xong,
+}: {
+  u: NguoiDungDto;
+  dong: () => void;
+  xong: (daGuiThu?: boolean) => void;
+}) {
+  const { bao } = useBaoLoi();
+  const [vaiTro, datVaiTro] = useState<VaiTro>(u.role);
+  const [hoTen, datHoTen] = useState(u.fullName);
+  const [taiKhoan, datTaiKhoan] = useState(u.username);
+  const [thu, datThu] = useState(u.email);
+  const [dangGui, datDangGui] = useState(false);
+
+  const giaTri = {
+    fullName: hoTen.trim(),
+    username: taiKhoan.trim(),
+    email: thu.trim(),
+    role: vaiTro,
+  };
+  const coDoi =
+    giaTri.fullName !== u.fullName ||
+    giaTri.username !== u.username ||
+    giaTri.email !== u.email ||
+    giaTri.role !== u.role;
+  const duGiaTri =
+    giaTri.fullName.length >= 2 && giaTri.username.length >= 2 && giaTri.email.length > 0;
+
+  const gui = async (e: React.FormEvent) => {
+    e.preventDefault();
+    datDangGui(true);
+    try {
+      const kq = await va<{ inviteMailSent?: boolean }>(`/admin/users/${u.id}`, giaTri);
+      xong(kq.inviteMailSent);
+    } catch (err) {
+      bao(err);
+    } finally {
+      datDangGui(false);
+    }
+  };
+
+  return (
+    <HopThoai tieuDe={`Sửa tài khoản ${u.username}`} dong={dong}>
+      <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
+        <Truong id="sua-vai-tro" nhan="Vai trò" bắtBuộc>
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={vaiTro}
+              onChange={(e) => datVaiTro(e.target.value as VaiTro)}
+            >
+              {VAI_TRO.map((v) => (
+                <option key={v} value={v}>
+                  {NHAN_VAI_TRO[v]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        <Truong id="sua-ho-ten" nhan="Họ tên" bắtBuộc>
+          {(p) => (
+            <input {...p} className="o-nhap" value={hoTen} onChange={(e) => datHoTen(e.target.value)} />
+          )}
+        </Truong>
+        <Truong id="sua-tai-khoan" nhan="Tên tài khoản" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              autoComplete="off"
+              value={taiKhoan}
+              onChange={(e) => datTaiKhoan(e.target.value)}
+            />
+          )}
+        </Truong>
+        <Truong id="sua-thu" nhan="Email" bắtBuộc>
+          {(p) => (
+            <input {...p} className="o-nhap" type="email" value={thu} onChange={(e) => datThu(e.target.value)} />
+          )}
+        </Truong>
+
+        <p className="ghi-chu">
+          Bấm lưu thì <strong>thư mời đã gửi không còn dùng được</strong> và hệ thống gửi một thư
+          mới tới <strong>{thu.trim() || 'địa chỉ email trên'}</strong>. Sau khi người dùng kích hoạt,
+          tên tài khoản, email và vai trò sẽ không sửa được nữa.
+        </p>
+
+        <div className="nhom-nut">
+          <button type="submit" className="nut nut-chinh" disabled={dangGui || !duGiaTri || !coDoi}>
+            {dangGui ? 'Đang lưu…' : 'Lưu và gửi thư mời mới'}
+          </button>
+          <button type="button" className="nut nut-nhe" onClick={dong}>
+            Huỷ
+          </button>
+        </div>
+      </form>
     </HopThoai>
   );
 }

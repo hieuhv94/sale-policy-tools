@@ -47,16 +47,29 @@ export class UsersController {
   }
 
   /**
-   * CHỈ họ tên. `role` đã bị gỡ hẳn ở `0032` — xem chú thích ở `UpdateUserInput`.
-   * Người sửa về sau đừng thêm nó vào đây mà không đọc chỗ đó.
+   * Sửa tài khoản (`0277`). Tài khoản ĐÃ kích hoạt chỉ nhận họ tên; CHƯA kích hoạt
+   * nhận cả họ tên, tên tài khoản, email và vai trò — luật ở `UsersService.update`.
+   * Đọc `UpdateUserInput` trước khi thêm trường nào vào đây.
    */
   @Patch(':id')
   @HttpCode(200)
-  update(@Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { fullName: opt(str(2, 200)) });
-    return this.users.update(id, {
-      ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
+  update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      fullName: opt(str(2, 200)),
+      username: opt(str(2, 60)),
+      email: opt(email()),
+      role: opt(oneOf(...ROLE_VALUES)),
     });
+    return this.users.update(
+      id,
+      {
+        ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
+        ...(b.username !== undefined ? { username: b.username } : {}),
+        ...(b.email !== undefined ? { email: b.email } : {}),
+        ...(b.role !== undefined ? { role: b.role } : {}),
+      },
+      me.id,
+    );
   }
 
   /** Người này đang giữ hồ sơ nào — hỏi trước khi mở hộp thoại vô hiệu hoá. */

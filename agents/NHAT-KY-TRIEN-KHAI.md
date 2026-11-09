@@ -22522,3 +22522,50 @@ phải nằm trong menu vai trò*, ảnh có thật).
 
 **`tests/web` 1191/1191 xanh.** `make test` đầy đủ chưa chạy (không đụng máy chủ; demo đang bật).
 
+## P317 — `0277` Quản trị sửa tài khoản CHƯA kích hoạt: họ tên · tên tài khoản · email · vai trò
+
+Khách hàng gõ sai email lúc tạo tài khoản; `smtp.nutricare.com.vn` không phân giải được là chuyện khác (cấu hình thư), nhưng câu
+hỏi kéo theo là có đường sửa email không. Không có — và tên với email của tài khoản đã vô hiệu hoá **vẫn bị giữ chỗ** (đã
+kiểm: `UNIQUE` toàn bảng + câu kiểm trùng ở `create` không lọc `is_active`), nên gõ sai email thì không tạo lại được
+cùng địa chỉ đúng. Chốt: mở sửa **chỉ cho tài khoản chưa kích hoạt**, và **mọi lượt sửa có đổi giá trị thu hồi thư cũ
+rồi gửi thư mới**.
+
+**Vì sao ngoại lệ an toàn**: lý do đóng ở `0032` (id người xử lý nằm cứng trên hồ sơ) và lý do đóng email (đường đặt lại mật
+khẩu) đều chỉ phát sinh sau khi kích hoạt. Chưa kích hoạt thì chưa phiên, chưa hồ sơ cầm tay, và `byRole` chỉ lấy tài khoản đã
+kích hoạt nên nó chưa được giao việc. Tài khoản đã kích hoạt **vẫn chỉ sửa được họ tên**; gửi trường khác khác giá trị →
+`409 USER_ACTIVATED_LOCKED` (ĐỔI so với trước: `role` gửi lên từng bị lặng lẽ bỏ qua và trả 200).
+
+**Chỗ đáng nhớ**:
+- **Thu hồi và tạo thư mới nằm CÙNG transaction với lượt sửa**, thu hồi trước. Chốt "chưa kích hoạt" kiểm LẠI trong
+  transaction bằng `SELECT … FOR UPDATE`, không chỉ ở lượt đọc đầu: người dùng bấm kích hoạt đúng lúc quản trị bấm Lưu thì
+  lượt giữ khoá trước thắng. **Chốt này chưa có ca kiểm** — tranh chấp thật cần hai lượt song song; ca kiểm hiện chỉ phủ đường
+  đọc đầu (`activated_at` đã có từ trước lượt sửa).
+- Hai phép chặn của `create` (địa chỉ phải nhận được thư theo `MAIL_ALLOWLIST`, và không trùng) tách thành `chanEmailVaTrung`
+  dùng chung, nhận `boQuaId` để tài khoản đang sửa không tự va vào mình. Thiếu `AND id <> $3` thì **mọi** lượt sửa đỏ.
+- **Họ tên cũng thu hồi + gửi lại** dù thu hồi không cần cho an toàn ở trường hợp ấy — khách hàng chọn một luật duy nhất thay
+  vì bảng trường nào đổi thì làm gì. Gửi đúng giá trị hiện có → không đổi gì, không thư.
+- `doiTen` so CHÍNH XÁC (hoa/thường tính): bản đầu so không phân biệt nên sửa `kt01` thành `KT01` bị coi là không đổi. Ca
+  kiểm riêng; phá lại (so thường) → đỏ đúng ca ấy. Email thì so không phân biệt, và đó là **mutant tương đương** ở tầng HTTP:
+  `validate(email())` đã hạ chữ thường trước khi vào service, nên đổi phép so ở service không ca HTTP nào thấy.
+- Nhật ký `USER_UPDATED` (khoá định tuyến `identity.user_updated`) chỉ mang trường đã đổi ở `before`/`after`.
+- Giao diện: nút **Sửa thông tin** nằm trong hộp *Xem* (chỉ khi `activatedAt === null`), KHÔNG thêm cột vào bảng — ca `0070`/`0236`
+  đòi đúng ba ô thao tác. Nút Lưu xám khi chưa đổi gì (một lượt lưu rỗng vẫn thu hồi và gửi thư).
+- Mã lỗi mới `USER_ACTIVATED_LOCKED` khai ở `loi.ts` (hộp thoại, câu từ máy chủ).
+
+**Phá lại** (máy chủ, 7 lượt): bỏ lệnh thu hồi → 2 đỏ · bỏ chốt đã-kích-hoạt → 1 đỏ · bỏ `id <> $3` → 6 đỏ · bỏ lượt gửi thư →
+2 đỏ · `before/after` đổ cả bản ghi → 1 đỏ · so email phân biệt hoa/thường → **XANH** (mutant tương đương, xem trên) · so
+username không phân biệt hoa/thường → 1 đỏ. Giao diện (2 lượt): bỏ điều kiện `activatedAt === null` → 1 đỏ · bỏ `!coDoi` → 1 đỏ.
+
+**Tài liệu**: YCNV bảng vai trò Quản trị + Phụ lục B; HDSD mục *Sửa, vô hiệu hoá, gửi lại thư mời*; trang *Hướng dẫn* của Quản trị
+(ba chỗ) và của người dùng tự sửa. Bảng YCNV từng còn nói *"Gán người quản lý"* và *"Trưởng bộ phận"* — cây tổ chức đã bỏ từ `0031`
+mà bảng chưa ai sửa; chỉ sửa ba dòng liên quan chặng này, hai dòng kia ghi lại chứ chưa đụng.
+
+**Cái mất đã nêu**: tài khoản **đã kích hoạt** gõ sai email vẫn không sửa được (và không dùng lại được địa chỉ đúng nếu vô hiệu hoá).
+
+**Hai ca đỏ ở lượt `make test` đầu, đều do chính chặng này**: (1) ca đổi hoa/thường tên tài khoản để lại `ZZTEST_SUA5` — bước dọn của
+bộ kiểm khớp `LIKE 'zztest%'` phân biệt hoa/thường nên tên chữ HOA nằm lại CSDL mãi và lượt sau va nó (409 ngay ở bước tạo); ca kiểm
+nay trả tên về chữ thường cuối ca. (2) ca `0237` đòi mỗi `<HopThoai>` có nút gọi CHÍNH biểu thức `dong`; nút *Huỷ* của biểu mẫu sửa gọi
+một hàm quay-lại riêng → đổi thành `dong` (Huỷ = đóng hộp, bỏ prop thừa).
+
+**3463/3463 xanh.**
+

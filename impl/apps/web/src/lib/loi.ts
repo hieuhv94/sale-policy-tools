@@ -343,6 +343,11 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Không tìm thấy tài khoản này. Tải lại danh sách người dùng.',
   },
+  /*
+   * Lấy câu TỪ MÁY CHỦ: nó nói rõ trường nào bị khoá và đường đi đúng (vô hiệu hoá rồi tạo
+   * mới). Lượt này gặp khi người dùng kích hoạt đúng lúc quản trị bấm Lưu (`0277`).
+   */
+  USER_ACTIVATED_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
   ALREADY_ACTIVATED: {
     dang: 'thanh-noi',
     cau: 'Tài khoản này đã kích hoạt rồi, không cần gửi lại thư mời.',

@@ -256,11 +256,12 @@ trò có được không, và người dùng tự làm được đến đâu —
 
 | Việc | Quy tắc |
 |---|---|
-| Đổi **vai trò** | Được, nhưng **chặn khi tài khoản còn hồ sơ dở dang**. Báo lỗi kèm danh sách mã hồ sơ |
+| Đổi **vai trò** | **Chỉ khi tài khoản CHƯA kích hoạt** (09/11, xem Phụ lục B). Đã kích hoạt thì không: vô hiệu hoá rồi tạo tài khoản mới |
 | Gán **người quản lý** | Được, ở thẻ *Xem* của tài khoản. Cần cho người chưa kích hoạt hoặc đã nghỉ việc |
 | Xem thông tin | Thẻ *Xem*: họ tên, tài khoản, email, vai trò, Trưởng bộ phận, người quản lý, trạng thái |
-| Sửa **họ tên** | **Không**. Chủ tài khoản tự sửa |
-| Đổi **email**, **tên tài khoản** | **Không ai đổi được** qua giao diện |
+| Sửa **họ tên** | Được ở mọi tài khoản. Chủ tài khoản cũng tự sửa được |
+| Đổi **email**, **tên tài khoản** | **Chỉ khi tài khoản CHƯA kích hoạt** (09/11). Đã kích hoạt thì không ai đổi được |
+| Sửa tài khoản **chưa kích hoạt** | Mọi lượt sửa có đổi giá trị đều **thu hồi thư mời cũ rồi gửi thư mời mới** tới email hiện có (kể cả khi chỉ đổi họ tên) |
 | Xoá tài khoản | **Không có**. Nhật ký kiểm toán tham chiếu tới người dùng; chỉ vô hiệu hoá |
 
 Vì sao chặn đổi vai trò khi còn hồ sơ dở dang: hộp việc suy ra từ vai trò và cây tổ chức, nên đổi
@@ -3832,3 +3833,12 @@ trong file Excel — bộ lọc còn **11 tiêu chí**, và còn **9** sau lần
 ý: giữ lại cột là giữ lại màn hình nhập, và dữ liệu nhập vào sẽ có người tin là có nghĩa.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.
+
+**Quản trị sửa tài khoản chưa kích hoạt** (09/11) — tài khoản **chưa kích hoạt** sửa được cả bốn trường:
+họ tên · tên tài khoản · email · vai trò. Mỗi lượt sửa có đổi giá trị **thu hồi thư mời cũ TRƯỚC rồi gửi thư
+mới SAU**, kể cả khi chỉ đổi họ tên (một luật cho mọi trường, thay vì một bảng trường nào đổi thì làm gì) ·
+tài khoản **đã kích hoạt** vẫn chỉ sửa được họ tên: vai trò đóng vì hồ sơ ghi thẳng id người xử lý, email đóng
+vì nó là đường nhận thư đặt lại mật khẩu · lý do mở ngoại lệ: chưa ai đăng nhập nên chưa có phiên, hồ sơ cầm
+tay hay thông báo gắn với tài khoản, và `byRole` chỉ lấy tài khoản đã kích hoạt nên nó chưa được giao việc ·
+tên và email của tài khoản đã vô hiệu hoá **vẫn bị giữ chỗ** (đã kiểm), nên gõ sai email lúc tạo thì sửa tại
+chỗ chứ không vô hiệu hoá để tạo lại.

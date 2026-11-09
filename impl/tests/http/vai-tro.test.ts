@@ -223,17 +223,23 @@ describe('`0032` KHÔNG còn đổi được vai trò', () => {
    * nhận, không bàn giao. Đường đi đúng là vô hiệu hoá tài khoản cũ (kèm chuyển
    * giao) rồi tạo tài khoản mới, và đó là đường duy nhất còn lại.
    */
-  it('gửi `role` trong PATCH thì bị BỎ QUA, không đổi gì', async () => {
-    const u = await taoNguoiDung('TDV');
-    const res = await idn(`/admin/users/${u.id}`, { fullName: 'Ten Moi', role: 'QUAN_TRI' });
-    expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect((await doc(u.id)).role).toBe('TDV');
+  /*
+   * `0277` mở MỘT ngoại lệ: tài khoản CHƯA kích hoạt sửa được vai trò (chưa ai đăng nhập,
+   * chưa hồ sơ nào trỏ tới nó). Lý do đóng ở trên chỉ phát sinh SAU khi kích hoạt, nên hai
+   * ca dưới canh đúng ranh giới ấy — ca chi tiết ở `sua-tai-khoan.test.ts`.
+   */
+  it('tài khoản ĐÃ kích hoạt: gửi `role` → 409 và không đổi gì', async () => {
+    const id = await idCua('kt01');
+    const res = await idn(`/admin/users/${id}`, { fullName: 'Ten Moi', role: 'QUAN_TRI' });
+    expect(res.status, JSON.stringify(res.body)).toBe(409);
+    expect(res.body.code).toBe('USER_ACTIVATED_LOCKED');
+    expect((await doc(id)).role).toBe('KE_TOAN');
   });
 
-  it('gửi mỗi `role`, không kèm gì khác, cũng không đổi', async () => {
+  it('tài khoản CHƯA kích hoạt: đổi vai trò được', async () => {
     const u = await taoNguoiDung('KE_TOAN');
     expect((await idn(`/admin/users/${u.id}`, { role: 'TDV' })).status).toBe(200);
-    expect((await doc(u.id)).role).toBe('KE_TOAN');
+    expect((await doc(u.id)).role).toBe('TDV');
   });
 
   it('vai trò khác Quản trị không sửa được tài khoản của ai', async () => {

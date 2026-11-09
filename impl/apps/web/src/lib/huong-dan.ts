@@ -77,7 +77,7 @@ export const HUONG_DAN_CHUNG: MucChung[] = [
       'Đăng nhập bằng email và mật khẩu, hoặc bấm “Đăng nhập bằng Google” nếu công ty đã bật. Chỉ email đã được Quản trị hệ thống tạo tài khoản mới vào được.',
       'Lần đầu, bạn nhận một thư mời có liên kết kích hoạt: bấm vào đó để tự đặt mật khẩu. Hệ thống không có mật khẩu mặc định.',
       'Quên mật khẩu: bấm “Quên mật khẩu” ở màn hình đăng nhập, nhập email, rồi làm theo thư nhận được.',
-      'Đổi mật khẩu hoặc sửa họ tên: bấm tên của bạn ở góc trên bên phải. Họ tên bạn tự sửa được; email và vai trò thì chỉ Quản trị hệ thống đổi.',
+      'Đổi mật khẩu hoặc sửa họ tên: bấm tên của bạn ở góc trên bên phải. Họ tên bạn tự sửa được; email và vai trò không tự đổi được. Chỉ Quản trị hệ thống sửa được, và chỉ khi tài khoản chưa kích hoạt.',
       'Để lâu không thao tác, phiên sẽ hết hạn. Ô đăng nhập hiện đè lên màn hình, đăng nhập xong bạn ở nguyên chỗ cũ, những gì đang gõ dở vẫn còn.',
     ],
   },
@@ -1502,7 +1502,7 @@ const QUAN_TRI: HuongDanVaiTro = {
   khongLam: [
     'Không lập, không duyệt hồ sơ CSBH, và không có trang Hồ sơ CSBH. Quản trị đứng ngoài luồng duyệt.',
     'Không xoá được người dùng. Nhật ký tham chiếu tới tài khoản nên chỉ vô hiệu hoá được.',
-    'Không đổi được vai trò của một tài khoản đã tạo. Cần đổi thì vô hiệu hoá tài khoản cũ rồi tạo tài khoản mới.',
+    'Không đổi được vai trò, tên tài khoản và email của tài khoản đã kích hoạt. Cần đổi vai trò thì vô hiệu hoá tài khoản cũ rồi tạo tài khoản mới.',
     'Không phục hồi dữ liệu từ bản sao lưu trên phần mềm. Việc đó do người vận hành máy chủ làm.',
   ],
   ngayLamViec: [
@@ -1563,7 +1563,8 @@ const QUAN_TRI: HuongDanVaiTro = {
         {
           tieuDe: 'Sửa, gửi lại thư mời',
           noiDung: [
-            'Bạn sửa được họ tên, và chỉ họ tên. Vai trò cố định từ lúc tạo tài khoản.',
+            'Bấm Xem rồi Sửa thông tin (nút chỉ hiện ở tài khoản chưa kích hoạt). Tài khoản chưa kích hoạt sửa được họ tên, tên tài khoản, email và vai trò; bấm Lưu thì thư mời cũ chết ngay và một thư mới đi tới email đang có trong ô, kể cả khi bạn chỉ sửa họ tên. Dùng khi gõ sai email lúc tạo.',
+            'Tài khoản đã kích hoạt chỉ sửa được họ tên. Vai trò, tên tài khoản và email khoá từ lúc kích hoạt.',
             'Gửi lại thư mời chỉ hiện với tài khoản chưa kích hoạt, và làm liên kết cũ chết ngay. Liên kết trong thư hết hạn sau 72 giờ.',
           ],
         },
@@ -1581,11 +1582,11 @@ const QUAN_TRI: HuongDanVaiTro = {
       loiThuong: [
         {
           hoi: 'Tôi muốn đổi vai trò của một người?',
-          traLoi: 'Không đổi trực tiếp được, vì hồ sơ ghi thẳng tên người xử lý nên đổi vai trò sẽ bỏ rơi các hồ sơ đang chờ họ. Hãy vô hiệu hoá tài khoản cũ kèm bàn giao, rồi tạo tài khoản mới.',
+          traLoi: 'Tài khoản chưa kích hoạt thì sửa được: Xem, rồi Sửa thông tin. Tài khoản đã kích hoạt thì không đổi trực tiếp được, vì hồ sơ ghi thẳng tên người xử lý nên đổi vai trò sẽ bỏ rơi các hồ sơ đang chờ họ. Hãy vô hiệu hoá tài khoản cũ kèm bàn giao, rồi tạo tài khoản mới.',
         },
         {
           hoi: 'Người dùng nói không nhận được thư mời?',
-          traLoi: 'Kiểm tra email đã khai đúng chưa, rồi bấm Gửi lại thư mời. Nếu vẫn không tới, xem thẻ Thư & hàng đợi ở trang Vận hành để biết thư có bị gửi hỏng không.',
+          traLoi: 'Kiểm tra email đã khai đúng chưa. Nếu gõ sai thì Xem, Sửa thông tin để sửa (thư mới tự đi). Nếu đúng thì bấm Gửi lại thư mời. Nếu vẫn không tới, xem thẻ Thư & hàng đợi ở trang Vận hành để biết thư có bị gửi hỏng không.',
         },
       ],
     },

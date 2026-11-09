@@ -114,7 +114,10 @@ kiểm quyền LÚC ĐỌC; chuông 30 giây), **P299 XONG** (tệp đính kèm 
 Chrome không giao diện + CDP — không khổ nào cuộn ngang; nhịp hỏi 48 byte · 2,9ms), 3290/3290 xanh.
 **Ban lãnh đạo bình luận được nhưng KHÔNG được nhắc tên, KHÔNG nhận thông báo bình luận** (theo P296).
 
-Chặng gần nhất **P315** (`0276`, CHỈ FRONTEND): trang *Hướng dẫn* — **XONG CẢ SÁU VAI TRÒ** (thêm Sale Admin · Ban lãnh đạo ·
+Chặng gần nhất **P317** (`0277`): **Quản trị sửa tài khoản CHƯA kích hoạt** (họ tên · tên tài khoản · email · vai trò) — mọi lượt
+sửa có đổi giá trị thu hồi thư mời cũ rồi gửi thư mới trong cùng transaction; tài khoản ĐÃ kích hoạt vẫn chỉ sửa họ tên
+(`409 USER_ACTIVATED_LOCKED` nếu gửi trường khác). Nút *Sửa thông tin* nằm trong hộp *Xem*. Chốt kiểm lại trong transaction
+(`FOR UPDATE`) **chưa có ca kiểm** (cần hai lượt song song). **3463/3463 xanh.** Trước đó **P315** (`0276`, CHỈ FRONTEND): trang *Hướng dẫn* — **XONG CẢ SÁU VAI TRÒ** (thêm Sale Admin · Ban lãnh đạo ·
 Quản trị, 38 ảnh mới). Chunk `lazy` 23,6KB nén. **`tests/web` 1191/1191 xanh.** Trước đó **P314** (`0275`): Kế toán (12 ảnh).
 
 Trước đó **P313** (`0274`, CHỈ FRONTEND): trang *Hướng dẫn* — viết đủ **Trưởng bộ phận** (7 trang, 10 ảnh `tbp/`). Còn Kế toán ·

@@ -45,23 +45,29 @@ export type RoleValue = (typeof ROLE_VALUES)[number];
  */
 
 /**
- * KHÔNG có `role` (`0032`). Vai trò cố định từ lúc tạo tài khoản.
+ * Sửa tài khoản (`0032`, mở một phần ở `0277`).
  *
- * Đổi vai trò từng bị cấm hoàn toàn, rồi mở ra kèm chốt chặn "còn hồ sơ dở dang
- * thì không đổi được", và giờ đóng lại hẳn theo yêu cầu nghiệp vụ.
+ * **Tài khoản ĐÃ kích hoạt: chỉ họ tên.** `role` bị đóng từ `0032`, và lý do còn
+ * nguyên: hồ sơ ghi thẳng id người xử lý lên chính nó. Một Trưởng bộ phận đang có
+ * hồ sơ chờ ký mà thành Kế toán thì hồ sơ ấy trỏ tới người không còn hành động
+ * `TBP_SIGN` nào, và **không ai khác cầm được**. Tên đăng nhập và email cũng đóng:
+ * email là đường nhận thư đặt lại mật khẩu, nên đổi nó là chuyển quyền kiểm soát
+ * tài khoản sang hộp thư khác.
  *
- * Lý do đóng vẫn là lý do cũ, và từ `0031` nó mạnh hơn: hồ sơ ghi thẳng id người
- * xử lý lên chính nó. Một Trưởng bộ phận đang có hồ sơ chờ ký mà thành Kế toán
- * thì hồ sơ ấy trỏ tới người không còn hành động `TBP_SIGN` nào, và **không ai
- * khác cầm được** vì hồ sơ chỉ nằm trong hộp việc của đúng người được chọn.
- * Chốt chặn có điều kiện chỉ dời vấn đề: nó bắt người quản trị đi xử lý hết hồ
- * sơ trước, mà "xử lý hết" không phải việc của người quản trị.
+ * **Tài khoản CHƯA kích hoạt: cả bốn trường** (`0277`). Chưa ai đăng nhập, nên
+ * không có phiên, không có hồ sơ cầm tay, không có thông báo; `byRole` chỉ lấy
+ * tài khoản đã kích hoạt nên nó chưa được giao khách hay hồ sơ nào. Mọi lý do
+ * trên đều chưa phát sinh. Đổi gì thì thư mời cũ cũng chết và một thư mới đi
+ * ngay — xem `update`.
  *
- * Cần đổi vai trò thì **vô hiệu hoá tài khoản cũ** (kèm chuyển giao hồ sơ, xem
- * `setActive`) và tạo tài khoản mới.
+ * Vẫn cần đổi vai trò cho tài khoản đã kích hoạt thì **vô hiệu hoá tài khoản cũ**
+ * (kèm chuyển giao hồ sơ, xem `setActive`) và tạo tài khoản mới.
  */
 export type UpdateUserInput = {
   fullName?: string | undefined;
+  username?: string | undefined;
+  email?: string | undefined;
+  role?: RoleValue | undefined;
 };
 
 export type CreateUserInput = {
@@ -84,64 +90,7 @@ export class UsersService {
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
-    /*
-     * ĐỊA CHỈ PHẢI NHẬN ĐƯỢC THƯ, nếu không thì đừng tạo tài khoản (`0117`).
-     *
-     * Tới `0116` một địa chỉ ngoài `MAIL_ALLOWLIST` vẫn tạo được tài khoản; chỉ
-     * lá thư mời là hỏng, ở một chỗ cố tình nuốt lỗi (`guiThuMoi` ngay dưới).
-     * Kết quả là một tài khoản có thật, chiếm mất tên đăng nhập và địa chỉ, mà
-     * KHÔNG BAO GIỜ đăng nhập được: từ P13 thư mời là đường duy nhất để nó có
-     * mật khẩu, và `resendInvite` sẽ hỏng lại đúng như vậy mỗi lần bấm.
-     *
-     * Chặn ở đây chứ không ở tầng DTO: `validate` kiểm HÌNH DẠNG địa chỉ, còn
-     * đây là một luật của triển khai, đọc từ cùng biến môi trường mà đường gửi
-     * thư đọc — và hỏi qua `mailer.nhanDuocThu()` để hai bên không trả lời khác
-     * nhau. Danh sách rỗng (demo, bộ test) thì hàm ấy cho qua mọi địa chỉ.
-     *
-     * Hỏi TRƯỚC phép kiểm trùng: đây là tính chất của chính giá trị vừa gõ, trả
-     * lời được mà không cần đụng tới CSDL.
-     */
-    if (!this.mailer.nhanDuocThu(input.email)) {
-      const mien = this.mailer.cfg.allowlist.join(', ');
-      throw new BadRequestException({
-        code: 'EMAIL_DOMAIN_NOT_ALLOWED',
-        field: 'email',
-        message:
-          `Địa chỉ ${input.email} không nhận được thư của hệ thống nên chưa tạo tài khoản được. ` +
-          `Hệ thống chỉ gửi thư tới các tên miền: ${mien}. ` +
-          'Dùng địa chỉ thuộc một trong các tên miền đó, hoặc đề nghị bộ phận kỹ thuật khai thêm tên miền.',
-      });
-    }
-
-    const trung = await this.db.q<{ email: string; username: string }>(
-      `SELECT email, username FROM idn.app_user
-        WHERE lower(email) = lower($1) OR lower(username) = lower($2)`,
-      [input.email, input.username],
-    );
-    // Chặn TRƯỚC khi gửi thư: tạo hỏng mà thư đã bay đi thì người nhận có một
-    // liên kết không kích hoạt được cái gì (ONB-03).
-    //
-    // Nói RÕ trùng cái nào, và kèm `message`. Không kèm thì giao diện rơi xuống
-    // câu mặc định cho 409 — "Dữ liệu vừa được người khác thay đổi, hãy tải lại"
-    // — vốn đúng cho tranh chấp ghi đồng thời và hoàn toàn sai ở đây: người
-    // quản trị tải lại bao nhiêu lần thì tên tài khoản đó vẫn đang có người
-    // dùng. Họ phải ĐỔI, mà câu kia không hề nói điều đó.
-    if (trung.length > 0) {
-      const trungEmail = trung.some((r) => r.email.toLowerCase() === input.email.toLowerCase());
-      const trungTen = trung.some(
-        (r) => r.username.toLowerCase() === input.username.toLowerCase(),
-      );
-      throw new ConflictException({
-        // Giữ `EMAIL_DUPLICATE` cho trường hợp trùng email (ONB-03 tra mã này).
-        code: trungEmail ? 'EMAIL_DUPLICATE' : 'USERNAME_DUPLICATE',
-        field: trungEmail && !trungTen ? 'email' : 'username',
-        message: trungEmail
-          ? trungTen
-            ? `Đã có tài khoản dùng tên "${input.username}", và cũng đã có tài khoản dùng email ${input.email}. Đổi cả hai rồi thử lại.`
-            : `Email ${input.email} đã dùng cho một tài khoản khác. Mỗi tài khoản một địa chỉ riêng vì thư kích hoạt gửi tới đó.`
-          : `Tên tài khoản "${input.username}" đã có người dùng. Chọn tên khác.`,
-      });
-    }
+    await this.chanEmailVaTrung(input.email, input.username);
 
     const hash = await this.matKhauKhoa();
     const token = newSecretToken();
@@ -202,6 +151,76 @@ export class UsersService {
       status: 'CHO_KICH_HOAT',
       inviteMailSent,
     };
+  }
+
+  /**
+   * Hai phép chặn dùng chung cho TẠO và SỬA tài khoản: địa chỉ phải nhận được thư
+   * của hệ thống, và email/tên đăng nhập không được trùng ai.
+   *
+   * `boQuaId` là chính tài khoản đang sửa — nó không được tính là "người khác".
+   * Gộp một chỗ để hai đường không trả lời khác nhau (cùng lối `0085`).
+   */
+  private async chanEmailVaTrung(email: string, username: string, boQuaId?: string): Promise<void> {
+    /*
+     * ĐỊA CHỈ PHẢI NHẬN ĐƯỢC THƯ, nếu không thì đừng tạo tài khoản (`0117`).
+     *
+     * Tới `0116` một địa chỉ ngoài `MAIL_ALLOWLIST` vẫn tạo được tài khoản; chỉ
+     * lá thư mời là hỏng, ở một chỗ cố tình nuốt lỗi (`guiThuMoi` ngay dưới).
+     * Kết quả là một tài khoản có thật, chiếm mất tên đăng nhập và địa chỉ, mà
+     * KHÔNG BAO GIỜ đăng nhập được: từ P13 thư mời là đường duy nhất để nó có
+     * mật khẩu, và `resendInvite` sẽ hỏng lại đúng như vậy mỗi lần bấm.
+     *
+     * Chặn ở đây chứ không ở tầng DTO: `validate` kiểm HÌNH DẠNG địa chỉ, còn
+     * đây là một luật của triển khai, đọc từ cùng biến môi trường mà đường gửi
+     * thư đọc — và hỏi qua `mailer.nhanDuocThu()` để hai bên không trả lời khác
+     * nhau. Danh sách rỗng (demo, bộ test) thì hàm ấy cho qua mọi địa chỉ.
+     *
+     * Hỏi TRƯỚC phép kiểm trùng: đây là tính chất của chính giá trị vừa gõ, trả
+     * lời được mà không cần đụng tới CSDL.
+     */
+    if (!this.mailer.nhanDuocThu(email)) {
+      const mien = this.mailer.cfg.allowlist.join(', ');
+      throw new BadRequestException({
+        code: 'EMAIL_DOMAIN_NOT_ALLOWED',
+        field: 'email',
+        message:
+          `Địa chỉ ${email} không nhận được thư của hệ thống nên chưa tạo tài khoản được. ` +
+          `Hệ thống chỉ gửi thư tới các tên miền: ${mien}. ` +
+          'Dùng địa chỉ thuộc một trong các tên miền đó, hoặc đề nghị bộ phận kỹ thuật khai thêm tên miền.',
+      });
+    }
+
+    const trung = await this.db.q<{ email: string; username: string }>(
+      `SELECT email, username FROM idn.app_user
+        WHERE (lower(email) = lower($1) OR lower(username) = lower($2))
+          AND ($3::uuid IS NULL OR id <> $3::uuid)`,
+      [email, username, boQuaId ?? null],
+    );
+    // Chặn TRƯỚC khi gửi thư: tạo hỏng mà thư đã bay đi thì người nhận có một
+    // liên kết không kích hoạt được cái gì (ONB-03).
+    //
+    // Nói RÕ trùng cái nào, và kèm `message`. Không kèm thì giao diện rơi xuống
+    // câu mặc định cho 409 — "Dữ liệu vừa được người khác thay đổi, hãy tải lại"
+    // — vốn đúng cho tranh chấp ghi đồng thời và hoàn toàn sai ở đây: người
+    // quản trị tải lại bao nhiêu lần thì tên tài khoản đó vẫn đang có người
+    // dùng. Họ phải ĐỔI, mà câu kia không hề nói điều đó.
+    if (trung.length > 0) {
+      const trungEmail = trung.some((r) => r.email.toLowerCase() === email.toLowerCase());
+      const trungTen = trung.some(
+        (r) => r.username.toLowerCase() === username.toLowerCase(),
+      );
+      throw new ConflictException({
+        // Giữ `EMAIL_DUPLICATE` cho trường hợp trùng email (ONB-03 tra mã này).
+        code: trungEmail ? 'EMAIL_DUPLICATE' : 'USERNAME_DUPLICATE',
+        field: trungEmail && !trungTen ? 'email' : 'username',
+        message: trungEmail
+          ? trungTen
+            ? `Đã có tài khoản dùng tên "${username}", và cũng đã có tài khoản dùng email ${email}. Đổi cả hai rồi thử lại.`
+            : `Email ${email} đã dùng cho một tài khoản khác. Mỗi tài khoản một địa chỉ riêng vì thư kích hoạt gửi tới đó.`
+          : `Tên tài khoản "${username}" đã có người dùng. Chọn tên khác.`,
+      });
+    }
+
   }
 
   /** Gửi lại lời mời. Liên kết cũ chết ngay — chỉ liên kết mới nhất dùng được (ONB-10). */
@@ -478,16 +497,139 @@ export class UsersService {
     return successorId;
   }
 
-  /** Sửa tài khoản đã tạo. Chỉ họ tên — xem `UpdateUserInput`. */
-  async update(userId: string, input: UpdateUserInput) {
-    if (input.fullName === undefined) return { ok: true };
+  /**
+   * Sửa tài khoản — xem `UpdateUserInput` cho luật theo trạng thái (`0277`).
+   *
+   * Tài khoản CHƯA kích hoạt: đổi bất cứ thứ gì thì **thư mời cũ chết TRƯỚC, thư mới
+   * đi SAU**, cả hai trong cùng một lượt sửa. Thu hồi không chỉ vì email: thư cũ
+   * nằm ở hộp thư của người có thể không còn là chủ tài khoản, và nếu để nó sống thì
+   * ai cầm nó kích hoạt được một tài khoản mang địa chỉ khác. Với họ tên/tên đăng
+   * nhập thì thu hồi không cần cho an toàn, nhưng quản trị chốt một luật duy nhất
+   * (*"sửa là gửi thư mới"*) thay vì một bảng trường nào đổi thì làm gì.
+   *
+   * Chốt "chưa kích hoạt" nằm ở CÂU SQL (`FOR UPDATE` rồi kiểm lại trong transaction),
+   * không chỉ ở giao diện: người dùng bấm kích hoạt đúng lúc quản trị bấm Lưu thì
+   * lượt kích hoạt giữ khoá trước, và lượt sửa thấy `activated_at` đã có.
+   */
+  async update(userId: string, input: UpdateUserInput, suaBoi: string) {
+    const cu = await this.db.one<{
+      username: string;
+      email: string;
+      full_name: string;
+      role: RoleValue;
+      activated_at: Date | null;
+    }>(
+      `SELECT username, email, full_name, role::text AS role, activated_at
+         FROM idn.app_user WHERE id = $1`,
+      [userId],
+    );
+    if (!cu) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+
+    const doiHoTen = input.fullName !== undefined && input.fullName !== cu.full_name;
+    // So CHÍNH XÁC (phân biệt hoa/thường): sửa "kt01" thành "KT01" là một lượt sửa thật,
+    // và phép kiểm trùng ở dưới bỏ qua chính tài khoản này nên không tự va vào mình.
+    const doiTen = input.username !== undefined && input.username !== cu.username;
+    const doiThu = input.email !== undefined && input.email.toLowerCase() !== cu.email.toLowerCase();
+    const doiVaiTro = input.role !== undefined && input.role !== cu.role;
+    if (!doiHoTen && !doiTen && !doiThu && !doiVaiTro) return { ok: true };
+
+    if (cu.activated_at !== null) {
+      this.chanDaKichHoat(doiTen || doiThu || doiVaiTro);
+      return this.suaHoTen(userId, input.fullName!);
+    }
+
+    // Từ đây: tài khoản chưa kích hoạt, và có ít nhất một trường đổi.
+    const moi = {
+      username: doiTen ? input.username! : cu.username,
+      email: doiThu ? input.email! : cu.email,
+      fullName: doiHoTen ? input.fullName! : cu.full_name,
+      role: doiVaiTro ? input.role! : cu.role,
+    };
+    await this.chanEmailVaTrung(moi.email, moi.username, userId);
+
+    const token = newSecretToken();
+    try {
+      await this.db.tx(async (c) => {
+        const khoa = await c.query<{ activated_at: Date | null }>(
+          `SELECT activated_at FROM idn.app_user WHERE id = $1 FOR UPDATE`,
+          [userId],
+        );
+        if (khoa.rows.length === 0) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+        this.chanDaKichHoat(khoa.rows[0]!.activated_at !== null);
+
+        await c.query(
+          `UPDATE idn.app_user
+              SET username = $2, email = $3, full_name = $4, role = $5::idn.user_role,
+                  updated_at = now()
+            WHERE id = $1`,
+          [userId, moi.username, moi.email, moi.fullName, moi.role],
+        );
+        // THU HỒI trước, TẠO sau — cùng transaction, nên không có lúc nào cả hai
+        // cùng sống hoặc cả hai cùng chết.
+        await c.query(
+          `UPDATE idn.activation_token SET revoked_at = now()
+            WHERE user_id = $1 AND purpose = 'ACTIVATE'
+              AND used_at IS NULL AND revoked_at IS NULL`,
+          [userId],
+        );
+        await c.query(
+          `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by, purpose)
+           VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4, 'ACTIVATE')`,
+          [userId, token.hash, String(CONFIG.activationTtlHours), suaBoi],
+        );
+        // `before`/`after` chỉ mang đúng trường đã đổi (lối `setActive`).
+        const truoc: Record<string, unknown> = {};
+        const sau: Record<string, unknown> = {};
+        if (doiHoTen) { truoc['fullName'] = cu.full_name; sau['fullName'] = moi.fullName; }
+        if (doiTen) { truoc['username'] = cu.username; sau['username'] = moi.username; }
+        if (doiThu) { truoc['email'] = cu.email; sau['email'] = moi.email; }
+        if (doiVaiTro) { truoc['role'] = cu.role; sau['role'] = moi.role; }
+        await emit(
+          c,
+          'identity.user_updated',
+          suKienTaiKhoan({
+            action: 'USER_UPDATED',
+            userId,
+            username: moi.username,
+            outcome: 'OK',
+            before: truoc,
+            after: sau,
+            reason: 'Sửa tài khoản chưa kích hoạt; thư mời cũ thu hồi, thư mới đã gửi',
+          }),
+        );
+      });
+    } catch (e) {
+      // Tranh chấp với một lượt tạo/sửa khác chen vào giữa phép kiểm và lượt ghi:
+      // ràng buộc UNIQUE của CSDL là chốt cuối. Nói trùng cái nào bằng cách hỏi lại.
+      if ((e as { code?: string }).code === '23505') {
+        await this.chanEmailVaTrung(moi.email, moi.username, userId);
+      }
+      throw e;
+    }
+
+    await this.accounts.invalidate(userId);
+    const inviteMailSent = await this.guiThuMoi(moi.email, moi.fullName, token.raw, userId);
+    return { ok: true, inviteMailSent };
+  }
+
+  /** Tài khoản đã kích hoạt chỉ sửa được họ tên: gặp trường khác đổi thì từ chối. */
+  private chanDaKichHoat(coDoiTruongKhac: boolean): void {
+    if (!coDoiTruongKhac) return;
+    throw new ConflictException({
+      code: 'USER_ACTIVATED_LOCKED',
+      message:
+        'Tài khoản này đã kích hoạt nên chỉ sửa được họ tên. Tên tài khoản, email và vai trò ' +
+        'đã khoá. Cần đổi thì vô hiệu hoá tài khoản này và tạo tài khoản mới.',
+    });
+  }
+
+  private async suaHoTen(userId: string, fullName: string) {
     const r = await this.db.q(
       `UPDATE idn.app_user SET full_name = $2, updated_at = now()
         WHERE id = $1 RETURNING id`,
-      [userId, input.fullName],
+      [userId, fullName],
     );
     if (r.length === 0) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
-
     // Họ tên nằm trong cache tài khoản — bỏ ngay, không chờ hết TTL 60 giây.
     await this.accounts.invalidate(userId);
     return { ok: true };

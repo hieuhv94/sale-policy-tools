@@ -14,7 +14,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NguoiDung } from '@csbh/web/nguoi-dung-ui';
 
 const DS = [
@@ -106,6 +107,66 @@ describe('`0070` cột thao tác thẳng hàng', () => {
     await bay();
     const th = [...document.querySelectorAll('thead th')].find((e) => e.textContent === 'Thao tác');
     expect(th?.getAttribute('colspan')).toBe('3');
+  });
+});
+
+// =============================================================================
+// `0277` — Sửa tài khoản CHƯA kích hoạt
+// =============================================================================
+
+describe('`0277` nút *Sửa thông tin* chỉ có ở tài khoản CHƯA kích hoạt', () => {
+  const moXem = async (ten: string) => {
+    const dong = screen.getByText(ten).closest('tr')!;
+    await userEvent.click(within(dong).getByRole('button', { name: 'Xem' }));
+    return screen.getByRole('dialog');
+  };
+
+  it('đã kích hoạt → hộp Xem KHÔNG có nút Sửa', async () => {
+    await bay();
+    const hop = await moXem('Nguyen Van A');
+    expect(within(hop).queryByRole('button', { name: 'Sửa thông tin' })).toBeNull();
+  });
+
+  it('chưa kích hoạt → có nút Sửa, và Lưu gửi PATCH đủ bốn trường', async () => {
+    const goi: { url: string; method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((duong: unknown, init?: RequestInit) => {
+        const d = String(duong);
+        if (init?.method === 'PATCH') {
+          goi.push({ url: d, method: 'PATCH', body: JSON.parse(String(init.body)) });
+          return Promise.resolve(json({ ok: true, inviteMailSent: true }));
+        }
+        if (d.includes('/admin/users')) return Promise.resolve(json({ items: DS, total: DS.length }));
+        return Promise.resolve(json([]));
+      }),
+    );
+    render(<NguoiDung />);
+    await waitFor(() => expect(screen.getByText('Tran Thi B')).toBeDefined());
+
+    const hop = await moXem('Tran Thi B');
+    await userEvent.click(within(hop).getByRole('button', { name: 'Sửa thông tin' }));
+
+    const luu = screen.getByRole('button', { name: 'Lưu và gửi thư mời mới' });
+    // Chưa đổi gì → không cho lưu (một lượt lưu rỗng vẫn thu hồi và gửi thư mới).
+    expect((luu as HTMLButtonElement).disabled).toBe(true);
+
+    const email = screen.getByLabelText(/^Email/);
+    await userEvent.clear(email);
+    await userEvent.type(email, 'kt02.moi@csbh.test');
+    expect((luu as HTMLButtonElement).disabled).toBe(false);
+    // Câu cảnh báo nói ĐÚNG địa chỉ sẽ nhận thư mới.
+    expect(screen.getByRole('dialog').textContent).toContain('kt02.moi@csbh.test');
+
+    await userEvent.click(luu);
+    await waitFor(() => expect(goi.length).toBe(1));
+    expect(goi[0]!.url).toContain('/admin/users/u2');
+    expect(goi[0]!.body).toEqual({
+      fullName: 'Tran Thi B',
+      username: 'kt02',
+      email: 'kt02.moi@csbh.test',
+      role: 'KE_TOAN',
+    });
   });
 });
 
