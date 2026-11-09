@@ -22490,3 +22490,35 @@ lần**: `scrollIntoView` đưa tiêu đề vào ngay dưới thanh trên cố �
 
 **Còn lại**: Sale Admin · Ban lãnh đạo · Quản trị. **`tests/web` 1187/1187 xanh.**
 
+## P315 — `0276` Trang *Hướng dẫn* (chặng 4–6: Sale Admin · Ban lãnh đạo · Quản trị) — CHỈ FRONTEND
+
+Ba vai trò còn lại viết trong một lượt, **xong cả sáu vai trò**. Sale Admin 10 trang-mục (Tổng quan · Khách hàng ·
+danh sách · Xử lý một hồ sơ · **Bản mềm** · **Bản scan và bàn giao** · **Sửa bản cứng** · Xuất hợp đồng ·
+Sản phẩm/Chiết khấu · Thống kê), Ban lãnh đạo 6, Quản trị 10 (kể cả **Vận hành** đủ sáu thẻ). 38 ảnh mới ở
+`public/huong-dan/{sale-admin,ban-lanh-dao,quan-tri}/`. Chỉ đổi `lib/huong-dan.ts`, `pages/HuongDan.tsx` (xuất
+`MotTrang`) và ảnh + ca kiểm.
+
+**Chỗ đáng nhớ**:
+- *Xem bản mềm* (nút đầu trang) và *Tạo bản mềm* (khối) **khác nhau**, và hướng dẫn dạy cho tách: nút đầu trang dựng
+  lại mỗi lần, chọn được cả mẫu rút gọn, **không lưu**; *Tạo bản mềm* chỉ nhận mẫu ĐẦY ĐỦ và **đóng băng** thành tệp
+  PDF. Ảnh *Xem trước bản mềm* chụp thật qua Gotenberg — dừng ở nút *Lưu bản mềm*, **không bấm**.
+- **Ban lãnh đạo không có hồ sơ nào chờ** nên Tổng quan của họ có khung chữ nói thẳng điều đó; hướng dẫn nhắc cả bốn thứ họ
+  *không* có (nút ghi · thư/chuông · nhắc tên `@` · Nhật ký).
+- **Quản trị không dùng thuật ngữ máy** (luật có sẵn): hướng dẫn nói *"thư gửi hỏng"*, *"việc cần chú ý"*, không nói
+  `outbox`/`DLQ`. Ca kiểm Quản trị **không có trang `/ho-so`** (`0133`) bám đúng luật ấy.
+- **Ảnh chụp trên demo mang số liệu của MÁY DEV**: thẻ Sức khoẻ đầy cảnh báo đỏ (ổ đĩa 92,9%, sao lưu chưa chạy) và thẻ
+  *Thư & hàng đợi* có chuỗi lỗi kỹ thuật (`ECONNREFUSED`) và một địa chỉ mạng nội bộ của Docker. Giữ vì chúng đúng là
+  thứ Quản trị sẽ thấy, nhưng chú thích ghi rõ *"số liệu minh hoạ từ môi trường chạy thử"*.
+- **Còn ghi lại, chưa sửa**: Tổng quan của Quản trị hiện **mã hành động thô** ở *Hoạt động hôm nay* (`CREATED`,
+  `TBP_SIGN`…) — lệch với luật "không thuật ngữ" nhưng có từ trước (đã ghi ở P293), hướng dẫn không hứa gì về nó.
+
+**Ca kiểm**: danh sách *đã viết đủ* thành `it.each(VAI_TRO)`; ca *"trang chưa viết nói thẳng đang biên soạn"* chuyển sang dựng
+thẳng một `MotTrang` với `chiTiet: false` vì không còn dữ liệu thật nào để dựng. Bundle: chunk `lazy` còn **23,6KB nén** dưới trần
+60KB. **Phá lại** (3 lượt): đổi liên kết của Nhật ký sang `/ho-so` + gỡ một ảnh → 3 đỏ (Quản trị-không-hồ-sơ, *"Mở trang này"
+phải nằm trong menu vai trò*, ảnh có thật).
+
+**Đo lại 1 lỗi của chính tôi**: ca *"mọi ảnh có chú thích"* đỏ vì một chú thích đúng 10 ký tự (`Thẻ Ổ đĩa.`) — ngưỡng `> 10`
+đúng ý (chú thích phải nói ảnh cho thấy gì), chữa bằng chú thích đủ nghĩa chứ không hạ ngưỡng.
+
+**`tests/web` 1191/1191 xanh.** `make test` đầy đủ chưa chạy (không đụng máy chủ; demo đang bật).
+

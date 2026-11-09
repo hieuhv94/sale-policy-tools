@@ -9,11 +9,11 @@
  * vắng thì trang vẫn dựng được, chỉ thiếu hình; (3) mọi trang hướng dẫn dẫn tới
  * một đường dẫn có thật của vai trò ấy.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { DIEU_HUONG, VAI_TRO, dieuHuongCho, xem, type VaiTro } from '@csbh/web/can';
-import { HuongDan } from '@csbh/web/huong-dan-ui';
+import { HuongDan, MotTrang } from '@csbh/web/huong-dan-ui';
 import {
   HUONG_DAN_CHUNG,
   HUONG_DAN_THEO_VAI_TRO,
@@ -92,6 +92,17 @@ describe('`0273` ảnh minh hoạ', () => {
     }
   });
 
+  it('không có ảnh mồ côi: mọi tệp trong public/huong-dan đều được một bước nhắc tới', () => {
+    // Chiều ngược của ca trên. Ảnh mồ côi vẫn được đóng gói và phát cho mọi người dùng
+    // (cả ảnh chụp từ demo), mà không màn hình nào dùng tới.
+    const dung = new Set(moiAnh());
+    const co: string[] = [];
+    for (const thuMuc of readdirSync('apps/web/public/huong-dan')) {
+      for (const tep of readdirSync(`apps/web/public/huong-dan/${thuMuc}`)) co.push(`${thuMuc}/${tep}`);
+    }
+    expect(co.filter((t) => !dung.has(t))).toEqual([]);
+  });
+
   it('mọi ảnh có chú thích — vừa là alt, vừa là dòng chữ dưới ảnh', () => {
     for (const h of Object.values(HUONG_DAN_THEO_VAI_TRO)) {
       for (const t of h.trang) {
@@ -130,17 +141,20 @@ describe('`0273` màn hình: mỗi người CHỈ thấy hướng dẫn của va
   });
 
   it('trang chưa viết từng bước nói thẳng điều đó, thay vì để một mục trống', () => {
-    vaiTro = 'SALE_ADMIN';
-    render(<HuongDan />);
-    expect(screen.getAllByRole('note').length).toBeGreaterThan(0);
+    /*
+     * Mọi vai trò hiện đã viết đủ, nên không còn dữ liệu thật nào để dựng ca này — dựng
+     * thẳng một trang `chiTiet: false`. Đường vẽ này vẫn cần giữ: vai trò hay trang mới
+     * thêm sau sẽ đi qua nó trong lúc chờ biên soạn.
+     */
+    render(<MotTrang stt={1} t={{ id: 'thu', ten: 'Trang thử', mucDich: 'Mục đích thử', chiTiet: false }} />);
+    expect(screen.getByRole('note').textContent).toContain('đang được biên soạn');
   });
 
   /*
-   * Vai trò ĐÃ viết đủ từng bước: thêm vai trò vào danh sách này khi chặng của nó xong.
-   * Danh sách là chốt chặn hai chiều — vai trò trong đây mà còn trang `chiTiet: false`
-   * là đỏ, và vai trò ngoài đây thì ca trên vẫn đòi nó nói thẳng "đang biên soạn".
+   * Mọi vai trò đã viết đủ từng bước. Thêm một vai trò hay trang mới mà chưa viết xong thì
+   * đánh dấu `chiTiet: false` và sửa ca này cho đúng — đừng để nó đỏ rồi xoá ca.
    */
-  it.each(['TDV', 'TBP', 'KE_TOAN'] as const)('%s đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', (v) => {
+  it.each(VAI_TRO)('%s đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', (v) => {
     vaiTro = v;
     expect(HUONG_DAN_THEO_VAI_TRO[v].trang.every((t) => t.chiTiet)).toBe(true);
     render(<HuongDan />);

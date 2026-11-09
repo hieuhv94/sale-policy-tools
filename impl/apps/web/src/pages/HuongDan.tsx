@@ -39,7 +39,8 @@ function Anh({ anh }: { anh: AnhHuongDan }) {
   );
 }
 
-function MotTrang({ t, stt }: { t: TrangHuongDan; stt: number }) {
+/** Xuất ra để ca kiểm dựng được một trang `chiTiet: false` — mọi vai trò hiện đã viết đủ. */
+export function MotTrang({ t, stt }: { t: TrangHuongDan; stt: number }) {
   return (
     <article className="hd-trang" id={`trang-${t.id}`} aria-labelledby={`tieu-de-${t.id}`}>
       <header className="hd-trang-dau">
