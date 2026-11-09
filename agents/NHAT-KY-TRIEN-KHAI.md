@@ -22439,3 +22439,28 @@ tả vai trò và danh sách trang; từng bước + ảnh viết ở các chặ
 **Chạy**: `tests/web` **1185/1185 xanh** (ảnh `csbh-test` rời, `--network none` — demo đang bật nên không gõ
 lệnh `compose.test.yml`); `make test` đầy đủ chưa chạy vì không đụng máy chủ.
 
+## P313 — `0274` Trang *Hướng dẫn* (chặng 2: Trưởng bộ phận) — CHỈ FRONTEND
+
+Viết đủ hướng dẫn cho **Trưởng bộ phận**: 7 trang (Tổng quan · Khách hàng · Hồ sơ CSBH danh sách · **Duyệt một hồ sơ** ·
+Bình luận · Sản phẩm và Chiết khấu · Thống kê), 10 ảnh thật ở `public/huong-dan/tbp/` chụp bằng `tbp01` trên demo.
+Chỉ đổi `lib/huong-dan.ts` + ảnh + một ca kiểm; không đụng máy chủ.
+
+**Nội dung bám đúng nút THẬT trên màn hình**, không bám tài liệu cũ: đọc `HANH_DONG_NHAN` (`can.ts`) rồi mở hồ sơ
+bằng `tbp01` để liệt kê nút. Hai điều đo ra mà tài liệu chung không nói: *Ký số duyệt* chỉ là **một hộp xác nhận
+trơn** ("Xác nhận thực hiện thao tác này?", không chọn gì), còn *Trả lại chỉnh sửa* và *Hoàn duyệt* bắt **lý do**; và
+ở hồ sơ đã ký (Chờ KT duyệt L1) TBP chỉ còn **một nút — Hoàn duyệt**. Hướng dẫn viết đúng như vậy, và nói rõ
+*không có nút Từ chối* (`0155`) để người dùng cũ của bản trước khỏi đi tìm.
+
+**Ảnh hộp thoại: điền sẵn nhưng KHÔNG bấm Xác nhận** — trên demo, *Ký số duyệt* là hành động thật, bấm là hồ sơ sang
+bước sau. Chụp xong phải **tải lại trang** trước khi chụp ảnh kế: lần đầu tôi đóng hộp bằng `aria-label` đoán, nó
+không khớp, hộp ở lại và đè lên cả ảnh *bảng sản phẩm* lẫn ảnh *bình luận* — chỉ lộ ra khi xem ảnh, không ca kiểm nào bắt.
+**Chrome cũ còn chạy trên cổng 9333** từ một kịch bản không gọi `close()`; Chrome mới không bind được cổng, máy khách
+CDP nối vào cái cũ và phiên vẫn là `tdv01` — ảnh đầu của TBP suýt chụp bằng nhầm tài khoản (bắt được vì tiêu đề
+ghi `tdv01`). `pkill -f` đúng chuỗi cổng **giết luôn chính shell gọi nó** (dòng lệnh chứa chuỗi ấy) — dùng `[r]emote…`.
+
+Ca kiểm: danh sách vai trò *đã viết đủ* (`TDV`, `TBP`) là chốt hai chiều — vai trò trong đó mà còn `chiTiet: false` là
+đỏ. **Phá lại**: đánh dấu một trang TBP chưa viết + đổi một liên kết sang `/nguoi-dung` → 2 đỏ (ca "không còn ghi chú
+biên soạn" và ca "Mở trang này phải nằm trong menu của vai trò").
+
+**Còn lại**: Kế toán · Sale Admin · Ban lãnh đạo · Quản trị. **`tests/web` 1186/1186 xanh.**
+

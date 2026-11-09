@@ -433,14 +433,262 @@ const trangChuaViet = (id: string, ten: string, mucDich: string, duong: string):
 
 const TBP: HuongDanVaiTro = {
   tieuDe: 'Hướng dẫn cho Trưởng bộ phận',
-  gioiThieu: 'Bạn là người ký số duyệt hồ sơ CSBH mà Trình dược viên gửi lên, hoặc trả lại để họ chỉnh sửa.',
-  lamGi: ['Ký số duyệt hồ sơ được chọn gửi tới bạn.', 'Trả lại hồ sơ kèm lý do để Trình dược viên chỉnh sửa.', 'Hoàn duyệt: rút lại chữ ký của chính mình ở các bước sau.'],
-  khongLam: ['Không lập hồ sơ, không xuất hợp đồng.', 'Chỉ thấy hồ sơ được chọn gửi tới bạn.'],
-  ngayLamViec: ['Mở Tổng quan, xử lý các hồ sơ ở “Việc của tôi”.', 'Ký hoặc trả lại từng hồ sơ.', 'Xem Thống kê để theo dõi từng Trình dược viên.'],
+  gioiThieu:
+    'Bạn là người ký số duyệt hồ sơ CSBH mà Trình dược viên gửi lên. Với mỗi hồ sơ, bạn chỉ có hai lựa chọn: ký, hoặc trả lại kèm lý do để Trình dược viên chỉnh sửa. Sau khi ký, bạn vẫn có thể rút lại chữ ký nếu phát hiện vấn đề.',
+  lamGi: [
+    'Ký số duyệt các hồ sơ do Trình dược viên chọn gửi tới bạn.',
+    'Trả lại hồ sơ kèm lý do để Trình dược viên chỉnh sửa.',
+    'Hoàn duyệt: rút lại chữ ký của chính mình ở các bước sau khi đã ký.',
+    'Theo dõi kết quả làm việc của từng Trình dược viên trong Thống kê.',
+    'Đọc và viết bình luận trên hồ sơ để hỏi hoặc trao đổi.',
+  ],
+  khongLam: [
+    'Không lập hồ sơ và không sửa nội dung hồ sơ. Muốn đổi gì thì trả lại để Trình dược viên sửa.',
+    'Không xuất hợp đồng, không bàn giao bản cứng. Đó là việc của Kế toán và Sale Admin.',
+    'Không sửa thông tin khách hàng, chỉ Trình dược viên phụ trách mới sửa được.',
+    'Chỉ thấy hồ sơ được chọn gửi tới bạn. Trưởng bộ phận khác không thấy và không mở được hồ sơ của bạn.',
+  ],
+  ngayLamViec: [
+    'Mở Tổng quan và đọc khối “Việc của tôi”: hồ sơ nào hạn gần nhất thì xử lý trước.',
+    'Mở từng hồ sơ chờ bạn, đọc thông tin khách hàng và bảng dòng sản phẩm, chú ý dòng đỏ và dòng đã thay đổi.',
+    'Ký số duyệt nếu ổn; nếu chưa ổn thì trả lại, ghi lý do đủ rõ để Trình dược viên sửa một lần là xong.',
+    'Nếu sau khi ký bạn thấy cần xem lại, dùng Hoàn duyệt (chỉ khi hồ sơ chưa có hiệu lực).',
+    'Cuối tuần, vào Thống kê xem tốc độ duyệt và chất lượng hồ sơ của từng Trình dược viên.',
+  ],
   trang: [
-    trangChuaViet('tong-quan', 'Tổng quan', 'Việc đang chờ bạn ký.', '/'),
-    trangChuaViet('duyet-ho-so', 'Duyệt một hồ sơ', 'Đọc hồ sơ, ký hoặc trả lại.', '/ho-so'),
-    trangChuaViet('thong-ke', 'Thống kê', 'Theo dõi kết quả từng Trình dược viên.', '/thong-ke'),
+    {
+      id: 'tong-quan',
+      duong: '/',
+      ten: 'Tổng quan',
+      mucDich: 'Cho bạn biết hồ sơ nào đang chờ bạn ký và hồ sơ nào sắp quá hạn.',
+      khoi: [
+        'Dải thẻ: Chờ TBP duyệt, Sắp quá hạn, Quá hạn, Đang chờ, Đang có hiệu lực.',
+        'Việc của tôi: hồ sơ đang chờ chính bạn ký, hạn gần nhất đứng trước.',
+        'Bảng hồ sơ theo từng Trình dược viên, ở cuối trang.',
+      ],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc dải thẻ',
+          noiDung: [
+            'Thẻ “Chờ TBP duyệt” là số hồ sơ đang chờ bạn ký. Bấm vào thẻ nào thì mở danh sách hồ sơ đã lọc sẵn đúng bằng con số đó.',
+            'Hồ sơ chờ lâu sẽ quá hạn: mỗi bước có hạn 14 ngày, tính cả cuối tuần. Hồ sơ còn dưới 24 giờ có vạch đỏ ở bên trái và nằm ở thẻ “Sắp quá hạn”.',
+          ],
+          anh: ANH('tbp/tong-quan.png', 'Trang Tổng quan của Trưởng bộ phận.'),
+        },
+        {
+          tieuDe: 'Xử lý “Việc của tôi”',
+          noiDung: [
+            'Khối này chỉ gồm hồ sơ đang chờ bạn, xếp theo hạn gần nhất trước, tối đa 5 hồ sơ mỗi trang. Bấm vào một dòng để mở hồ sơ.',
+            'Không thấy hồ sơ nào nghĩa là bạn không còn việc, không phải hệ thống lỗi.',
+          ],
+        },
+        {
+          tieuDe: 'Xem từng Trình dược viên',
+          noiDung: [
+            'Bảng ở cuối trang đếm hồ sơ theo từng Trình dược viên. Bấm một dòng để mở đúng danh sách hồ sơ của người đó.',
+          ],
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Có hồ sơ của Trình dược viên mà tôi không thấy trong danh sách?',
+          traLoi: 'Hồ sơ chỉ nằm ở bàn bạn khi Trình dược viên chọn đúng tên bạn lúc gửi duyệt. Nếu họ chọn nhầm người, nhờ họ báo lại để gửi lại cho đúng.',
+        },
+      ],
+    },
+    {
+      id: 'khach-hang',
+      duong: '/khach-hang',
+      ten: 'Khách hàng',
+      mucDich: 'Tra cứu thông tin khách hàng của hồ sơ bạn đang duyệt. Bạn chỉ xem, không sửa.',
+      khoi: ['Danh sách khách hàng, tìm theo tên, địa chỉ hoặc mã số thuế.', 'Chi tiết khách hàng, hồ sơ pháp lý và lịch sử các CSBH đã lập.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Tra cứu khách hàng',
+          noiDung: [
+            'Trong hồ sơ đang duyệt, bấm vào Mã khách hàng để mở trang khách hàng. Ở đó bạn xem được hồ sơ pháp lý và lịch sử các CSBH trước đây của khách.',
+            'Chỉ Trình dược viên phụ trách mới sửa được thông tin khách hàng. Thấy thông tin sai thì trả lại hồ sơ kèm lý do để họ sửa.',
+          ],
+          anh: ANH('tbp/khach-hang.png', 'Danh sách khách hàng của Trưởng bộ phận.'),
+        },
+      ],
+    },
+    {
+      id: 'danh-sach-ho-so',
+      duong: '/ho-so',
+      ten: 'Hồ sơ CSBH: danh sách',
+      mucDich: 'Nhìn toàn bộ hồ sơ theo trạng thái, và tìm lại bất kỳ hồ sơ nào trong phạm vi của bạn.',
+      khoi: ['Kanban theo trạng thái, hoặc dạng Bảng.', 'Bộ lọc và nút Xuất Excel.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc bảng Kanban',
+          noiDung: [
+            'Mỗi trạng thái một cột, theo đúng thứ tự luồng duyệt. Cột tô viền xanh “Việc của bạn” là Chờ TBP duyệt: hồ sơ đang chờ bạn.',
+            'Các cột khác để bạn theo dõi hồ sơ đã ký đi tới đâu. Cột nào không có hồ sơ thì ẩn. Bấm nút gập ở đầu cột để thu gọn cột đó.',
+            'Nút Kanban | Bảng đổi sang dạng bảng. Kanban không kéo thả: đổi trạng thái hồ sơ bằng nút trên trang hồ sơ.',
+          ],
+          anh: ANH('tbp/ho-so-kanban.png', 'Danh sách hồ sơ dạng Kanban, cột Chờ TBP duyệt là việc của bạn.'),
+        },
+        {
+          tieuDe: 'Lọc và xuất Excel',
+          noiDung: [
+            'Bộ lọc có 9 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ.',
+            'Nút Xuất Excel xuất đúng danh sách đang lọc.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'duyet-ho-so',
+      duong: '/ho-so',
+      ten: 'Duyệt một hồ sơ',
+      mucDich: 'Đọc hồ sơ Trình dược viên gửi lên và quyết định ký hay trả lại.',
+      khoi: [
+        'Thông tin chung: khách hàng, người đề nghị, phiên bản.',
+        'Tiến trình duyệt: hồ sơ đã qua những bước nào.',
+        'Bảng dòng sản phẩm.',
+        'Bản mềm và bản cứng của phiên bản trước, chỉ để đối chiếu.',
+        'Bình luận và Lịch sử.',
+      ],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Đọc thông tin chung',
+          noiDung: [
+            'Phần đầu cho biết hồ sơ thuộc khách hàng nào, ai đề nghị và phiên bản thứ mấy. Tên khách hàng, địa chỉ và công nợ ở đây là thông tin lúc Trình dược viên gửi duyệt, không đổi theo hôm nay, đúng như sẽ in trên tờ giấy khách ký.',
+            'Hai nút Ký số duyệt và Trả lại chỉnh sửa nằm ở góc trên bên phải. Chúng chỉ hiện khi hồ sơ đang chờ bạn.',
+            'Khối Tiến trình duyệt bên phải cho biết hồ sơ đã qua những bước nào, ai làm và lúc nào.',
+          ],
+          anh: ANH('tbp/duyet-ho-so.png', 'Hồ sơ đang chờ Trưởng bộ phận duyệt, với hai nút Ký số duyệt và Trả lại chỉnh sửa.'),
+        },
+        {
+          tieuDe: 'Rà bảng dòng sản phẩm',
+          noiDung: [
+            'Tỷ lệ chiết khấu màu đỏ nghĩa là vượt ngưỡng chiết khấu của quy định. Màu này chỉ để bạn nhìn thấy, hệ thống không chặn. Rê chuột vào dấu ? ở cột QĐCK để xem quy định đang áp dụng.',
+            'Nhãn Trạng thái cho biết dòng so với phiên bản trước: Bổ sung (mặt hàng mới), Đang áp dụng (giữ nguyên) hoặc Chỉnh sửa (đã đổi). Dòng Chỉnh sửa có dấu tam giác cạnh giá trị đã đổi: xanh hướng lên là tăng, đỏ hướng xuống là giảm, rê chuột để xem giá trị cũ. Cột Tỷ lệ CK cũ cho bạn so ngay.',
+            'Dòng bị mờ và ghi Đã xoá là mặt hàng Trình dược viên rút khỏi phiên bản mới. Mặt hàng ấy sẽ không còn trong CSBH khi hồ sơ có hiệu lực.',
+          ],
+          anh: ANH('tbp/bang-san-pham.png', 'Bảng dòng sản phẩm với nhãn trạng thái và dấu tam giác chênh lệch.'),
+        },
+        {
+          tieuDe: 'Đối chiếu với phiên bản trước',
+          noiDung: [
+            'Nếu hồ sơ thay thế một CSBH cũ, khối “Bản mềm và bản cứng của phiên bản trước” cho bạn xem và tải bản mềm, bản cứng của phiên bản đó để đối chiếu. Khối này chỉ đọc.',
+          ],
+        },
+        {
+          tieuDe: 'Ký số duyệt',
+          noiDung: [
+            'Bấm Ký số duyệt, hộp thoại hỏi “Xác nhận thực hiện thao tác này?”, bấm Xác nhận. Hồ sơ sang bước Chờ KT duyệt L1 và Kế toán được chọn nhận thư báo.',
+            'Từ đây bạn không phải làm gì thêm. Hợp đồng do Kế toán hoặc Sale Admin xuất, bạn không tham gia các bước sau.',
+          ],
+          anh: ANH('tbp/ky-so.png', 'Hộp thoại xác nhận khi bấm Ký số duyệt.'),
+        },
+        {
+          tieuDe: 'Trả lại chỉnh sửa',
+          noiDung: [
+            'Bấm Trả lại chỉnh sửa và nhập lý do. Lý do bắt buộc, nên viết đủ rõ: sai ở đâu, cần sửa gì. Trình dược viên sẽ đọc đúng câu này ở khối “Lý do gần nhất”.',
+            'Hồ sơ về trạng thái Yêu cầu chỉnh sửa. Trình dược viên sửa xong sẽ gửi lại chính hồ sơ ấy, và nó trở về bàn bạn, không phải chọn lại người duyệt.',
+            'Hệ thống không có nút Từ chối. Nếu hồ sơ không làm tiếp, Trình dược viên sẽ tự xoá nó sau khi bị trả lại.',
+          ],
+          anh: ANH('tbp/tra-lai.png', 'Hộp thoại Trả lại chỉnh sửa, bắt buộc nhập lý do.'),
+        },
+        {
+          tieuDe: 'Hoàn duyệt: rút lại chữ ký',
+          noiDung: [
+            'Nếu sau khi ký bạn phát hiện vấn đề, mở lại hồ sơ và bấm Hoàn duyệt. Việc này làm được ở các bước sau chữ ký: Chờ KT duyệt L1, Sale Admin đang xử lý, Sale Admin sửa bản cứng và KT duyệt bản cứng. Lý do bắt buộc.',
+            'Hồ sơ về Yêu cầu chỉnh sửa, chữ ký của bạn bị xoá và vòng duyệt đi lại từ đầu. Trình dược viên, Kế toán và Sale Admin đều được báo, vì hồ sơ đang nằm trên bàn của người khác.',
+            'Ở bước Chờ TBP duyệt thì không có nút này, vì đã có Trả lại chỉnh sửa. Hồ sơ đã có hiệu lực cũng không hoàn duyệt được: muốn đổi, Trình dược viên lập phiên bản mới.',
+          ],
+          anh: ANH('tbp/hoan-duyet.png', 'Hộp thoại Hoàn duyệt trên hồ sơ đã ký.'),
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Tôi mở hồ sơ mà không thấy nút Ký số duyệt?',
+          traLoi: 'Hồ sơ không còn ở bước chờ bạn (đã ký, đã trả lại, hoặc quá hạn). Nút chỉ hiện đúng việc bạn làm được ở bước hiện tại. Hồ sơ quá hạn thì không còn nút nào.',
+        },
+        {
+          hoi: 'Tôi ký nhầm hồ sơ, làm sao?',
+          traLoi: 'Nếu hồ sơ chưa có hiệu lực, dùng Hoàn duyệt kèm lý do để rút chữ ký. Hồ sơ sẽ về Trình dược viên để làm lại từ đầu.',
+        },
+        {
+          hoi: 'Hồ sơ chờ quá hạn thì sao?',
+          traLoi: 'Hồ sơ quá 14 ngày ở một bước sẽ chuyển Quá hạn duyệt, không ai thao tác được nữa, và sau 3 ngày tự chuyển Đã xoá. Hãy xử lý hồ sơ có vạch đỏ trước.',
+        },
+      ],
+    },
+    {
+      id: 'binh-luan',
+      duong: '/ho-so',
+      ten: 'Bình luận trên hồ sơ',
+      mucDich: 'Hỏi và trao đổi với những người cùng làm trên hồ sơ, ngay trên chính hồ sơ.',
+      khoi: ['Khối Bình luận nằm ngay trên Lịch sử, ở cuối trang hồ sơ.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Viết và nhắc tên',
+          noiDung: [
+            'Gõ vào ô ở cuối khối rồi nhấn Enter (hoặc bấm Gửi). Shift + Enter để xuống dòng. Trên điện thoại, Enter là xuống dòng, hãy bấm nút Gửi.',
+            'Gõ @ rồi vài chữ của tên hoặc email để nhắc một người đứng tên trên hồ sơ. Người được nhắc nhận thông báo trên chuông.',
+            'Có thể trả lời một bình luận, thả cảm xúc, và đính kèm ảnh, PDF, Word, Excel (tối đa 5 tệp, mỗi tệp 10MB).',
+            'Bạn sửa và xoá được bình luận của chính mình qua nút ⋯. Không ai sửa hay xoá được bình luận của người khác.',
+          ],
+          anh: ANH('tbp/binh-luan.png', 'Khối Bình luận ở cuối trang hồ sơ.'),
+        },
+      ],
+      loiThuong: [
+        {
+          hoi: 'Bình luận của phiên bản cũ đâu rồi?',
+          traLoi: 'Mỗi phiên bản có luồng bình luận riêng. Phiên bản mới bắt đầu với luồng trống; luồng của bản cũ vẫn đọc được khi mở bản cũ.',
+        },
+      ],
+    },
+    {
+      id: 'san-pham-chiet-khau',
+      duong: '/san-pham',
+      ten: 'Sản phẩm và Chiết khấu',
+      mucDich: 'Tra giá bán Công ty và quy định chiết khấu để đối chiếu khi duyệt.',
+      khoi: ['Danh mục sản phẩm, giá hiện hành và lịch sử giá.', 'Quy định chiết khấu theo nhóm sản phẩm và loại khách hàng.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Tra khi duyệt',
+          noiDung: [
+            'Hai trang này chỉ để xem. Khi một dòng vượt ngưỡng, bạn mở Chiết khấu để đọc quy định đang áp dụng cho nhóm sản phẩm và loại khách hàng đó.',
+            'Muốn đổi danh mục hoặc quy định thì nhờ Quản trị hệ thống.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'thong-ke',
+      duong: '/thong-ke',
+      ten: 'Thống kê',
+      mucDich: 'Nhìn lại tốc độ duyệt và chất lượng hồ sơ của từng Trình dược viên theo kỳ.',
+      khoi: ['Các biểu đồ theo tuần, tháng, quý, năm.', 'Theo dõi từng Trình dược viên: xếp hạng, cơ cấu chất lượng, số ngày sửa lại.', 'Nút xuất Excel.'],
+      chiTiet: true,
+      buoc: [
+        {
+          tieuDe: 'Chọn kỳ và đọc biểu đồ',
+          noiDung: [
+            'Bốn nút Tuần, Tháng, Quý, Năm ở đầu trang. Trưởng bộ phận mở lên theo tuần. Kỳ đang chạy chưa đủ ngày nên điểm cuối luôn thấp hơn thực tế, và được tô nhạt hơn.',
+            'Muốn biết một chỉ số tính theo mốc nào thì mở khối “Cách tính” ở cuối trang. Các chỉ số đo việc chạy hồ sơ CSBH, không đo doanh số bán hàng.',
+          ],
+          anh: ANH('tbp/thong-ke.png', 'Trang Thống kê của Trưởng bộ phận.'),
+        },
+        {
+          tieuDe: 'Theo dõi từng Trình dược viên',
+          noiDung: [
+            'Bảng xếp hạng liệt kê từng người đã gửi hồ sơ tới bạn: số hồ sơ, nhãn xu hướng và đường nhỏ sáu kỳ gần nhất. Bấm một dòng để lọc cả màn hình theo người đó, bấm lại để bỏ chọn.',
+            'Cơ cấu chất lượng cho thấy với mỗi người bao nhiêu phần trăm hồ sơ ký thẳng, bị trả lại một lần hay từ hai lần. Số ngày sửa lại là quãng từ lúc bạn trả lại tới lúc họ gửi lại, quãng này ăn vào hạn 14 ngày của hồ sơ.',
+          ],
+        },
+      ],
+    },
   ],
 };
 

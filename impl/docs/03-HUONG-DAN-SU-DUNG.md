@@ -297,9 +297,9 @@ Mục **Hướng dẫn** ở **cuối thanh bên của mọi vai trò**. Mỗi n
   kèm **ảnh chụp màn hình thật**, và những câu hỏi hay gặp. Nút **Mở trang này** dẫn tới đúng trang đang
   được mô tả.
 - **Phần chung**: đăng nhập và tài khoản, làm quen với màn hình, luồng duyệt một hồ sơ, khi gặp lỗi.
-- **Tiến độ biên soạn**: *Trình dược viên* đã viết đủ từng bước và có ảnh; các vai trò còn lại đã có mô tả
-  vai trò và danh sách trang, trang nào chưa viết từng bước thì ghi rõ *"đang được biên soạn"* chứ không
-  để trống. Viết nốt theo từng chặng.
+- **Tiến độ biên soạn**: *Trình dược viên* và *Trưởng bộ phận* đã viết đủ từng bước và có ảnh; các vai
+  trò còn lại đã có mô tả vai trò và danh sách trang, trang nào chưa viết từng bước thì ghi rõ *"đang
+  được biên soạn"* chứ không để trống. Viết nốt theo từng chặng.
 - Trang này **chỉ đọc**: không gọi máy chủ, nên mở được cả khi hệ thống đang bận.
 
 ### Hộp thoại `sửa 29/09`

@@ -135,8 +135,14 @@ describe('`0273` màn hình: mỗi người CHỈ thấy hướng dẫn của va
     expect(screen.getAllByRole('note').length).toBeGreaterThan(0);
   });
 
-  it('TDV đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', () => {
-    vaiTro = 'TDV';
+  /*
+   * Vai trò ĐÃ viết đủ từng bước: thêm vai trò vào danh sách này khi chặng của nó xong.
+   * Danh sách là chốt chặn hai chiều — vai trò trong đây mà còn trang `chiTiet: false`
+   * là đỏ, và vai trò ngoài đây thì ca trên vẫn đòi nó nói thẳng "đang biên soạn".
+   */
+  it.each(['TDV', 'TBP'] as const)('%s đã viết đủ từng bước: không trang nào mang ghi chú "đang biên soạn"', (v) => {
+    vaiTro = v;
+    expect(HUONG_DAN_THEO_VAI_TRO[v].trang.every((t) => t.chiTiet)).toBe(true);
     render(<HuongDan />);
     expect(screen.queryAllByRole('note')).toHaveLength(0);
   });
