@@ -40,6 +40,7 @@ import {
   Nhan,
   Truong,
 } from '../components/Chung.js';
+import { ChonCoGo } from '../components/ChonCoGo.js';
 import { DanhSachLech, type LechMuc } from '../components/Lech.js';
 import { batTinhNang } from '@csbh/domain-policy';
 import { useBaoLoi } from '../lib/bao-loi.js';
@@ -1367,19 +1368,13 @@ function HopThoaiHanhDong({
         <Truong key={o.truong} id={`chon-${o.truong}`} nhan={o.nhan} bắtBuộc>
           {(p) => (
             <>
-              <select
+              <ChonCoGo
                 {...p}
-                className="o-nhap"
-                value={chon[o.truong] ?? ''}
-                onChange={(e) => datChon((cu) => ({ ...cu, [o.truong]: e.target.value }))}
-              >
-                <option value="">— Chọn người —</option>
-                {(nguoi?.[o.truong] ?? []).map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.fullName} ({n.username})
-                  </option>
-                ))}
-              </select>
+                giaTri={chon[o.truong] ?? ''}
+                doi={(v) => datChon((cu) => ({ ...cu, [o.truong]: v }))}
+                goiY="Gõ tên hoặc tên đăng nhập"
+                ds={(nguoi?.[o.truong] ?? []).map((n) => ({ gia: n.id, nhan: `${n.fullName} (${n.username})` }))}
+              />
               <span className="ghi-chu">{o.moTa}</span>
               {/* Danh sách RỖNG phải nói ra, không được để một ô chọn trống câm
                   lặng: người dùng sẽ tưởng mình chưa bấm trúng. */}

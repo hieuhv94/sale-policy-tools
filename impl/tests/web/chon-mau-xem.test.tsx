@@ -17,6 +17,7 @@
  * Nên phần lớn tệp này canh **thứ tự**: chọn xong RỒI mới xem, và giữa hai việc
  * ấy phải có một lượt bấm của người dùng.
  */
+import { chonMuc, docMuc, giaTri } from './chon-co-go.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -64,20 +65,22 @@ const bay = () =>
   render(<XemBanMem hoSoId="hs-1" maHoSo="CSBH-0001" dong={() => undefined} />);
 
 /** Ô chọn của BƯỚC MỘT — nhãn khác hẳn ô ĐỔI MẪU ở màn hình sau. */
-const oChon = () => screen.getByLabelText(/Văn bản mẫu/) as HTMLSelectElement;
+const oChon = () => screen.getByLabelText(/Văn bản mẫu/) as HTMLInputElement;
 const nutXem = () => screen.getByRole('button', { name: 'Xem' }) as HTMLButtonElement;
 
 describe('`0145` bước chọn mẫu dùng ô chọn', () => {
-  it('dựng một `select` mang đủ mọi mẫu, không phải một nút cho mỗi mẫu', async () => {
+  it('dựng một ô chọn mang đủ mọi mẫu, không phải một nút cho mỗi mẫu', async () => {
     chanFetch();
     bay();
     const o = await waitFor(oChon);
-    expect(o.tagName).toBe('SELECT');
+    expect(o.getAttribute('role')).toBe('combobox');
 
     // Ba mẫu cộng dòng rỗng đứng đầu.
-    expect(o.options).toHaveLength(MAU.length + 1);
+    const ds = await docMuc(userEvent.setup(), o);
+    expect(ds).toHaveLength(MAU.length + 1);
+    expect(ds[0]!.gia).toBe('');
     for (const m of MAU) {
-      expect([...o.options].some((x) => x.textContent?.includes(m.ten)), m.ten).toBe(true);
+      expect(ds.some((x) => x.nhan.includes(m.ten)), m.ten).toBe(true);
     }
 
     // Và KHÔNG còn nút nào mang tên mẫu — đó là hình dạng cũ.
@@ -92,9 +95,9 @@ describe('`0145` bước chọn mẫu dùng ô chọn', () => {
     chanFetch();
     bay();
     const o = await waitFor(oChon);
-    const dong = [...o.options].find((x) => x.value === 'm2');
-    expect(dong?.textContent).toContain('Mẫu CSBH rút gọn');
-    expect(dong?.textContent).toMatch(/A4 ngang/i);
+    const dong = (await docMuc(userEvent.setup(), o)).find((x) => x.gia === 'm2');
+    expect(dong?.chu).toContain('Mẫu CSBH rút gọn');
+    expect(dong?.chu).toMatch(/A4 ngang/i);
   });
 
   it('`0067` KHÔNG tự chọn hộ: ô mở ra rỗng và nút *Xem* khoá', async () => {
@@ -107,7 +110,7 @@ describe('`0145` bước chọn mẫu dùng ô chọn', () => {
     chanFetch();
     bay();
     const o = await waitFor(oChon);
-    expect(o.value, 'ô chọn mở ra phải RỖNG').toBe('');
+    expect(giaTri(o), 'ô chọn mở ra phải RỖNG').toBe('');
     expect(nutXem().disabled, 'nút *Xem* phải khoá khi chưa chọn').toBe(true);
   });
 
@@ -123,8 +126,8 @@ describe('`0145` bước chọn mẫu dùng ô chọn', () => {
     bay();
     const o = await waitFor(oChon);
 
-    await nd.selectOptions(o, 'm2');
-    expect(o.value).toBe('m2');
+    await chonMuc(nd, o, 'm2');
+    expect(giaTri(o)).toBe('m2');
     // Vẫn đứng ở bước một: ô chọn còn đó, khung xem chưa có.
     expect(oChon()).toBeTruthy();
     expect(document.querySelector('.khung-xem')).toBeNull();
@@ -142,7 +145,7 @@ describe('`0145` bước chọn mẫu dùng ô chọn', () => {
     chanFetch();
     bay();
     const o = await waitFor(oChon);
-    await nd.selectOptions(o, 'm3');
+    await chonMuc(nd, o, 'm3');
     await nd.click(nutXem());
 
     await waitFor(() => expect(document.querySelector('.khung-xem')).not.toBeNull());

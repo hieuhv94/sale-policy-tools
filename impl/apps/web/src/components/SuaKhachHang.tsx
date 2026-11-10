@@ -29,6 +29,7 @@ import {
   tachChucDanh,
 } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
+import { ChonCoGo } from './ChonCoGo.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { usePhien } from '../lib/auth.js';
 import { la404 } from '../lib/loi.js';
@@ -551,24 +552,19 @@ export function BieuMauKhachHang({
         */}
         <Truong id="kh-tinh" nhan="Tỉnh/Thành phố (theo phân cách hành chính cũ)" bắtBuộc>
           {(p) => (
-            <select
+            <ChonCoGo
               {...p}
-              className="o-nhap"
-              value={g.province}
-              onChange={(e) => sua({ province: e.target.value })}
-            >
-              <option value="">— Chọn tỉnh/thành phố —</option>
-              {dsTinhThanh.cu !== null && (
-                <option value={dsTinhThanh.cu} disabled>
-                  {dsTinhThanh.cu} — giá trị cũ, phải chọn lại
-                </option>
-              )}
-              {dsTinhThanh.ds.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              giaTri={g.province}
+              doi={(v) => sua({ province: v })}
+              goiY="Gõ hoặc chọn tỉnh/thành phố"
+              khongCoKetQua={(q) => `Không có tỉnh/thành phố nào khớp “${q}”. Kiểm tra chính tả hoặc chọn từ danh sách.`}
+              ds={[
+                ...(dsTinhThanh.cu !== null
+                  ? [{ gia: dsTinhThanh.cu, nhan: `${dsTinhThanh.cu} — giá trị cũ, phải chọn lại`, tat: true }]
+                  : []),
+                ...dsTinhThanh.ds.map((t) => ({ gia: t, nhan: t })),
+              ]}
+            />
           )}
         </Truong>
         <Truong id="kh-so-nha" nhan="Số nhà, Phường xã (theo đăng ký kinh doanh)" bắtBuộc>
@@ -806,14 +802,13 @@ export function DoiTdvPhuTrach({
         </p>
         <Truong id="tdv-chon" nhan="Trình dược viên" bắtBuộc>
           {(p) => (
-            <select {...p} className="o-nhap" value={chon} onChange={(e) => datChon(e.target.value)}>
-              <option value="">— Chọn —</option>
-              {(ds ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.fullName} ({t.username})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo
+              {...p}
+              giaTri={chon}
+              doi={datChon}
+              goiY="Gõ tên hoặc tên đăng nhập"
+              ds={(ds ?? []).map((t) => ({ gia: t.id, nhan: `${t.fullName} (${t.username})` }))}
+            />
           )}
         </Truong>
 

@@ -22600,3 +22600,20 @@ Lượt phản hồi sáu mục; ba mục (ô chọn có gõ · tích nhiều lo
 **Excel danh sách CSBH bỏ hai cột cấp hồ sơ *Nhóm sản phẩm* và *Chiết khấu cao nhất (%)*.** Ý nghĩa: cột đầu là tập nhóm của MỌI dòng, cột sau là MAX tỷ lệ của MỌI dòng, cả hai lặp lại trên từng dòng sản phẩm. `0081` giữ cột MAX vì "không bị cộng thừa"; đúng, nhưng nó vẫn thừa — khối dòng đã có *Nhóm SP* và *Chiết khấu (%)* của riêng dòng, và liệt kê mọi nhóm cạnh một dòng chỉ thuộc một nhóm đọc như nhóm của dòng ấy. Cột `max_discount`/`product_group_codes` ở `rpt.policy_row` GIỮ: bộ lọc và danh sách vẫn dùng.
 
 **3463+ xanh:** `tests/web` đủ, `catalog.test.ts` 122/122 và `reporting.test.ts` đủ (chạy riêng hai tệp sau `make demo-down`); `make test` đầy đủ chưa chạy.
+
+
+## P321 — `0280` Ô chọn có gõ để tìm cho mọi danh sách dài — CHỈ FRONTEND
+
+Khách hàng duyệt mockup (`artifacts/chon-nhanh-mockup.html`) và chốt: **thêm gõ tìm cho cả các ô khác**, không riêng Tỉnh và Sản phẩm. Cùng lượt: mục *chọn nhiều loại khách* chờ giải thích (xem cuối), mục *lọc theo khoảng chiết khấu* **để làm sau** (mockup giữ nguyên, chưa đụng mã).
+
+**Component `ChonCoGo`** (`components/ChonCoGo.tsx`) — `role="combobox"` + `listbox`, nhận đúng bộ thuộc tính mà `Truong` đưa cho ô nhập. Bốn quyết định: (1) **vẫn là danh sách ĐÓNG** — chữ gõ chỉ để tìm, rời ô mà chưa chọn thì ô trả về mục đang chọn; (2) **bỏ dấu khi so, kể cả `đ`** (NFD không tách `đ`), và so cả dòng phụ; (3) danh sách `position: fixed` theo toạ độ ô, lật lên trên khi bên dưới chật — hộp thoại có vùng cuộn riêng (`.hop-thoai-than`) nên một danh sách `absolute` bị cắt hoặc nới vùng cuộn; (4) **Escape đóng danh sách mà KHÔNG đóng hộp thoại** (hộp nghe Escape ở cấp tài liệu nên phải `stopImmediatePropagation` trên sự kiện gốc), **Enter khi danh sách mở chọn mục chứ không gửi biểu mẫu**. Bẫy của chính lượt này: ô đã có tiêu điểm mà danh sách vừa đóng thì bấm lại **không** bắn `onFocus` → phải có `onClick` mở lại; và **`.focus()` bằng script trong Chrome không giao diện không bắn focus** (trang chưa có tiêu điểm) — QA phải bấm chuột thật qua CDP.
+
+**Chuyển 14 ô**: Tỉnh/Thành phố · Sản phẩm (hộp thêm dòng) · Nhóm sản phẩm ×7 (lọc ở Danh mục/Sản phẩm/Chiết khấu, hộp thêm/sửa sản phẩm, thêm/sửa quy định) · Trình dược viên · Người nhận bàn giao · người duyệt ở hộp gửi duyệt · Người thực hiện/Hành động/Đối tượng (Nhật ký) · Văn bản mẫu ×2 · Trường dữ liệu (soạn mẫu). **Giữ `<select>`** cho tập cố định vài giá trị: Loại khách hàng, Vai trò, Công nợ, Chức danh, Loại giấy tờ, Trạng thái sản phẩm, Hạn xử lý, Thành phần/Mức của tệp log, Tần suất/Thứ.
+
+**Ca kiểm.** Giá trị thật nằm ở `data-gia` (ô hiện NHÃN, không phải giá trị) nên ca cũ dùng `selectOptions`/`.options`/`.value` phải đổi sang trợ giúp `tests/web/chon-co-go.tsx` (`chonMuc`, `docMuc`, `giaTri`) — 8 tệp ca kiểm. Ca mới `chon-co-go-ui.test.tsx` (10 ca). Phá lại (bỏ `stopImmediatePropagation` và `preventDefault` của Enter): đúng hai ca Escape/Enter đỏ.
+
+**Đo trên demo thật** (Chrome không giao diện + CDP, chuột thật) ở 1440 · 768 · 390 · 320: danh sách luôn nằm trong khung nhìn, đúng bề rộng ô, không cuộn ngang trang; gõ *ha noi* ra đúng 1 mục, gõ *sua* ra 2 sản phẩm với chữ *sữa* tô đậm.
+
+**Mục *nhiều loại khách trong một quy định* — giải thích đã gửi khách hàng:** "mọi loại" **không phải một giá trị mà là sự vắng mặt của giá trị** (`customer_type IS NULL`). Cột chỉ chứa được MỘT số (1–3) hoặc NULL, và bốn thứ đứng trên giả định ấy: chỉ mục duy nhất `uq_rule_pham_vi` (`NULLS NOT DISTINCT`), điểm cụ thể `specificity` (loại khách = 1), phép tra ngưỡng chọn dòng cụ thể nhất, và `ruleCode` đóng băng vào dòng hồ sơ. "Loại 1 và 3" không có chỗ để viết. Không phải bất khả: có thể đổi cột thành tập (mảng hoặc bảng nối), kèm đổi cả bốn thứ trên và một migration cho 27 quy định mẫu — chưa làm, chờ khách hàng chọn giữa tạo nhiều dòng (rẻ, đã dựng mockup) và đổi mô hình (đắt, một dòng cho nhiều loại).
+
+**`tests/web` 1207/1207 xanh** (demo bật, `docker run` rời).

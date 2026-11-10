@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
 import { NHAN_KHO, TY_LE_KHO, type LoaiMau, type MauChon } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DangTai, HopThoai, Truong } from './Chung.js';
+import { ChonCoGo } from './ChonCoGo.js';
 import { XemTep } from './XemTep.js';
 
 export type LoaiVanBan = 'HO_SO' | 'HOP_DONG';
@@ -176,29 +177,16 @@ export function XemBanMem({
             */}
             <Truong id="chon-mau-truoc" nhan="Văn bản mẫu" bắtBuộc>
               {(o) => (
-                <select
+                <ChonCoGo
                   {...o}
-                  className="o-nhap"
-                  value={dinhChon}
-                  onChange={(e) => datDinhChon(e.target.value)}
-                >
-                  {/*
-                    DÒNG RỖNG ĐỨNG ĐẦU, và nó là chỗ giữ nguyên luật `0067`.
-
-                    Bỏ nó đi thì ô chọn tự mang mẫu đầu danh sách, tức quay lại
-                    đúng cái `0058` làm và khách hàng đã bác ngày 20/08: phần lớn
-                    người dùng không bao giờ biết mẫu thứ hai tồn tại, và họ gửi
-                    đi bản đầu tiên phần mềm đưa ra chứ không phải bản họ định
-                    gửi. Nút *Xem* khoá theo dòng rỗng ấy.
-                  */}
-                  <option value="">— Chọn văn bản mẫu —</option>
-                  {ds.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.ten}
-                      {phuDe(m) ? ` · ${phuDe(m)}` : ''}
-                    </option>
-                  ))}
-                </select>
+                  giaTri={dinhChon}
+                  doi={datDinhChon}
+                  // DÒNG RỖNG ĐỨNG ĐẦU là chỗ giữ nguyên luật `0067`: bỏ nó thì ô tự mang mẫu đầu
+                  // danh sách — đúng cái `0058` làm và khách hàng đã bác ngày 20/08. Nút *Xem* khoá
+                  // theo giá trị rỗng ấy.
+                  mucRong="— Chọn văn bản mẫu —"
+                  ds={ds.map((m) => ({ gia: m.id, nhan: m.ten, ...(phuDe(m) ? { phu: phuDe(m) } : {}) }))}
+                />
               )}
             </Truong>
           </>
@@ -294,19 +282,12 @@ export function XemBanMem({
             <label className="ghi-chu" htmlFor="chon-mau">
               Mẫu
             </label>
-            <select
+            <ChonCoGo
               id="chon-mau"
-              className="o-nhap"
-              value={chon ?? ''}
-              onChange={(e) => datChon(e.target.value)}
-            >
-              {ds.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.ten}
-                  {phuDe(m) ? ` · ${phuDe(m)}` : ''}
-                </option>
-              ))}
-            </select>
+              giaTri={chon ?? ''}
+              doi={datChon}
+              ds={ds.map((m) => ({ gia: m.id, nhan: m.ten, ...(phuDe(m) ? { phu: phuDe(m) } : {}) }))}
+            />
           </div>
         ) : undefined
       }

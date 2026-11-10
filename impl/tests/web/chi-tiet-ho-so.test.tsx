@@ -15,6 +15,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { chonMuc, docMuc, giaTri } from './chon-co-go.js';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
@@ -767,10 +769,8 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
    * sang ô chọn thì năm ca đỏ cùng lúc ở năm chỗ giống hệt nhau.
    */
   const chonMauRoiXem = async (ten: RegExp | string) => {
-    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
-    const dong = [...o.options].find((x) => new RegExp(ten).test(x.textContent ?? ''));
-    expect(dong, `không thấy mẫu ${String(ten)} trong ô chọn`).toBeDefined();
-    fireEvent.change(o, { target: { value: dong!.value } });
+    const o = await screen.findByLabelText(/Văn bản mẫu/);
+    await chonMuc(userEvent.setup(), o, new RegExp(ten));
     fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
   };
 
@@ -787,11 +787,12 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
 
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
     // `0145` — một Ô CHỌN mang đủ hai mẫu, không phải một nút cho mỗi mẫu.
-    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
-    expect([...o.options].some((x) => /Mẫu A4 dọc/.test(x.textContent ?? ''))).toBe(true);
-    expect([...o.options].some((x) => /Mẫu A4 ngang/.test(x.textContent ?? ''))).toBe(true);
+    const o = await screen.findByLabelText(/Văn bản mẫu/);
+    const ds = await docMuc(userEvent.setup(), o);
+    expect(ds.some((x) => /Mẫu A4 dọc/.test(x.chu))).toBe(true);
+    expect(ds.some((x) => /Mẫu A4 ngang/.test(x.chu))).toBe(true);
     // Ô mở ra RỖNG, và nút *Xem* khoá theo — luật `0067` nằm ở chính hai dòng này.
-    expect(o.value).toBe('');
+    expect(giaTri(o)).toBe('');
     expect((screen.getByRole('button', { name: 'Xem' }) as HTMLButtonElement).disabled).toBe(true);
     // CHƯA gọi máy chủ dựng bản mềm lần nào.
     expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
@@ -825,8 +826,8 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
      * sáu cột và mười cột — hai cái tên do Quản trị đặt không bắt buộc nói ra
      * điều đó, nên ô chọn phải tự nói.
      */
-    const o = (await screen.findByLabelText('Mẫu')) as HTMLSelectElement;
-    expect([...o.options].map((x) => x.textContent)).toEqual([
+    const o = await screen.findByLabelText('Mẫu');
+    expect((await docMuc(userEvent.setup(), o)).map((x) => x.chu)).toEqual([
       'Mẫu A4 dọc · đầy đủ · A4 dọc',
       'Mẫu A4 ngang · đầy đủ · A4 ngang',
       'Mẫu rút gọn · rút gọn · A4 ngang',
@@ -839,7 +840,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await chonMauRoiXem(/Mẫu A4 dọc/);
     const o = await screen.findByLabelText('Mẫu');
-    fireEvent.change(o, { target: { value: MAU[1]!.id } });
+    await chonMuc(userEvent.setup(), o, MAU[1]!.id);
 
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
@@ -1017,7 +1018,7 @@ describe('`0163` gửi duyệt KHÔNG chọn mẫu, và bản mềm luôn hỏi 
     const f = await moGuiDuyet();
     for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
       const o = screen.queryByLabelText(nhan);
-      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
+      if (o) await chonMuc(userEvent.setup(), o, 'nguoi-1');
     }
     const hop = await screen.findByRole('dialog');
     fireEvent.click(within(hop).getByRole('button', { name: /^Xác nhận/ }));
@@ -1059,13 +1060,13 @@ describe('`0163` gửi duyệt KHÔNG chọn mẫu, và bản mềm luôn hỏi 
     const f = await mo({ ...HO_SO, status: 'HIEU_LUC' }, []);
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
 
-    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
-    expect(o.value, 'ô chọn mở ra rỗng').toBe('');
+    const o = await screen.findByLabelText(/Văn bản mẫu/);
+    expect(giaTri(o), 'ô chọn mở ra rỗng').toBe('');
     expect(f.mock.calls.map((c) => String(c[0])).some((x) => x.includes('/available'))).toBe(true);
     expect(f.mock.calls.map((c) => String(c[0])).some((x) => x.includes('/render'))).toBe(false);
 
     // Chọn rồi mới dựng, và dựng bằng đúng mẫu vừa chọn.
-    fireEvent.change(o, { target: { value: MAU[1]!.id } });
+    await chonMuc(userEvent.setup(), o, MAU[1]!.id);
     fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
@@ -1336,8 +1337,8 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Tạo bản mềm' }));
 
-    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
-    const nhan = [...o.options].map((x) => x.textContent ?? '');
+    const o = await screen.findByLabelText(/Văn bản mẫu/);
+    const nhan = (await docMuc(userEvent.setup(), o)).map((x) => x.chu);
     expect(nhan.some((x) => /Mẫu A4 dọc/.test(x)), 'mẫu đầy đủ phải có').toBe(true);
     expect(nhan.some((x) => /Mẫu rút gọn/.test(x)), 'mẫu rút gọn KHÔNG được có').toBe(false);
     expect(f).toBeDefined();

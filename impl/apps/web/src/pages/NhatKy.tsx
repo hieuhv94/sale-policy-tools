@@ -17,6 +17,7 @@ import { layJson } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, DangTai, ONhapNgay, Trong, Truong } from '../components/Chung.js';
+import { ChonCoGo } from '../components/ChonCoGo.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 
@@ -179,53 +180,17 @@ export function NhatKy() {
         </Truong>
         <Truong id="nk-nguoi" nhan="Người thực hiện">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={boLoc.actorId}
-              onChange={(e) => dat('actorId', e.target.value)}
-            >
-              <option value="">Bất kỳ</option>
-              {(facets?.actors ?? []).map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label ?? a.value} ({a.count})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={boLoc.actorId} doi={(v) => dat('actorId', v)} mucRong="Bất kỳ" ds={(facets?.actors ?? []).map((a) => ({ gia: a.value, nhan: `${a.label ?? a.value} (${a.count})` }))} />
           )}
         </Truong>
         <Truong id="nk-hanh-dong" nhan="Hành động">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={boLoc.action}
-              onChange={(e) => dat('action', e.target.value)}
-            >
-              <option value="">Bất kỳ</option>
-              {(facets?.actions ?? []).map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.value} ({a.count})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={boLoc.action} doi={(v) => dat('action', v)} mucRong="Bất kỳ" ds={(facets?.actions ?? []).map((a) => ({ gia: a.value, nhan: `${a.value} (${a.count})` }))} />
           )}
         </Truong>
         <Truong id="nk-doi-tuong" nhan="Đối tượng">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={boLoc.entity}
-              onChange={(e) => dat('entity', e.target.value)}
-            >
-              <option value="">Bất kỳ</option>
-              {(facets?.entities ?? []).map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.value} ({a.count})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={boLoc.entity} doi={(v) => dat('entity', v)} mucRong="Bất kỳ" ds={(facets?.entities ?? []).map((a) => ({ gia: a.value, nhan: `${a.value} (${a.count})` }))} />
           )}
         </Truong>
         <Truong id="nk-ip" nhan="Địa chỉ IP">

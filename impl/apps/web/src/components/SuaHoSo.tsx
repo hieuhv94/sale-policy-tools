@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { computeLine, rate2ToNumeric } from '@csbh/domain-policy';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapNgay, ONhapTien, Truong } from './Chung.js';
+import { ChonCoGo } from './ChonCoGo.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import { homNayVN, tien, tyLe } from '../lib/format.js';
@@ -303,29 +304,23 @@ export function ThemDongSanPham({
 
         <Truong id="dsp-sp" nhan="Sản phẩm" bắtBuộc>
           {(p) => (
-            <select
+            <ChonCoGo
               {...p}
-              className="o-nhap"
-              value={sanPham}
+              giaTri={sanPham}
               disabled={sua}
-              onChange={(e) => datSanPham(e.target.value)}
-            >
-              <option value="">— Chọn sản phẩm —</option>
-              {/* Khi sửa, danh mục có thể KHÔNG còn sản phẩm này (đã vô hiệu
-                  hoá) — nhưng hồ sơ vẫn giữ nó. Thêm thẳng một mục từ chính dòng
-                  đang sửa, nếu không ô chọn sẽ hiện rỗng và người dùng tưởng dữ
-                  liệu hỏng. */}
-              {sua && !(ds ?? []).some((s) => s.id === dongCu.productId) && (
-                <option value={dongCu.productId}>
-                  {dongCu.productName} ({dongCu.productCode})
-                </option>
-              )}
-              {(ds ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.code})
-                </option>
-              ))}
-            </select>
+              doi={datSanPham}
+              goiY="Gõ mã hoặc tên sản phẩm"
+              khongCoKetQua={(q) => `Không có sản phẩm nào khớp “${q}”. Thử gõ mã sản phẩm hoặc bớt chữ.`}
+              ds={[
+                // Khi sửa, danh mục có thể KHÔNG còn sản phẩm này (đã vô hiệu hoá)
+                // — nhưng hồ sơ vẫn giữ nó. Thêm thẳng một mục từ chính dòng đang
+                // sửa, nếu không ô chọn hiện rỗng và người dùng tưởng dữ liệu hỏng.
+                ...(sua && !(ds ?? []).some((s) => s.id === dongCu.productId)
+                  ? [{ gia: dongCu.productId, nhan: `${dongCu.productName} (${dongCu.productCode})` }]
+                  : []),
+                ...(ds ?? []).map((s) => ({ gia: s.id, nhan: `${s.name} (${s.code})` })),
+              ]}
+            />
           )}
         </Truong>
 

@@ -12,6 +12,7 @@
  * trường trong câu trả lời → hiện đúng khối cảnh báo.
  */
 import { readFileSync } from 'node:fs';
+import { chonMuc, docMuc, giaTri } from './chon-co-go.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -76,8 +77,12 @@ const moHopThoai = () =>
 
 const chonSanPham = async () => {
   const nguoi = userEvent.setup();
-  await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
-  await nguoi.selectOptions(screen.getByRole('combobox'), 'sp-1');
+  // Danh sách nạp bất đồng bộ: mở ô, đợi mục xuất hiện, rồi chọn.
+  const o = screen.getByRole('combobox');
+  await waitFor(async () => {
+    expect((await docMuc(nguoi, o)).some((m) => /Nutricare Gold/.test(m.nhan))).toBe(true);
+  });
+  await chonMuc(nguoi, o, 'sp-1');
 };
 
 describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
@@ -90,7 +95,7 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
 
     // Chờ lời gọi xem trước xong hẳn rồi mới khẳng định "không có gì" — khẳng
     // định ngay lập tức thì test xanh cả khi cảnh báo hiện ra một nhịp sau đó.
-    await waitFor(() => expect(screen.getByRole('combobox')).toHaveProperty('value', 'sp-1'));
+    await waitFor(() => expect(giaTri(screen.getByRole('combobox'))).toBe('sp-1'));
     await new Promise((r) => setTimeout(r, 0));
     expect(document.querySelector('.hop-canh-bao')).toBeNull();
   });
@@ -182,7 +187,10 @@ describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
   it('chưa chọn sản phẩm thì KHÔNG hiện con số nào', async () => {
     chanFetch(() => phanHoi(200, {}));
     moHopThoai();
-    await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
+    const o = screen.getByRole('combobox');
+    await waitFor(async () => {
+      expect((await docMuc(userEvent.setup(), o)).some((m) => /Nutricare Gold/.test(m.nhan))).toBe(true);
+    });
     expect(screen.queryByText(/Giá bán Công ty của sản phẩm này/)).toBeNull();
   });
 

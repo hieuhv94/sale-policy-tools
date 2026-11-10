@@ -10,6 +10,7 @@
  * quên một trong hai mảnh kia là bỏ đi một câu trả lời và không đưa lại gì.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { chonMuc, docMuc } from './chon-co-go.js';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TheChietKhau } from '@csbh/web/chiet-khau-ui';
@@ -130,20 +131,21 @@ describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => 
     await bay();
     // Lựa chọn đầu KHÔNG lọc gì. Thiếu nó thì người dùng chọn xong không có
     // đường quay lại xem toàn bộ, ngoài việc tải lại trang.
-    expect(within(oNhom()).getByRole('option', { name: /Mọi nhóm/ })).toBeDefined();
+    expect((await docMuc(userEvent.setup(), oNhom())).some((m) => m.gia === '' && /Mọi nhóm/.test(m.nhan))).toBe(true);
     expect(within(oLoai()).getByRole('option', { name: /Mọi loại/ })).toBeDefined();
   });
 
   it('ô nhóm liệt kê đúng các nhóm được truyền vào', async () => {
     await bay();
-    expect(within(oNhom()).getByRole('option', { name: /Sữa nước/ })).toBeDefined();
-    expect(within(oNhom()).getByRole('option', { name: /Bột dinh dưỡng/ })).toBeDefined();
+    const ds = (await docMuc(userEvent.setup(), oNhom())).map((m) => m.nhan).join('|');
+    expect(ds).toMatch(/Sữa nước/);
+    expect(ds).toMatch(/Bột dinh dưỡng/);
   });
 
   it('chọn một nhóm thì gửi `groupCode` LÊN MÁY CHỦ', async () => {
     const nguoi = userEvent.setup();
     await bay();
-    await nguoi.selectOptions(oNhom(), 'SUA');
+    await chonMuc(nguoi, oNhom(), 'SUA');
     // Đây là cả điểm của `0049`: điều kiện lọc đi lên máy chủ, không chạy trên
     // 200 dòng đã tải. Khẳng định trên ĐƯỜNG GỌI chứ không trên bảng — bảng chỉ
     // vẽ lại thứ máy chủ trả về, nên nó không chứng minh được phép lọc ở đâu.
@@ -160,7 +162,7 @@ describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => 
   it('hai ô chọn kết hợp trong CÙNG một lời gọi', async () => {
     const nguoi = userEvent.setup();
     await bay();
-    await nguoi.selectOptions(oNhom(), 'BOT');
+    await chonMuc(nguoi, oNhom(), 'BOT');
     await nguoi.selectOptions(oLoai(), '3');
     await waitFor(() => {
       expect(daGoi.at(-1)).toContain('groupCode=BOT');
@@ -171,9 +173,9 @@ describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => 
   it('mở lại về "mọi" thì bỏ hẳn điều kiện, không gửi chuỗi rỗng', async () => {
     const nguoi = userEvent.setup();
     await bay();
-    await nguoi.selectOptions(oNhom(), 'SUA');
+    await chonMuc(nguoi, oNhom(), 'SUA');
     await waitFor(() => expect(daGoi.at(-1)).toContain('groupCode=SUA'), { timeout: 3000 });
-    await nguoi.selectOptions(oNhom(), '');
+    await chonMuc(nguoi, oNhom(), '');
     // `groupCode=` rỗng cũng bị máy chủ bỏ qua, nhưng gửi nó lên là để lại một
     // đường gọi đọc như thể có điều kiện lọc — và đó là thứ người sau đi tìm khi
     // gỡ lỗi "vì sao danh sách không đổi".
@@ -183,7 +185,7 @@ describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => 
   it('đang lọc thì nói rõ danh sách VẪN GỒM quy định chung', async () => {
     const nguoi = userEvent.setup();
     await bay();
-    await nguoi.selectOptions(oNhom(), 'SUA');
+    await chonMuc(nguoi, oNhom(), 'SUA');
     // Không nói ra thì người dùng thấy một dòng "mọi nhóm sản phẩm" nằm trong
     // kết quả lọc theo nhóm SUA và tưởng bộ lọc hỏng.
     await waitFor(() => expect(document.body.textContent).toContain('vẫn áp cho lựa chọn này'), {
@@ -194,7 +196,7 @@ describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => 
   it('không dòng nào khớp thì nói KHÔNG KHỚP, không bày lại cả bảng', async () => {
     const nguoi = userEvent.setup();
     await bay((d) => (d.includes('groupCode=SUA') ? [] : QUY_DINH));
-    await nguoi.selectOptions(oNhom(), 'SUA');
+    await chonMuc(nguoi, oNhom(), 'SUA');
     await waitFor(() => {
       expect(screen.queryByRole('table')).toBeNull();
       expect(screen.getByText(/Không có quy định nào khớp/)).toBeDefined();
@@ -250,7 +252,7 @@ describe('`0279` sửa được nhóm sản phẩm và loại khách hàng', () 
 
   it('hộp sửa có hai ô chọn phạm vi, mã thì không sửa', async () => {
     await moSua();
-    expect(trongHop().getByLabelText('Nhóm sản phẩm')).toBeInstanceOf(HTMLSelectElement);
+    expect(trongHop().getByLabelText('Nhóm sản phẩm').getAttribute('role')).toBe('combobox');
     expect(trongHop().getByLabelText('Loại khách hàng')).toBeInstanceOf(HTMLSelectElement);
     expect(trongHop().queryByLabelText(/Mã quy định/)).toBeNull();
   });

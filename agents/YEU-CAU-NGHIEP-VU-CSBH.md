@@ -2126,7 +2126,7 @@ trong một lượt phản hồi, và chúng chạm cùng một màn hình:
 > 1. Mục *Tên khách hàng* đổi nhãn thành ***Tên Hộ kinh doanh/Tên Công ty***.
 > 2. Biểu mẫu bỏ ô *Địa chỉ đăng ký*, thay bằng **hai ô bắt buộc**: *Tỉnh/Thành phố (theo đăng ký
 >    kinh doanh)* và *Số nhà, Phường xã (theo đăng ký kinh doanh)* — và **chỉ có một** địa chỉ.
->    (`sửa 12/11` — nhãn ô đổi thành *Tỉnh/Thành phố (theo phân cách hành chính cũ)*.)
+>    (`sửa 12/11` — nhãn ô đổi thành *Tỉnh/Thành phố (theo phân cách hành chính cũ)*; ô vẫn là danh sách đóng 63 đơn vị nhưng **gõ để tìm được**, kể cả gõ không dấu.)
 >    (`sửa 19/09` — *Tỉnh/Thành phố* thôi là ô gõ tự do: nó là **ô chọn trong 63 tỉnh, thành phố
 >    theo danh sách CŨ**, viết tên ngắn, và máy chủ từ chối mọi giá trị ngoài danh sách ấy.)
 > 3. Hai ô ấy **hiện ra ở trang thông tin khách hàng**.

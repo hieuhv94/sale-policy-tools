@@ -29,6 +29,7 @@ import {
   Trong,
   Truong,
 } from '../Chung.js';
+import { ChonCoGo } from '../ChonCoGo.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { batTinhNang } from '@csbh/domain-policy';
 import { PhanTrang } from '../PhanTrang.js';
@@ -121,19 +122,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
         />
         <Truong id="loc-nhom-sp" nhan="Nhóm sản phẩm">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={locNhom}
-              onChange={(e) => datLocNhom(e.target.value)}
-            >
-              <option value="">— Mọi nhóm —</option>
-              {nhom.map((x) => (
-                <option key={x.id} value={x.code}>
-                  {x.name} ({x.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={locNhom} doi={datLocNhom} mucRong="— Mọi nhóm —" ds={nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` }))} />
           )}
         </Truong>
         {dangLoc && (
@@ -263,13 +252,7 @@ function HopThoaiTao({
         */}
         <Truong id="sp-nhom" nhan="Nhóm" bắtBuộc>
           {(p) => (
-            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
-              {nhom.map((n) => (
-                <option key={n.id} value={n.code}>
-                  {n.name} ({n.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={maNhom} doi={datMaNhom} goiY="Gõ tên hoặc mã nhóm" ds={nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` }))} />
           )}
         </Truong>
         <Truong id="sp-gia" nhan="Giá bán Công ty" bắtBuộc>
@@ -411,16 +394,17 @@ function HopThoaiSua({
         */}
         <Truong id="sp-sua-nhom" nhan="Nhóm" bắtBuộc>
           {(p) => (
-            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
-              {!nhom.some((n) => n.code === sp.groupCode) && (
-                <option value={sp.groupCode}>{sp.groupCode}</option>
-              )}
-              {nhom.map((n) => (
-                <option key={n.id} value={n.code}>
-                  {n.name} ({n.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo
+              {...p}
+              giaTri={maNhom}
+              doi={datMaNhom}
+              goiY="Gõ tên hoặc mã nhóm"
+              ds={[
+                // Nhóm của sản phẩm có thể không còn trong danh sách: thêm thẳng một mục, kẻo ô rỗng.
+                ...(!nhom.some((n) => n.code === sp.groupCode) ? [{ gia: sp.groupCode, nhan: sp.groupCode }] : []),
+                ...nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` })),
+              ]}
+            />
           )}
         </Truong>
         {doiNhom && (

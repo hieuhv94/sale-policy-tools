@@ -4864,3 +4864,48 @@ svg.bd-nho { width: 62px; margin: 0; }
     right: max(var(--chan), min(0px, var(--noi)));
   }
 }
+
+
+/* --- Ô chọn có gõ (`0280`) --------------------------------------------------
+   Danh sách `position: fixed` theo toạ độ ô (xem `ChonCoGo.tsx`) nên không bị
+   vùng cuộn của hộp thoại hay khung bảng cắt. `z-index` cao hơn lớp phủ hộp thoại
+   (50) nhưng thấp hơn lớp phủ hết phiên. */
+.chon-go { position: relative; }
+.chon-go .o-nhap { padding-right: var(--k5); text-overflow: ellipsis; }
+.chon-go-mui {
+  position: absolute;
+  right: var(--k3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--mau-chu-nhat);
+  font-size: var(--chu-nho);
+  pointer-events: none;
+}
+.chon-go-ds {
+  position: fixed;
+  z-index: 60;
+  overflow-y: auto;
+  padding: var(--k1);
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  box-shadow: var(--bong-noi);
+}
+.chon-go-muc {
+  display: grid;
+  gap: 2px;
+  padding: var(--k2) var(--k3);
+  border-radius: var(--bo-goc);
+  color: var(--mau-chu);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.chon-go-muc[aria-selected="true"] { background: var(--mau-nen-hover); }
+.chon-go-muc.da-chon .chon-go-nhan { font-weight: 600; color: var(--mau-thuong-hieu); }
+.chon-go-muc.tat { color: var(--mau-chu-nhat); cursor: not-allowed; }
+.chon-go-muc mark { background: none; color: var(--mau-thuong-hieu); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.chon-go-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+.chon-go-trong { padding: var(--k3); color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+@media (pointer: coarse) {
+  .chon-go-muc { min-height: var(--vung-cham); align-content: center; }
+}

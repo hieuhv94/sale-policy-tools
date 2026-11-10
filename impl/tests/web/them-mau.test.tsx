@@ -9,6 +9,8 @@
  * thông báo lỗi nói "không có trường nguồn" về đúng thứ phần mềm vừa mời họ dùng.
  */
 import { readFileSync } from 'node:fs';
+import userEvent from '@testing-library/user-event';
+import { docMuc, giaTri } from './chon-co-go.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { KHOA_HUONG_DAN, ThemMau } from '@csbh/web/them-mau';
@@ -97,8 +99,8 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     bay('HO_SO');
     await chonTep();
 
-    const o = screen.getByLabelText('Trường dữ liệu cho {{ho_so.ma_ho_so}}') as HTMLSelectElement;
-    expect(o.value, 'máy chủ đoán sẵn theo tên ô trống').toBe('ho_so.ma_ho_so');
+    const o = screen.getByLabelText('Trường dữ liệu cho {{ho_so.ma_ho_so}}');
+    expect(giaTri(o), 'máy chủ đoán sẵn theo tên ô trống').toBe('ho_so.ma_ho_so');
     // Ô bảng sản phẩm KHÔNG có ô chọn — nó không trỏ tới trường nào.
     expect(screen.queryByLabelText('Trường dữ liệu cho {{bang_san_pham}}')).toBeNull();
     expect(screen.getByRole('dialog').textContent).toContain('Cả bảng sản phẩm');
@@ -114,8 +116,8 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     bay('HO_SO');
     await chonTep();
 
-    const o = screen.getByLabelText('Trường dữ liệu cho {{ho_so.ma_ho_so}}') as HTMLSelectElement;
-    const muc = [...o.options].map((x) => x.textContent);
+    const o = screen.getByLabelText('Trường dữ liệu cho {{ho_so.ma_ho_so}}');
+    const muc = (await docMuc(userEvent.setup(), o)).map((x) => x.nhan);
     expect(muc).toContain('ho_so.ten_khach_hang');
     expect(muc).not.toContain('Tên khách hàng');
   });

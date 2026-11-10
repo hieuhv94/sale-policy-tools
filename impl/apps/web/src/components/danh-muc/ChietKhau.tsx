@@ -38,6 +38,7 @@ import {
   Trong,
   Truong,
 } from '../Chung.js';
+import { ChonCoGo } from '../ChonCoGo.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
@@ -119,19 +120,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
       <div className="hang-tim">
         <Truong id="loc-nhom-ck" nhan="Nhóm sản phẩm">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={locNhom}
-              onChange={(e) => datLocNhom(e.target.value)}
-            >
-              <option value="">— Mọi nhóm —</option>
-              {nhom.map((x) => (
-                <option key={x.id} value={x.code}>
-                  {x.name} ({x.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={locNhom} doi={datLocNhom} mucRong="— Mọi nhóm —" ds={nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` }))} />
           )}
         </Truong>
         <Truong id="loc-loai-ck" nhan="Loại khách hàng">
@@ -356,20 +345,20 @@ function HopThoaiSuaQuyDinh({
 
         <Truong id="ck-sua-nhom" nhan="Nhóm sản phẩm">
           {(p) => (
-            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
-              <option value="">— Mọi nhóm —</option>
-              {/* Nhóm của quy định có thể không còn trong danh sách (đã xoá) —
-                  thêm thẳng một mục, nếu không ô chọn rơi về "Mọi nhóm" và lượt
-                  Lưu tiếp theo âm thầm nới phạm vi của quy định. */}
-              {q.productGroupCode && !nhom.some((x) => x.code === q.productGroupCode) && (
-                <option value={q.productGroupCode}>{q.productGroupCode}</option>
-              )}
-              {nhom.map((x) => (
-                <option key={x.id} value={x.code}>
-                  {x.name} ({x.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo
+              {...p}
+              giaTri={maNhom}
+              doi={datMaNhom}
+              mucRong="— Mọi nhóm —"
+              ds={[
+                // Nhóm của quy định có thể không còn trong danh sách (đã xoá): thêm thẳng một mục,
+                // kẻo ô rơi về "Mọi nhóm" và lượt Lưu tiếp theo âm thầm nới phạm vi.
+                ...(q.productGroupCode && !nhom.some((x) => x.code === q.productGroupCode)
+                  ? [{ gia: q.productGroupCode, nhan: q.productGroupCode }]
+                  : []),
+                ...nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` })),
+              ]}
+            />
           )}
         </Truong>
 
@@ -510,14 +499,7 @@ function HopThoaiTaoQuyDinh({
 
         <Truong id="ck-nhom" nhan="Nhóm sản phẩm">
           {(p) => (
-            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
-              <option value="">— Mọi nhóm —</option>
-              {nhom.map((x) => (
-                <option key={x.id} value={x.code}>
-                  {x.name} ({x.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={maNhom} doi={datMaNhom} mucRong="— Mọi nhóm —" ds={nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` }))} />
           )}
         </Truong>
 

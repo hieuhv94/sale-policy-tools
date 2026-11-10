@@ -9,6 +9,7 @@
  * cạnh ĐÚNG con số của khoản có nội dung (phương án B).
  */
 import { readFileSync } from 'node:fs';
+import { chonMuc, docMuc } from './chon-co-go.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -53,8 +54,11 @@ describe('`0268` hộp thoại: ô Nội dung cho từng khoản', () => {
     const f = chanFetch();
     render(<ThemDongSanPham hoSoId="hs-9" dong={() => undefined} xong={() => undefined} />);
     const nguoi = userEvent.setup();
-    await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
-    await nguoi.selectOptions(screen.getByRole('combobox'), 'sp-1');
+    const o = screen.getByRole('combobox');
+    await waitFor(async () => {
+      expect((await docMuc(nguoi, o)).some((m) => /Nutricare Gold/.test(m.nhan))).toBe(true);
+    });
+    await chonMuc(nguoi, o, 'sp-1');
     await nguoi.type(screen.getByLabelText(/Giá bán buôn/), '100000');
     return { f, nguoi };
   };

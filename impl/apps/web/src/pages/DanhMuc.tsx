@@ -23,6 +23,7 @@ import {
   type TheSanPhamKhoa,
 } from '../lib/danh-muc.js';
 import { BaoLoi, DaiThe, DangTai, NhanSanPham, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { ChonCoGo } from '../components/ChonCoGo.js';
 import { tien } from '../lib/format.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
@@ -186,19 +187,7 @@ function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {
         <OTimKiem id="tim-san-pham" nhan="Tìm theo tên sản phẩm" giaTri={tim} doi={datTim} />
         <Truong id="loc-nhom-sp-xem" nhan="Nhóm sản phẩm">
           {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={locNhom}
-              onChange={(e) => datLocNhom(e.target.value)}
-            >
-              <option value="">— Mọi nhóm —</option>
-              {nhom.map((x) => (
-                <option key={x.id} value={x.code}>
-                  {x.name} ({x.code})
-                </option>
-              ))}
-            </select>
+            <ChonCoGo {...p} giaTri={locNhom} doi={datLocNhom} mucRong="— Mọi nhóm —" ds={nhom.map((x) => ({ gia: x.code, nhan: `${x.name} (${x.code})` }))} />
           )}
         </Truong>
         {dangLoc && (

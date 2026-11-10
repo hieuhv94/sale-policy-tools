@@ -642,7 +642,7 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
   bắt buộc nên không lưu được khi còn trống.
 - **Nhãn ô Tỉnh/Thành phố** `sửa 12/11` đọc *Tỉnh/Thành phố (theo phân cách hành chính cũ)* — nói thẳng danh sách là 63 đơn vị trước sáp nhập.
 - **Tỉnh/Thành phố là ô CHỌN, không gõ tay** `sửa 19/09` — bấm vào ô là sổ xuống **63 tỉnh, thành
-  phố theo danh sách CŨ**, xếp A–Z. Ô đang mở thì gõ vài chữ cái đầu là nhảy thẳng tới tên cần chọn.
+  phố theo danh sách CŨ**, xếp A–Z. **Gõ để tìm** `sửa 12/11`: bấm vào ô rồi gõ vài chữ, danh sách thu hẹp ngay — gõ **không dấu** (*ha noi*) vẫn ra *Hà Nội*. Chữ gõ chỉ để tìm, không bao giờ thành giá trị: phải chọn một tên trong danh sách. Bàn phím: ↑ ↓ di chuyển, Enter chọn, Esc đóng danh sách.
   > Danh sách cũ chứ không phải 34 đơn vị sau sáp nhập: ô này khai địa chỉ **theo giấy đăng ký kinh
   > doanh**, mà giấy tờ của khách hàng vẫn mang tên cũ.
   >
@@ -2812,3 +2812,10 @@ Nói trước để khỏi đi tìm:
 - **Không cảnh báo giấy tờ pháp lý hết hạn.**
 - **Nhập dữ liệu CSBH cũ từ Excel** đang hoãn sang giai đoạn 2.
 - **Báo hồ sơ lệch khi giá hoặc chiết khấu đổi** (*Yêu cầu cập nhật*, mục 4) hoãn sang phiên bản sau `sửa 24/10`.
+
+
+---
+
+## Ô chọn có gõ để tìm `sửa 12/11`
+
+Các ô chọn có danh sách **dài hoặc tăng theo dữ liệu** đều cho gõ để tìm, giống ô *Tỉnh/Thành phố* ở mục 5: *Sản phẩm* (hộp thêm sản phẩm vào CSBH), *Nhóm sản phẩm* (bộ lọc và biểu mẫu ở Sản phẩm · Chiết khấu · Danh mục), *Trình dược viên*, *Người nhận bàn giao*, người duyệt khi gửi duyệt, *Người thực hiện* · *Hành động* · *Đối tượng* ở Nhật ký, *Văn bản mẫu* và *Trường dữ liệu* khi soạn mẫu. Gõ không dấu vẫn ra tên có dấu; mã hoặc tên đều tìm được. Những ô chỉ có vài lựa chọn cố định (Loại khách hàng, Vai trò, Công nợ, Chức danh, Hạn xử lý…) vẫn là ô chọn thường.

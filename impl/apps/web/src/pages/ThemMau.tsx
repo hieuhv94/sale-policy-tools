@@ -34,6 +34,7 @@ import {
   type TruongAnhXa,
 } from '../lib/mau-hop-dong.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Truong } from '../components/Chung.js';
+import { ChonCoGo } from '../components/ChonCoGo.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 /**
@@ -480,27 +481,16 @@ export function ThemMau({
                         <code className="the-khoa">{o}</code>
                       </td>
                       <td>
-                        <select
-                          className="o-nhap"
+                        <ChonCoGo
+                          id={`anh-xa-${o}`}
                           aria-label={`Trường dữ liệu cho ${o}`}
-                          value={anhXa[o] ?? ''}
-                          onChange={(e) => datAnhXa((cu) => ({ ...cu, [o]: e.target.value }))}
-                        >
-                          <option value="">— chưa chọn —</option>
-                          {/*
-                            Hiện TÊN KHOÁ, không hiện chú thích (`0068`).
-
-                            Người dùng vừa đọc tên ô trống ở cột bên trái và đang
-                            đi tìm cái trùng với nó. Bày chú thích tiếng Việt ra
-                            đây là bắt họ dịch hai chiều giữa hai cách gọi tên
-                            cho từng dòng một.
-                          */}
-                          {(danhMuc?.knownSources ?? []).map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
+                          giaTri={anhXa[o] ?? ''}
+                          doi={(v) => datAnhXa((cu) => ({ ...cu, [o]: v }))}
+                          mucRong="— chưa chọn —"
+                          // Hiện TÊN KHOÁ, không hiện chú thích (`0068`): người dùng vừa đọc tên ô trống ở
+                          // cột bên trái và đang đi tìm cái trùng với nó.
+                          ds={(danhMuc?.knownSources ?? []).map((s) => ({ gia: s, nhan: s }))}
+                        />
                       </td>
                     </tr>
                   ),

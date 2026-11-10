@@ -9,9 +9,10 @@
  * định ngưỡng chiết khấu của mọi dòng sản phẩm họ sắp nhập.
  */
 import { readFileSync } from 'node:fs';
+import { chonMuc, docMuc, giaTri } from './chon-co-go.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement } from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BieuMauKhachHang, type KhachHangDayDu } from '@csbh/web/sua-khach-hang';
 import { PhienProvider } from '@csbh/web/auth';
@@ -180,16 +181,32 @@ describe('0023 chỉ gửi customerType khi thật sự đổi', () => {
  * nó mở ra với giá trị nào, và một giá trị CŨ ngoài danh sách thì ra sao.
  */
 describe('`0205` ô Tỉnh/Thành phố', () => {
-  const oTinh = () => screen.getByLabelText(/Tỉnh\/Thành phố/) as HTMLSelectElement;
+  const oTinh = () => screen.getByLabelText(/Tỉnh\/Thành phố/) as HTMLInputElement;
 
-  it('là ô CHỌN, đủ 63 tên cộng một mục rỗng, đặt sẵn giá trị của khách', () => {
+  it('là ô CHỌN có gõ, đủ 63 tên, đặt sẵn giá trị của khách', async () => {
     chanFetch();
     moSua();
-    expect(oTinh().tagName).toBe('SELECT');
-    // 63 + mục trống. Đếm chứ không `toContain` một cái tên: thiếu vài tỉnh thì
-    // ô chọn vẫn trông đầy đủ với người đang thử bằng mắt.
-    expect(oTinh().options).toHaveLength(64);
-    expect(oTinh().value).toBe('Hà Nội');
+    expect(oTinh().getAttribute('role')).toBe('combobox');
+    // Đếm chứ không `toContain` một cái tên: thiếu vài tỉnh thì ô chọn vẫn trông
+    // đầy đủ với người đang thử bằng mắt. Không có mục rỗng: ô trống là *chưa chọn*.
+    expect(await docMuc(userEvent.setup(), oTinh())).toHaveLength(63);
+    expect(giaTri(oTinh())).toBe('Hà Nội');
+  });
+
+  it('gõ KHÔNG DẤU vẫn ra tên có dấu, và chữ lạ không thành giá trị', async () => {
+    const nguoi = userEvent.setup();
+    chanFetch();
+    dung(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
+    await nguoi.click(oTinh());
+    await nguoi.type(oTinh(), 'ha noi');
+    const ds = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(ds.map((m) => m.getAttribute('data-gia'))).toEqual(['Hà Nội']);
+    // Chữ không có trong danh sách: nói ra, và giá trị vẫn rỗng.
+    await nguoi.clear(oTinh());
+    await nguoi.type(oTinh(), 'xyz');
+    expect(screen.getByText(/Không có tỉnh\/thành phố nào khớp/)).toBeDefined();
+    await nguoi.tab();
+    expect(giaTri(oTinh())).toBe('');
   });
 
   it('biểu mẫu LẬP MỚI mở ra với ô TRỐNG, không tự chọn tỉnh đầu danh sách', async () => {
@@ -200,7 +217,7 @@ describe('`0205` ô Tỉnh/Thành phố', () => {
      */
     chanFetch();
     dung(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
-    expect(oTinh().value).toBe('');
+    expect(giaTri(oTinh())).toBe('');
   });
 
   it('giá trị CŨ ngoài danh sách vẫn hiện ra, và KHÔNG chọn lại được', async () => {
@@ -221,17 +238,20 @@ describe('`0205` ô Tỉnh/Thành phố', () => {
         xong={() => undefined}
       />,
     );
-    expect(oTinh().value).toBe('TP Hồ Chí Minh');
-    expect(oTinh().options).toHaveLength(65);
-    const cu = [...oTinh().options].find((o) => o.value === 'TP Hồ Chí Minh');
-    expect(cu?.disabled).toBe(true);
+    expect(giaTri(oTinh())).toBe('TP Hồ Chí Minh');
+    const ds = await docMuc(userEvent.setup(), oTinh());
+    expect(ds).toHaveLength(64);
+    const cu = within(screen.getByRole('listbox'))
+      .getAllByRole('option')
+      .find((o) => o.getAttribute('data-gia') === 'TP Hồ Chí Minh');
+    expect(cu?.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('chọn một tỉnh rồi Lưu thì thân request mang đúng tên trong bảng', async () => {
     const nguoi = userEvent.setup();
     const f = chanFetch();
     moSua();
-    await nguoi.selectOptions(oTinh(), 'Thừa Thiên Huế');
+    await chonMuc(nguoi, oTinh(), 'Thừa Thiên Huế');
     await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(thanDaGui(f)).toBeDefined());

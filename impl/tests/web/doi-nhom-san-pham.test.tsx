@@ -8,6 +8,7 @@
  * `groupCode` chỉ đi lên khi thật sự đổi (một lượt sửa tên không được kéo theo
  * một lượt đổi nhóm), và câu hậu quả hiện ra khi đổi.
  */
+import { chonMuc, giaTri } from './chon-co-go.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -52,7 +53,7 @@ const bay = async () => {
 };
 
 // Theo `id`, không theo nhãn: bộ lọc ở đầu trang cũng có nhãn bắt đầu bằng *Nhóm*.
-const oNhom = () => document.getElementById('sp-sua-nhom') as HTMLSelectElement;
+const oNhom = () => document.getElementById('sp-sua-nhom') as HTMLInputElement;
 const luu = async () => {
   await userEvent.type(screen.getByLabelText(/Gõ lại mã/), 'NC-01');
   await userEvent.click(screen.getByRole('button', { name: 'Lưu' }));
@@ -67,12 +68,12 @@ afterEach(() => {
 describe('`0238` sửa sản phẩm — đổi nhóm', () => {
   it('ô Nhóm mở ra ở ĐÚNG nhóm đang có', async () => {
     await bay();
-    expect(oNhom().value).toBe('SUA-BOT');
+    expect(giaTri(oNhom())).toBe('SUA-BOT');
   });
 
   it('đổi nhóm → gửi `groupCode` mới, và câu hậu quả nhắc *Yêu cầu cập nhật*', async () => {
     await bay();
-    await userEvent.selectOptions(oNhom(), 'SUA-NUOC');
+    await chonMuc(userEvent.setup(), oNhom(), 'SUA-NUOC');
     expect(document.body.textContent).toContain('Đổi nhóm là đổi quy định chiết khấu');
     await luu();
     expect(daGui!['groupCode']).toBe('SUA-NUOC');

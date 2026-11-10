@@ -29,6 +29,7 @@ import {
   ThanhHoanTac,
   Truong,
 } from '../components/Chung.js';
+import { ChonCoGo } from '../components/ChonCoGo.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
@@ -556,19 +557,13 @@ function HopThoaiVoHieu({
           <Truong id="nguoi-nhan" nhan={`Người nhận bàn giao (${u.role})`} bắtBuộc>
             {(p) => (
               <>
-                <select
+                <ChonCoGo
                   {...p}
-                  className="o-nhap"
-                  value={nguoiNhan}
-                  onChange={(e) => datNguoiNhan(e.target.value)}
-                >
-                  <option value="">— Chọn người nhận —</option>
-                  {(ungVien ?? []).map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.fullName} ({x.username})
-                    </option>
-                  ))}
-                </select>
+                  giaTri={nguoiNhan}
+                  doi={datNguoiNhan}
+                  goiY="Gõ tên hoặc tên đăng nhập"
+                  ds={(ungVien ?? []).map((x) => ({ gia: x.id, nhan: `${x.fullName} (${x.username})` }))}
+                />
                 {ungVien !== null && ungVien.length === 0 && (
                   <span className="ghi-chu canh-bao">
                     Không có tài khoản {u.role} nào khác đang hoạt động để nhận bàn giao. Tạo và kích
