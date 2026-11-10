@@ -580,6 +580,24 @@ dựng lại; mỗi bước in `▶` lúc chạy, `✔` lúc xong. Chi tiết �
 > xoá dòng `CSBH_TAG` khỏi `.env`, rồi `./csbh cap-nhat`. Các đoạn dưới đây nhắc
 > `nang-cap <thẻ>` là ghi chép cho máy chạy bản cũ hơn — lệnh ấy đã thay bằng `cap-nhat`.
 
+> **Từ `1.3.2` lên `1.4.0`** `mới 12/11`. Bản này gói `P319`–`P326`: ô chọn có gõ để tìm, quy định
+> chiết khấu nhiều loại khách, lọc theo khoảng chiết khấu và bản xem trước khi xuất Excel. **Có hai
+> migration (`0133`, `0134`)**. Máy đang chạy `1.3.1` trở lên chỉ cần **`sudo csbh cap-nhat`** — lệnh
+> tự sao lưu, kéo ảnh mới, kiểm nghiệm trên chồng riêng rồi mới migration; không phải chép tệp nào.
+> Ba điều cần biết trước khi chạy:
+>
+> - **`0133` không lùi được** (`customer_type` thành `customer_types`, cột cũ bị bỏ). Sau khi nó chạy,
+>   `csbh lui-lai` từ chối; đường lùi duy nhất là phục hồi từ bản sao lưu mà `cap-nhat` vừa tạo.
+> - **Có một khoảng ngắn** giữa lúc migration chạy xong và lúc service dựng lại, trong đó `catalog` cũ
+>   còn chạy trên lược đồ mới nên các đường quy định chiết khấu (và tra ngưỡng khi thêm dòng vào hồ sơ)
+>   báo lỗi. Không mất dữ liệu; nên cập nhật lúc ít người dùng.
+> - **Quy định đã có tự chuyển**: loại khách cũ thành tập một phần tử, "mọi loại" giữ nguyên. Không cần
+>   làm gì với dữ liệu.
+>
+> Kiểm sau khi xong: `./csbh phien-ban` ra `1.4.0`, chân trang web ghi `1.4.0`, hộp *Thêm quy định* ở trang
+> *Chiết khấu* có ba ô tích loại khách, và nút *Xuất Excel* mở hộp xem trước. Máy đang chạy `1.3.0` trở
+> xuống chưa có lệnh `cap-nhat` — làm theo đoạn *"Từ `1.1.0` lên `1.3.0`"* ngay dưới trước, rồi mới lên `1.4.0`.
+
 > **Từ `1.1.0` lên `1.3.0`** `mới 08/11`. Bản này gói `P277`–`P305`: chuyển máy, trang
 > *Vận hành*, giao diện mới, bình luận trên hồ sơ, nội dung từng khoản CPBH. **Có chín
 > migration (`0124`–`0132`)** — `nang-cap` tự chạy chúng sau lượt sao lưu, không có

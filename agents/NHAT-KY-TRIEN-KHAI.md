@@ -22687,3 +22687,8 @@ Ca kiểm mới: trống không có ô tích; bảng bốn cột kèm hai dòng 
 **Không kiểm:** giao diện tối (nút đổi giao diện không đổi được trong Chrome không giao diện — không khẳng định gì về nó); trạng thái vượt trần 20.000 dòng (kiểm bằng ca đơn vị, chưa có ảnh thật); trình đọc màn hình.
 
 **1245/1245 ca giao diện xanh.**
+
+
+## P327 — Phiên bản `1.4.0`
+
+`VERSION` → `1.4.0` (gói `P319`–`P326`: ô chọn có gõ, quy định chiết khấu nhiều loại khách, lọc khoảng chiết khấu, bản xem trước Excel). Hai migration (`0133` — **không lùi được**, `0134`). Từ `1.3.2` KHÔNG tệp nào của bộ cài đổi (`deploy/`, `csbh`, `cai-dat.sh`), nên máy chạy `1.3.1` trở lên chỉ cần `sudo csbh cap-nhat`; `04-TRIEN-KHAI` §8 có đoạn riêng. **3569/3569 xanh** (`make test` đầy đủ).
