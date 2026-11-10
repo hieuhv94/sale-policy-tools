@@ -1580,6 +1580,17 @@ describe('sửa và xoá quy định chiết khấu', () => {
     return { ma: r.body.code as string, groupCode };
   };
 
+  /*
+   * `0279` — sửa được cả NHÓM SẢN PHẨM và LOẠI KHÁCH HÀNG (đảo `0028`).
+   */
+  const dongCua = async (ma: string) =>
+    ((await get('/catalog/discount-rules?limit=200')).body.items as {
+      code: string;
+      productGroupCode: string | null;
+      customerType: number | null;
+      specificity: number;
+    }[]).find((x) => x.code === ma)!;
+
   it('sửa ngưỡng rồi tra lại ra con số mới', async () => {
     const { ma, groupCode } = await mkRule();
     const sp = await post('/catalog/products', {
@@ -1625,27 +1636,12 @@ describe('sửa và xoá quy định chiết khấu', () => {
     expect(sau.body.thresholdRate2).toBeNull();
   });
 
-  it('KHÔNG sửa được ba khoá khớp — độ cụ thể giữ nguyên', async () => {
-    // Đổi nhóm/loại khách/kênh là đổi `specificity`, tức đổi thứ tự ưu tiên của
-    // cả bảng (CAT-11). Trường lạ bị bỏ qua, không được âm thầm ghi vào.
+  it('kênh bán vẫn KHÔNG sửa được — trường lạ bị bỏ qua', async () => {
+    // `0279` mở nhóm và loại khách, không mở kênh (`0026` đã gỡ chiều ấy).
     const { ma } = await mkRule();
-    const truoc = ((await get('/catalog/discount-rules?limit=200')).body.items as {
-      code: string;
-      specificity: number;
-      customerType: number | null;
-    }[]).find((x) => x.code === ma)!;
-
-    await patch(`/catalog/discount-rules/${ma}`, {
-      thresholdRate2: 1500,
-      customerType: 3,
-      productGroupCode: null,
-    });
-
-    const sau = ((await get('/catalog/discount-rules?limit=200')).body.items as typeof truoc[]).find(
-      (x) => x.code === ma,
-    )!;
-    expect(sau.customerType).toBe(truoc.customerType);
-    expect(sau.specificity).toBe(truoc.specificity);
+    const truoc = await dongCua(ma);
+    expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1500, channelCode: 'X' })).status).toBe(200);
+    expect(await dongCua(ma)).toEqual(truoc);
   });
 
   /*
@@ -1708,6 +1704,66 @@ describe('sửa và xoá quy định chiết khấu', () => {
     });
     expect(dung.status).toBe(409);
     expect(dung.body.code).toBe('RULE_SCOPE_DUPLICATE');
+  });
+
+  it('0279 đổi nhóm và loại khách, và `specificity` đi theo', async () => {
+    const { ma, groupCode } = await mkRule();
+    const { groupCode: nhomKhac } = await makeProduct();
+    expect(nhomKhac).not.toBe(groupCode);
+    const sua = await patch(`/catalog/discount-rules/${ma}`, {
+      thresholdRate2: 1500,
+      productGroupCode: nhomKhac,
+      customerType: 3,
+    });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+    const d = await dongCua(ma);
+    expect(d.productGroupCode).toBe(nhomKhac);
+    expect(d.customerType).toBe(3);
+    expect(d.specificity).toBe(3); // nhóm 2 + loại 1 (`0026`)
+  });
+
+  it('0279 rỗng là "mọi giá trị", còn VẮNG khoá là giữ nguyên', async () => {
+    const { ma, groupCode } = await mkRule();
+    // Vắng cả hai khoá (client cũ): phạm vi không đổi.
+    expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1600 })).status).toBe(200);
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: groupCode, customerType: 1 });
+    // Rỗng: về "mọi nhóm, mọi loại".
+    expect(
+      (await patch(`/catalog/discount-rules/${ma}`, {
+        thresholdRate2: 1600,
+        productGroupCode: '',
+        customerType: '',
+      })).status,
+    ).toBe(200);
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerType: null, specificity: 0 });
+    // Chỉ một khoá: khoá kia giữ nguyên.
+    expect(
+      (await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1600, customerType: 2 })).status,
+    ).toBe(200);
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerType: 2 });
+    // Dòng "mọi nhóm" đã chạm tới tầng toàn cục: dọn, kẻo ca khác đòi "không có quy định nào".
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(200);
+  });
+
+  it('0279 đổi phạm vi vào đúng phạm vi + ngày của dòng khác thì 409; nhóm không có thì 404', async () => {
+    const a = await mkRule({ customerType: 1 });
+    const b = await mkRule({ productGroupCode: a.groupCode, customerType: 2 });
+    const dung = await patch(`/catalog/discount-rules/${b.ma}`, {
+      thresholdRate2: 1500,
+      productGroupCode: a.groupCode,
+      customerType: 1,
+    });
+    expect(dung.status).toBe(409);
+    expect(dung.body.code).toBe('RULE_SCOPE_DUPLICATE');
+    // Lượt hỏng không để lại gì: dòng b vẫn ở loại 2.
+    expect(await dongCua(b.ma)).toMatchObject({ customerType: 2 });
+
+    const khong = await patch(`/catalog/discount-rules/${b.ma}`, {
+      thresholdRate2: 1500,
+      productGroupCode: 'KHONG-CO-NHOM-NAY',
+    });
+    expect(khong.status).toBe(404);
+    expect(khong.body.code).toBe('GROUP_NOT_FOUND');
   });
 
   it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {

@@ -232,6 +232,48 @@ describe('0028 cột Hiệu lực', () => {
   });
 });
 
+describe('`0279` sửa được nhóm sản phẩm và loại khách hàng', () => {
+  const moSua = async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.click(screen.getAllByRole('button', { name: 'Sửa' })[0] as HTMLElement);
+    await waitFor(() => screen.getByLabelText(/Hiệu lực từ/));
+    return nguoi;
+  };
+  const trongHop = () => within(screen.getByRole('dialog'));
+  const than = () => {
+    const goi = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
+      (c) => (c[1] as { method?: string } | undefined)?.method === 'PATCH',
+    );
+    return goi ? (JSON.parse(String((goi[1] as { body: string }).body)) as Record<string, unknown>) : null;
+  };
+
+  it('hộp sửa có hai ô chọn phạm vi, mã thì không sửa', async () => {
+    await moSua();
+    expect(trongHop().getByLabelText('Nhóm sản phẩm')).toBeInstanceOf(HTMLSelectElement);
+    expect(trongHop().getByLabelText('Loại khách hàng')).toBeInstanceOf(HTMLSelectElement);
+    expect(trongHop().queryByLabelText(/Mã quy định/)).toBeNull();
+  });
+
+  it('đổi loại khách rồi Lưu: thân PATCH mang CẢ HAI khoá phạm vi', async () => {
+    const nguoi = await moSua();
+    await nguoi.selectOptions(trongHop().getByLabelText('Loại khách hàng'), '3');
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(than()).not.toBeNull(), { timeout: 3000 });
+    const t = than()!;
+    expect(t['customerType']).toBe(3);
+    expect(t).toHaveProperty('productGroupCode');
+  });
+
+  it('chọn "Mọi loại" gửi chuỗi rỗng, không bỏ khoá — vắng khoá nghĩa là giữ nguyên', async () => {
+    const nguoi = await moSua();
+    await nguoi.selectOptions(trongHop().getByLabelText('Loại khách hàng'), '');
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(than()).not.toBeNull(), { timeout: 3000 });
+    expect(than()!['customerType']).toBe('');
+  });
+});
+
 describe('0028 sửa được ngày hiệu lực', () => {
   const moSua = async () => {
     const nguoi = userEvent.setup();

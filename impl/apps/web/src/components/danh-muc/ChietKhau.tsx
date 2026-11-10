@@ -275,6 +275,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
       {sua && (
         <HopThoaiSuaQuyDinh
           q={sua}
+          nhom={nhom}
           dong={() => datSua(null)}
           xong={() => {
             datSua(null);
@@ -287,24 +288,23 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 }
 
 /**
- * Sửa HAI ô: ngưỡng và ngày hiệu lực (`0028`).
+ * Sửa ngưỡng, ngày hiệu lực VÀ HAI ô phạm vi (`0279`, đảo `0028`).
  *
- * Hai khoá khớp (nhóm · loại khách) vẫn hiện ra dạng CHỮ, không dạng ô nhập —
- * đổi chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng
- * khớp (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai
- * lại.
+ * `0028` giữ nhóm · loại khách ở dạng chữ vì đổi chúng là đổi `specificity`, tức
+ * thứ tự ưu tiên giữa các dòng cùng khớp (`CAT-11`). Khách hàng muốn sửa tại chỗ
+ * thay vì xoá rồi khai lại — hậu quả ấy giờ được NÓI RA ở ghi chú dưới hai ô.
  *
- * Ngày hiệu lực thì mở ra sửa được: nó không đổi phạm vi của dòng nào, chỉ đổi
- * thứ tự giữa các dòng CÙNG phạm vi — đúng cái cơ chế "khai ngày muộn hơn để đè
- * lên" đã chốt ở `0020`. Trước `0028`, gõ nhầm một ngày nghĩa là xoá dòng rồi
- * khai lại, và giữa hai thao tác thì mọi hồ sơ lập ra mất ngưỡng.
+ * Mỗi quy định vẫn chỉ MỘT loại khách (hoặc mọi loại): đây là ô chọn, không phải
+ * ô tích như hộp *Thêm* — một dòng không biểu diễn được "loại 1 và loại 3".
  */
 function HopThoaiSuaQuyDinh({
   q,
+  nhom,
   dong,
   xong,
 }: {
   q: QuyDinhChietKhau;
+  nhom: NhomSanPham[];
   dong: () => void;
   xong: () => void;
 }) {
@@ -317,6 +317,8 @@ function HopThoaiSuaQuyDinh({
   // `0208` — `ngayTuIso` cũng cắt được phần giờ, nhưng lượt cắt ở đây vẫn cần:
   // `tuNgay` là thứ gửi lên máy chủ, không chỉ là thứ bày ra màn hình.
   const [tuNgay, datTuNgay] = useState(String(q.effectiveFrom).slice(0, 10));
+  const [maNhom, datMaNhom] = useState(q.productGroupCode ?? '');
+  const [loaiKhach, datLoaiKhach] = useState(q.customerType === null ? '' : String(q.customerType));
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
@@ -326,9 +328,13 @@ function HopThoaiSuaQuyDinh({
     e.preventDefault();
     datDangGui(true);
     try {
+      // LUÔN gửi cả hai khoá phạm vi: ở máy chủ, vắng khoá là giữ nguyên còn
+      // rỗng là "mọi giá trị" — biểu mẫu này trình bày đủ hai ô nên gửi đủ.
       await va(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, {
         thresholdRate2: nguongTuPhanTram(nguong),
         effectiveFrom: tuNgay,
+        productGroupCode: maNhom,
+        customerType: loaiKhach === '' ? '' : Number(loaiKhach),
       });
       xong();
     } catch (err) {
@@ -344,9 +350,45 @@ function HopThoaiSuaQuyDinh({
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          Mã <strong>{q.code}</strong> — áp dụng cho <strong>{phamViChietKhau(q)}</strong>. Hai ô
-          phạm vi không sửa được: đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì
-          xoá dòng này rồi khai lại.
+          Mã <strong>{q.code}</strong> <strong>không sửa được</strong> — hồ sơ đã lập ghi lại mã này
+          để truy vết.
+        </p>
+
+        <Truong id="ck-sua-nhom" nhan="Nhóm sản phẩm">
+          {(p) => (
+            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
+              <option value="">— Mọi nhóm —</option>
+              {/* Nhóm của quy định có thể không còn trong danh sách (đã xoá) —
+                  thêm thẳng một mục, nếu không ô chọn rơi về "Mọi nhóm" và lượt
+                  Lưu tiếp theo âm thầm nới phạm vi của quy định. */}
+              {q.productGroupCode && !nhom.some((x) => x.code === q.productGroupCode) && (
+                <option value={q.productGroupCode}>{q.productGroupCode}</option>
+              )}
+              {nhom.map((x) => (
+                <option key={x.id} value={x.code}>
+                  {x.name} ({x.code})
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+
+        <Truong id="ck-sua-loai" nhan="Loại khách hàng">
+          {(p) => (
+            <select {...p} className="o-nhap" value={loaiKhach} onChange={(e) => datLoaiKhach(e.target.value)}>
+              <option value="">— Mọi loại —</option>
+              {LOAI_KHACH_HANG.map((l) => (
+                <option key={l} value={l}>
+                  Loại {l}
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        <p className="ghi-chu">
+          Đổi nhóm hoặc loại khách là đổi <strong>thứ tự ưu tiên</strong>: quy định cụ thể hơn thắng
+          quy định chung khi nhiều dòng cùng khớp. Đã có quy định khác{' '}
+          <strong>cùng phạm vi và cùng ngày</strong> thì hệ thống từ chối.
         </p>
 
         <Truong
@@ -365,8 +407,7 @@ function HopThoaiSuaQuyDinh({
         </Truong>
         <p className="ghi-chu">
           Quy định <strong>vô thời hạn</strong> — muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể
-          hơn đè lên. Đã có một quy định khác <strong>cùng phạm vi và cùng ngày</strong> thì hệ thống
-          từ chối, vì hai dòng như vậy không phân xử được. Sửa <strong>không</strong> làm đổi hồ sơ
+          hơn đè lên. Sửa <strong>không</strong> làm đổi hồ sơ
           đã lập: mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
         </p>
 

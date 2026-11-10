@@ -586,7 +586,7 @@ và thắng nó.
 Hệ quả cho người dùng: cách “cho một quy định thôi áp dụng từ ngày X” không còn. Muốn dừng thì **xoá
 dòng**. Xoá không làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 
-**Sửa được NGÀY BẮT ĐẦU HIỆU LỰC** `mới 16/08`, cùng với ngưỡng. Hai ô phạm vi thì vẫn không —
+**Sửa được NGÀY BẮT ĐẦU HIỆU LỰC** `mới 16/08`, cùng với ngưỡng. Hai ô phạm vi (nhóm · loại khách) trước đây không sửa được — **`sửa 12/11` nay sửa được cả hai** (mã quy định vẫn không); đoạn sau là lý do cũ —
 chúng quyết định thứ tự ưu tiên của cả bảng. Ngày hiệu lực không đổi phạm vi của dòng nào, nó chỉ
 đổi thứ tự giữa các dòng **cùng** phạm vi, tức đúng cái cơ chế “khai ngày muộn hơn để đè lên” ở
 trên. Trước đây gõ nhầm một ngày nghĩa là xoá dòng rồi khai lại, và giữa hai thao tác ấy mọi hồ sơ
@@ -2126,6 +2126,7 @@ trong một lượt phản hồi, và chúng chạm cùng một màn hình:
 > 1. Mục *Tên khách hàng* đổi nhãn thành ***Tên Hộ kinh doanh/Tên Công ty***.
 > 2. Biểu mẫu bỏ ô *Địa chỉ đăng ký*, thay bằng **hai ô bắt buộc**: *Tỉnh/Thành phố (theo đăng ký
 >    kinh doanh)* và *Số nhà, Phường xã (theo đăng ký kinh doanh)* — và **chỉ có một** địa chỉ.
+>    (`sửa 12/11` — nhãn ô đổi thành *Tỉnh/Thành phố (theo phân cách hành chính cũ)*.)
 >    (`sửa 19/09` — *Tỉnh/Thành phố* thôi là ô gõ tự do: nó là **ô chọn trong 63 tỉnh, thành phố
 >    theo danh sách CŨ**, viết tên ngắn, và máy chủ từ chối mọi giá trị ngoài danh sách ấy.)
 > 3. Hai ô ấy **hiện ra ở trang thông tin khách hàng**.

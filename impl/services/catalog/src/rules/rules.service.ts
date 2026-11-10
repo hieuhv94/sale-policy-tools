@@ -88,29 +88,33 @@ export class RulesService {
   }
 
   /**
-   * Sửa quy định: NGƯỠNG và NGÀY HIỆU LỰC.
+   * Sửa quy định: NGƯỠNG, NGÀY HIỆU LỰC và — từ `0279` — cả HAI ô phạm vi.
    *
-   * Hai ô phạm vi vẫn không sửa được — đổi chúng là đổi `specificity`, tức đổi
-   * thứ tự ưu tiên của cả bảng (`CAT-11`), và không có gì trên màn hình nói ra
-   * điều đó. Khai nhầm phạm vi thì xoá dòng rồi khai lại.
+   * `0028` đóng hai ô phạm vi vì đổi chúng là đổi `specificity`, tức thứ tự ưu
+   * tiên của cả bảng (`CAT-11`). Khách hàng đảo lại: khai nhầm nhóm hay loại thì
+   * sửa tại chỗ chứ không xoá rồi khai lại — và trong khoảng giữa hai thao tác ấy
+   * mọi hồ sơ lập ra mất ngưỡng. Hậu quả đúng như `0028` đã nêu, nên màn hình nói
+   * ra: dòng đổi phạm vi thì đổi chỗ trong thứ tự ưu tiên.
    *
-   * Ngày hiệu lực thì KHÁC, và mở ra sửa được từ `0028`. Nó không đổi phạm vi
-   * của dòng nào, chỉ đổi thứ tự giữa các dòng CÙNG phạm vi — mà đó chính là
-   * cách đổi ngưỡng đã chốt ở `0020`. Trước đó, gõ nhầm một ngày nghĩa là phải
-   * xoá dòng rồi khai lại, và trong khoảng giữa hai thao tác thì mọi hồ sơ lập
-   * ra mất ngưỡng.
+   * PHẠM VI VẮNG MẶT LÀ GIỮ NGUYÊN, rỗng/`null` là "mọi giá trị" — hai nghĩa khác
+   * nhau mà `opt()` gộp làm một, nên controller đọc SỰ CÓ MẶT của khoá trong thân
+   * thô (`pamVi`). Gửi thiếu hai khoá (client cũ, ca cũ) không bao giờ vô tình
+   * đưa quy định về "mọi nhóm, mọi loại".
    *
-   * `effectiveFrom` vắng mặt là GIỮ NGUYÊN, không phải "xoá" — ngược với `note`
-   * của dòng hồ sơ (`0027`). Lý do đơn giản: cột này `NOT NULL`, không có trạng
-   * thái "không có giá trị" nào để diễn đạt, nên "vắng mặt = xoá" thậm chí không
-   * biểu diễn được.
-   *
-   * Sửa KHÔNG viết lại lịch sử: `pol.policy_line.threshold_snap` đã đóng băng
-   * ngưỡng vào từng dòng hồ sơ lúc lập (`0001_init.sql:92`).
+   * Đụng dòng khác CÙNG phạm vi và CÙNG ngày thì `uq_rule_pham_vi` vỡ — đường mã
+   * không đổi nên `trungGiNao` vẫn phân loại đúng. Sửa KHÔNG viết lại lịch sử:
+   * `pol.policy_line.threshold_snap` đã đóng băng ngưỡng vào từng dòng hồ sơ.
    */
   async update(
     code: string,
-    input: { thresholdRate2: number; effectiveFrom?: string | undefined },
+    input: {
+      thresholdRate2: number;
+      effectiveFrom?: string | undefined;
+      /** `undefined` = giữ nguyên; `null` = mọi nhóm. */
+      productGroupCode?: string | null | undefined;
+      /** `undefined` = giữ nguyên; `null` = mọi loại. */
+      customerType?: number | null | undefined;
+    },
     actorId: string,
   ) {
     return this.db.tx(async (c) => {
@@ -121,14 +125,43 @@ export class RulesService {
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
 
+      // Ba trạng thái cho mỗi ô phạm vi, nên phải đi kèm một CỜ riêng: truyền
+      // thẳng `null` vào `coalesce` thì "mọi nhóm" không bao giờ ghi được.
+      const doiNhom = input.productGroupCode !== undefined;
+      let nhomId: string | null = null;
+      if (doiNhom && input.productGroupCode) {
+        const g = await c.query<{ id: string }>(
+          `SELECT id FROM cat.product_group WHERE code = $1`,
+          [input.productGroupCode],
+        );
+        if (g.rowCount === 0) throw new NotFoundException({ code: 'GROUP_NOT_FOUND' });
+        nhomId = g.rows[0]!.id;
+      }
+      const doiLoai = input.customerType !== undefined;
+
       const r = await c
-        .query<{ threshold_rate2: number; effective_from: Date }>(
+        .query<{
+          threshold_rate2: number;
+          effective_from: Date;
+          product_group_id: string | null;
+          customer_type: number | null;
+        }>(
           `UPDATE cat.discount_rule
-              SET threshold_rate2 = $2,
-                  effective_from  = coalesce($3::date, effective_from)
+              SET threshold_rate2  = $2,
+                  effective_from   = coalesce($3::date, effective_from),
+                  product_group_id = CASE WHEN $4::boolean THEN $5::uuid ELSE product_group_id END,
+                  customer_type    = CASE WHEN $6::boolean THEN $7::smallint ELSE customer_type END
             WHERE code = $1
-          RETURNING threshold_rate2, effective_from`,
-          [code, input.thresholdRate2, input.effectiveFrom ?? null],
+          RETURNING threshold_rate2, effective_from, product_group_id, customer_type`,
+          [
+            code,
+            input.thresholdRate2,
+            input.effectiveFrom ?? null,
+            doiNhom,
+            nhomId,
+            doiLoai,
+            input.customerType ?? null,
+          ],
         )
         .catch((e: unknown) => {
           // Đổi ngày có thể đâm vào một dòng CÙNG phạm vi đã giữ đúng ngày đó.
@@ -148,6 +181,8 @@ export class RulesService {
         code,
         thresholdRate2: sau.threshold_rate2,
         effectiveFrom: sau.effective_from,
+        productGroupId: sau.product_group_id,
+        customerType: sau.customer_type,
       };
     });
   }

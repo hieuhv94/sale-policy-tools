@@ -640,6 +640,7 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
   lập trước ngày ấy có thể thấy **ô Tỉnh/Thành phố trống**: phần mềm chỉ tách được địa chỉ cũ khi
   đoạn cuối của nó mở đầu bằng *Thành phố*, *Tỉnh* hay *TP*. Điền nốt ở lượt sửa tiếp theo — ô ấy
   bắt buộc nên không lưu được khi còn trống.
+- **Nhãn ô Tỉnh/Thành phố** `sửa 12/11` đọc *Tỉnh/Thành phố (theo phân cách hành chính cũ)* — nói thẳng danh sách là 63 đơn vị trước sáp nhập.
 - **Tỉnh/Thành phố là ô CHỌN, không gõ tay** `sửa 19/09` — bấm vào ô là sổ xuống **63 tỉnh, thành
   phố theo danh sách CŨ**, xếp A–Z. Ô đang mở thì gõ vài chữ cái đầu là nhảy thẳng tới tên cần chọn.
   > Danh sách cũ chứ không phải 34 đơn vị sau sáp nhập: ô này khai địa chỉ **theo giấy đăng ký kinh
@@ -2182,8 +2183,7 @@ khối cột cuối là số liệu của **riêng dòng đó**:
 > mất gì: số dòng là số dòng của hồ sơ trong file, còn tổng giá thu về là tổng cột *Giá thu về* —
 > để Excel cộng hộ thì chính xác hơn.
 >
-> *Chiết khấu cao nhất (%)* vẫn còn, vì nó là một phép **lớn nhất** chứ không phải phép cộng: lặp
-> lại bao nhiêu lần thì giá trị lớn nhất của cột vẫn đúng.
+> **Bỏ hai cột cấp hồ sơ *Nhóm sản phẩm* và *Chiết khấu cao nhất (%)*** `sửa 12/11`. Cả hai tổng hợp trên MỌI dòng của hồ sơ rồi lặp lại trên từng dòng, trong khi khối cuối đã có *Nhóm SP* và *Chiết khấu (%)* của riêng dòng ấy — cột cấp hồ sơ chỉ gây đọc nhầm. Muốn chiết khấu cao nhất của hồ sơ: lọc theo mã hồ sơ rồi lấy giá trị lớn nhất của cột *Chiết khấu (%)*.
 
 > Hồ sơ **chưa nhập sản phẩm nào** (Nháp mới lập) vẫn có một dòng trong file, các ô sản phẩm để
 > trống — để không hồ sơ nào biến mất khỏi báo cáo mà bạn không biết.
@@ -2749,8 +2749,10 @@ Cột **"Độ cụ thể"** đã bỏ. Nó là con số nội bộ để xếp 
 cạnh đã nói rõ dòng nào hẹp hơn dòng nào, và câu hỏi *"hồ sơ này lấy ngưỡng từ đâu"* giờ trả lời
 bằng cột *Id* cộng cột *QĐCK*.
 
-- **Sửa chỉ đổi được *ngưỡng***. Hai ô phạm vi (nhóm · loại khách) không sửa được — đổi chúng
-  là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai lại**.
+- **Sửa được cả *nhóm sản phẩm* và *loại khách hàng*** `sửa 12/11`, cùng ngưỡng và ngày hiệu lực. Chỉ
+  **mã quy định** là không sửa được. Đổi nhóm hoặc loại khách là đổi **thứ tự ưu tiên** (quy định cụ
+  thể hơn thắng quy định chung); đổi vào đúng phạm vi và đúng ngày của một quy định khác thì hệ thống
+  từ chối. Hộp *Sửa* chọn **một** loại khách (hoặc *Mọi loại*) — mỗi dòng chỉ mang một loại.
 - **Sửa được cả ngày hiệu lực**, không chỉ ngưỡng. Dời sang ngày khác thì quy định bắt đầu ăn từ
   ngày mới — hồ sơ đã lập không đổi. Dời trúng ngày của một quy định khác **cùng phạm vi** thì hệ
   thống từ chối: hai dòng như vậy không phân xử được.

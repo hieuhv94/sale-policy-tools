@@ -1,0 +1,332 @@
+<title>Mockup chọn nhanh và khoảng chiết khấu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Bố cục: ba khối rời, mỗi khối một yêu cầu — dựng bằng chính màu và phông của phần mềm CSBH (xanh Nutricare, Be Vietnam Pro). */
+:root {
+  --nen: #f4f6fa; --the: #ffffff; --chu: #1a2230; --chu-nhe: #5b6679; --vien: #d5dbe6;
+  --xanh: #034ea2; --xanh-nhat: #e6eef9; --canh-bao: #9a5b00; --canh-bao-nen: #fdf3e1;
+  --do: #b3261e; --bong: 0 8px 24px rgba(10, 30, 70, .14);
+  --phong: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --nen: #0f141d; --the: #182030; --chu: #e8edf6; --chu-nhe: #9aa6bb; --vien: #2c374b;
+  --xanh: #6aa6ee; --xanh-nhat: #1b2c47; --canh-bao: #f0b45a; --canh-bao-nen: #33280f;
+  --do: #ff8a80; --bong: 0 8px 24px rgba(0, 0, 0, .5); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --nen: #0f141d; --the: #182030; --chu: #e8edf6; --chu-nhe: #9aa6bb; --vien: #2c374b;
+  --xanh: #6aa6ee; --xanh-nhat: #1b2c47; --canh-bao: #f0b45a; --canh-bao-nen: #33280f;
+  --do: #ff8a80; --bong: 0 8px 24px rgba(0, 0, 0, .5); color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--nen); color: var(--chu); font: 400 14px/1.55 var(--phong); }
+.trang { max-width: 1040px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 24px; margin: 0; text-wrap: balance; }
+h2 { font-size: 18px; margin: 0; text-wrap: balance; }
+h3 { font-size: 12px; margin: 0 0 8px; letter-spacing: .06em; text-transform: uppercase; color: var(--chu-nhe); font-weight: 600; }
+p { margin: 0; }
+.nhe { color: var(--chu-nhe); }
+.khoi { display: grid; gap: 16px; }
+.luoi { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: start; }
+.the { background: var(--the); border: 1px solid var(--vien); border-radius: 10px; padding: 20px; min-width: 0; }
+.ghi { font-size: 12.5px; color: var(--chu-nhe); }
+.ghi strong { color: var(--chu); font-weight: 600; }
+.hoi { background: var(--canh-bao-nen); border: 1px solid var(--canh-bao); border-radius: 8px; padding: 12px 14px; font-size: 13px; }
+.hoi b { color: var(--canh-bao); }
+label.nhan, .nhan { display: block; font-weight: 500; margin-bottom: 6px; }
+.sao { color: var(--do); }
+input[type=text], input[type=number], select, .o-gia { font: inherit; color: var(--chu); background: var(--the); border: 1px solid var(--vien); border-radius: 6px; padding: 9px 12px; width: 100%; }
+:focus-visible { outline: 2px solid var(--xanh); outline-offset: 1px; }
+/* --- ô chọn có gõ --- */
+.cb { position: relative; }
+.cb-o { position: relative; }
+.cb-o input { padding-right: 62px; }
+.cb-nut { position: absolute; right: 4px; top: 4px; bottom: 4px; display: flex; gap: 2px; }
+.cb-nut button { border: 0; background: none; color: var(--chu-nhe); width: 28px; border-radius: 4px; cursor: pointer; font: inherit; }
+.cb-nut button:hover { background: var(--xanh-nhat); color: var(--xanh); }
+.cb-ds { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); background: var(--the); border: 1px solid var(--vien); border-radius: 8px; box-shadow: var(--bong); max-height: 300px; overflow: auto; padding: 4px; }
+.cb-muc { display: grid; gap: 1px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.cb-muc[aria-selected=true] { background: var(--xanh-nhat); }
+.cb-muc .t1 { display: flex; justify-content: space-between; gap: 12px; }
+.cb-muc .t2 { font-size: 12px; color: var(--chu-nhe); }
+.cb-muc mark { background: none; color: var(--xanh); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.cb-muc .da { color: var(--xanh); font-weight: 600; }
+.cb-trong { padding: 14px 10px; color: var(--chu-nhe); }
+.cb-chan { padding: 8px 10px; font-size: 12px; color: var(--chu-nhe); border-top: 1px solid var(--vien); margin-top: 4px; }
+.cb-cu { padding: 8px 10px; color: var(--chu-nhe); font-size: 12.5px; }
+.gia { font-variant-numeric: tabular-nums; white-space: nowrap; }
+kbd { font: 12px var(--phong); border: 1px solid var(--vien); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--nen); }
+/* --- hộp thoại mô phỏng --- */
+.hop { background: var(--the); border: 1px solid var(--vien); border-radius: 12px; box-shadow: var(--bong); max-width: 520px; width: 100%; display: grid; }
+.hop-dau { display: flex; justify-content: space-between; padding: 16px 20px; font-weight: 600; font-size: 16px; }
+.hop-than { padding: 0 20px 20px; display: grid; gap: 16px; }
+.hop-chan { background: var(--nen); border-top: 1px solid var(--vien); padding: 12px 20px; display: flex; gap: 8px; border-radius: 0 0 12px 12px; }
+.nut { font: inherit; font-weight: 600; border-radius: 6px; border: 1px solid var(--vien); background: var(--the); color: var(--chu); padding: 8px 16px; cursor: pointer; }
+.nut-chinh { background: var(--xanh); border-color: var(--xanh); color: var(--the); }
+:root[data-theme="dark"] .nut-chinh { color: #0f141d; }
+.chon-nhom { display: flex; gap: 8px; flex-wrap: wrap; }
+.tich { display: flex; align-items: center; gap: 10px; border: 1px solid var(--vien); border-radius: 8px; padding: 10px 14px; cursor: pointer; flex: 1 1 130px; min-height: 44px; background: var(--the); }
+.tich:has(input:checked) { border-color: var(--xanh); background: var(--xanh-nhat); }
+.tich input { width: 18px; height: 18px; accent-color: var(--xanh); margin: 0; }
+.tich small { display: block; color: var(--chu-nhe); font-size: 12px; line-height: 1.3; }
+.xem-truoc { border: 1px dashed var(--vien); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
+.ma { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12.5px; background: var(--nen); border: 1px solid var(--vien); border-radius: 4px; padding: 1px 6px; }
+/* --- bộ lọc khoảng --- */
+.loc { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 16px; }
+.loc .m { opacity: .55; }
+.khoang { grid-column: 1 / -1; border: 1px solid var(--xanh); background: var(--xanh-nhat); border-radius: 10px; padding: 14px 16px; display: grid; gap: 12px; }
+.khoang-hang { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.o-pt { position: relative; width: 112px; }
+.o-pt input { padding-right: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.o-pt span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--chu-nhe); pointer-events: none; }
+.thanh { position: relative; height: 28px; }
+.thanh .ray { position: absolute; left: 0; right: 0; top: 12px; height: 4px; border-radius: 2px; background: var(--vien); }
+.thanh .tr { position: absolute; top: 12px; height: 4px; border-radius: 2px; background: var(--xanh); }
+.thanh input[type=range] { position: absolute; left: 0; width: 100%; top: 0; height: 28px; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.thanh input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: var(--the); border: 2px solid var(--xanh); cursor: grab; }
+.thanh input[type=range]::-moz-range-thumb { pointer-events: auto; width: 16px; height: 16px; border-radius: 50%; background: var(--the); border: 2px solid var(--xanh); cursor: grab; }
+.moc { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--chu-nhe); font-variant-numeric: tabular-nums; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--vien); background: var(--the); border-radius: 999px; padding: 3px 6px 3px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit; color: var(--chu); }
+.chip.hoat { border-color: var(--xanh); background: var(--xanh-nhat); color: var(--xanh); font-weight: 600; }
+.cach { display: grid; gap: 6px; }
+.cach label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.cach input { margin-top: 4px; accent-color: var(--xanh); }
+.kq { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tong { font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) { .tich, .chip { transition: background .12s, border-color .12s; } }
+</style>
+
+<div class="trang">
+  <header class="khoi">
+    <h1>Ba chỗ cần duyệt: ô chọn có gõ, quy định nhiều loại khách, lọc theo khoảng chiết khấu</h1>
+    <p class="nhe">Các ô bên dưới thao tác được (gõ, bấm, kéo). Dữ liệu là mẫu. Phần cam ở mỗi khối là câu tôi cần bạn chốt.</p>
+  </header>
+
+  <!-- ===================== 1 ===================== -->
+  <section class="khoi" aria-labelledby="m1">
+    <h2 id="m1">1 · Ô chọn có gõ để gợi ý: Tỉnh/Thành phố và Sản phẩm</h2>
+    <p class="nhe">Bấm vào ô là mở danh sách đầy đủ. Gõ thì danh sách thu hẹp ngay. Gõ <b>"ha noi"</b> không dấu vẫn ra <b>Hà Nội</b>.</p>
+    <div class="luoi">
+      <div class="the">
+        <h3>Tỉnh/Thành phố (hộp Lập khách hàng)</h3>
+        <label class="nhan" for="tinh">Tỉnh/Thành phố (theo phân cách hành chính cũ) <span class="sao">*</span></label>
+        <div class="cb" id="cb-tinh"></div>
+        <p class="ghi" style="margin-top:10px">Vẫn là <strong>danh sách đóng 63 đơn vị</strong>: gõ một chữ không có trong danh sách thì không chọn được, ô không nhận chữ tự do.</p>
+      </div>
+      <div class="the">
+        <h3>Sản phẩm (hộp Thêm sản phẩm vào CSBH)</h3>
+        <label class="nhan" for="sp">Sản phẩm <span class="sao">*</span></label>
+        <div class="cb" id="cb-sp"></div>
+        <p class="ghi" style="margin-top:10px">Gõ <strong>mã hoặc một phần tên</strong>. Mỗi dòng hiện mã, tên, nhóm và giá bán Công ty để phân biệt sản phẩm gần giống nhau.</p>
+      </div>
+    </div>
+    <div class="the">
+      <h3>Cách hoạt động</h3>
+      <div class="luoi" style="gap:12px">
+        <p class="ghi"><strong>Bàn phím:</strong> <kbd>↑</kbd> <kbd>↓</kbd> di chuyển, <kbd>Enter</kbd> chọn, <kbd>Esc</kbd> đóng và trả về giá trị cũ, <kbd>Tab</kbd> sang ô kế.</p>
+        <p class="ghi"><strong>Không dấu:</strong> bỏ dấu khi so, nên gõ nhanh bằng bàn phím không có tiếng Việt vẫn ra.</p>
+        <p class="ghi"><strong>Danh sách dài:</strong> hiện tối đa 8 dòng, dưới cùng nói "còn N kết quả, gõ thêm để thu hẹp".</p>
+        <p class="ghi"><strong>Không có kết quả:</strong> nói rõ "Không có sản phẩm nào khớp 'xyz'", không để trống câm.</p>
+        <p class="ghi"><strong>Điện thoại:</strong> ô cao 44px, dòng gợi ý cao 44px, bàn phím mở ra không che danh sách.</p>
+        <p class="ghi"><strong>Giá trị cũ ngoài danh sách</strong> (khách cũ còn tên tỉnh viết khác): vẫn hiện, mờ, không chọn lại được, giữ như hiện nay.</p>
+      </div>
+    </div>
+    <div class="hoi"><b>Cần chốt:</b> các ô chọn khác (Nhóm sản phẩm, Người nhận bàn giao, TDV, ô chọn người duyệt…) có cần gõ tìm kiếm không? Tôi chỉ làm hai ô bạn nêu. Nếu cần, thành phần này dùng lại được cho các ô khác.</div>
+  </section>
+
+  <!-- ===================== 3 ===================== -->
+  <section class="khoi" aria-labelledby="m3">
+    <h2 id="m3">3 · Hộp Thêm quy định chiết khấu: chọn nhiều loại khách hàng</h2>
+    <p class="nhe">Một quy định trong CSBH chỉ gắn với <b>một</b> loại khách (hoặc mọi loại). Vì vậy tích 2 loại là hệ thống <b>tạo 2 quy định</b>, mỗi loại một dòng, cùng ngưỡng và cùng ngày hiệu lực.</p>
+    <div class="luoi">
+      <div class="hop" role="group" aria-label="Hộp thoại mẫu">
+        <div class="hop-dau"><span>Thêm quy định chiết khấu</span><span class="nhe">×</span></div>
+        <div class="hop-than">
+          <div>
+            <label class="nhan" for="ma-qd">Mã quy định <span class="sao">*</span></label>
+            <input type="text" id="ma-qd" value="CK-SUA" autocomplete="off">
+          </div>
+          <div>
+            <label class="nhan" for="nhom-qd">Nhóm sản phẩm</label>
+            <select id="nhom-qd"><option>— Mọi nhóm —</option><option>Sữa công thức (SUA)</option></select>
+          </div>
+          <fieldset style="border:0;padding:0;margin:0">
+            <legend class="nhan" style="padding:0">Loại khách hàng</legend>
+            <div class="chon-nhom" id="loai"></div>
+            <p class="ghi" style="margin-top:8px" id="loai-ghi"></p>
+          </fieldset>
+          <div class="xem-truoc" aria-live="polite" id="xt"></div>
+          <div class="hop-chan" style="margin:0 -20px -20px;">
+            <button class="nut nut-chinh" type="button" id="nut-tao">Tạo</button><button class="nut" type="button">Huỷ</button>
+          </div>
+        </div>
+      </div>
+      <div class="khoi">
+        <div class="the">
+          <h3>Ba trạng thái</h3>
+          <div class="khoi" style="gap:10px">
+            <p class="ghi"><strong>Không tích loại nào</strong> = <strong>Mọi loại</strong>: 1 quy định, áp cho cả ba loại, cụ thể thấp nhất. Dòng chữ dưới ô nói rõ điều này.</p>
+            <p class="ghi"><strong>Tích 1 hoặc 2 loại</strong>: mỗi loại một quy định, cụ thể hơn "mọi loại" nên thắng khi cùng khớp.</p>
+            <p class="ghi"><strong>Tích cả 3 loại</strong>: ra 3 quy định riêng chứ không phải 1 quy định "mọi loại". Hộp xem trước nhắc điều này.</p>
+          </div>
+        </div>
+        <div class="the">
+          <h3>Khi một dòng bị trùng</h3>
+          <p class="ghi">Nếu loại 2 đã có quy định cùng nhóm và cùng ngày hiệu lực thì <strong>cả lượt không tạo gì</strong> và báo rõ loại nào trùng. Không có chuyện tạo được 1 trong 2.</p>
+        </div>
+        <div class="hoi">
+          <b>Cần chốt 3 điều:</b>
+          <ol style="margin:6px 0 0;padding-left:18px">
+            <li><b>Mã</b>: tôi đề xuất tự thêm hậu tố <span class="ma">-L1</span> <span class="ma">-L3</span>. Bạn có muốn đặt từng mã tay không?</li>
+            <li>Tích cả 3 loại: tạo 3 quy định riêng (đề xuất), hay coi là "Mọi loại"?</li>
+            <li>Hộp <b>Sửa</b> vẫn chỉ chọn <b>một</b> loại (select), vì mỗi dòng chỉ có một loại. Đúng ý bạn chứ?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 6 ===================== -->
+  <section class="khoi" aria-labelledby="m6">
+    <h2 id="m6">6 · Bộ lọc Hồ sơ CSBH: thêm tiêu chí tỷ lệ chiết khấu theo khoảng</h2>
+    <p class="nhe">Đặt ngay cạnh các tiêu chí hiện có trong khung Bộ lọc. Có ba cách nhập, cùng điều khiển một khoảng: gõ số, kéo thanh, hoặc bấm mốc có sẵn.</p>
+    <div class="the khoi">
+      <div class="loc">
+        <div class="m"><span class="nhan">Trạng thái</span><div class="o-gia nhe">Tất cả</div></div>
+        <div class="m"><span class="nhan">TDV phụ trách</span><div class="o-gia nhe">Tất cả</div></div>
+        <div class="m"><span class="nhan">Nhóm sản phẩm</span><div class="o-gia nhe">Tất cả</div></div>
+        <div class="khoang" role="group" aria-labelledby="kh-t">
+          <div class="khoang-hang" style="justify-content:space-between">
+            <span class="nhan" id="kh-t" style="margin:0">Tỷ lệ chiết khấu</span>
+            <span class="ghi" id="kh-tt"></span>
+          </div>
+          <div class="khoang-hang">
+            <label for="kh-tu" class="ghi">Từ</label>
+            <div class="o-pt"><input type="number" id="kh-tu" min="0" max="100" step="0.01" inputmode="decimal"><span>%</span></div>
+            <label for="kh-den" class="ghi">đến</label>
+            <div class="o-pt"><input type="number" id="kh-den" min="0" max="100" step="0.01" inputmode="decimal"><span>%</span></div>
+            <span class="ghi">Để trống một đầu là không giới hạn đầu đó.</span>
+          </div>
+          <div>
+            <div class="thanh">
+              <div class="ray"></div><div class="tr" id="kh-tr"></div>
+              <input type="range" id="kh-r1" min="0" max="50" step="0.5" aria-label="Tỷ lệ từ">
+              <input type="range" id="kh-r2" min="0" max="50" step="0.5" aria-label="Tỷ lệ đến">
+            </div>
+            <div class="moc"><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span><span>50%+</span></div>
+          </div>
+          <div class="chon-nhom" id="kh-chip"></div>
+          <fieldset class="cach" style="border:0;padding:0;margin:0">
+            <legend class="ghi" style="padding:0 0 4px"><strong>Tính theo</strong></legend>
+            <label><input type="radio" name="cach" checked> <span><strong>Có ít nhất một sản phẩm</strong> trong hồ sơ nằm trong khoảng<br><span class="ghi">VD: hồ sơ có dòng 8% và dòng 22%, lọc 20–25% thì hồ sơ này hiện.</span></span></label>
+            <label><input type="radio" name="cach"> <span><strong>Tất cả sản phẩm</strong> trong hồ sơ đều nằm trong khoảng</span></label>
+            <label><input type="radio" name="cach"> <span><strong>Chiết khấu cao nhất</strong> của hồ sơ nằm trong khoảng</span></label>
+          </fieldset>
+        </div>
+      </div>
+      <div class="kq">
+        <div class="chon-nhom" id="kh-tag"></div>
+        <span class="tong" id="kh-kq"></span>
+      </div>
+    </div>
+    <div class="hoi"><b>Cần chốt:</b> hồ sơ có nhiều sản phẩm, mỗi sản phẩm một tỷ lệ riêng, nên "lọc theo tỷ lệ" có ba nghĩa như ba lựa chọn trên. Tôi đề xuất <b>"ít nhất một sản phẩm"</b> làm mặc định và bỏ hai lựa chọn kia nếu bạn không cần (gọn hơn cho người dùng). Khoảng cho phép 0–100%, thanh kéo chỉ hiện 0–50% vì ngưỡng thực tế hiếm khi quá 50%; gõ số vẫn nhập được tới 100%.</div>
+  </section>
+</div>
+
+<script>
+const TINH = ["An Giang","Bà Rịa - Vũng Tàu","Bạc Liêu","Bắc Giang","Bắc Kạn","Bắc Ninh","Bến Tre","Bình Dương","Bình Định","Bình Phước","Bình Thuận","Cà Mau","Cao Bằng","Cần Thơ","Đà Nẵng","Đắk Lắk","Đắk Nông","Điện Biên","Đồng Nai","Đồng Tháp","Gia Lai","Hà Giang","Hà Nam","Hà Nội","Hà Tĩnh","Hải Dương","Hải Phòng","Hậu Giang","Hòa Bình","Hồ Chí Minh","Hưng Yên","Khánh Hòa","Kiên Giang","Kon Tum","Lai Châu","Lạng Sơn","Lào Cai","Lâm Đồng","Long An","Nam Định","Nghệ An","Ninh Bình","Ninh Thuận","Phú Thọ","Phú Yên","Quảng Bình","Quảng Nam","Quảng Ngãi","Quảng Ninh","Quảng Trị","Sóc Trăng","Sơn La","Tây Ninh","Thái Bình","Thái Nguyên","Thanh Hóa","Thừa Thiên Huế","Tiền Giang","Trà Vinh","Tuyên Quang","Vĩnh Long","Vĩnh Phúc","Yên Bái"].map(t => ({ gia: t, t1: t }));
+const SP = [
+  ["SUA-001","Sữa bột Nutri Gold 900g","SUA",615000],["SUA-002","Sữa bột Nutri Gold 400g","SUA",298000],["SUA-014","Sữa bột Nutri Kid 900g","SUA",542000],
+  ["SUA-021","Sữa bột Nutri Mom 400g","SUA",361000],["BOT-003","Bột ăn dặm Nutri Baby gạo sữa 200g","BOT",89000],["BOT-004","Bột ăn dặm Nutri Baby yến mạch 200g","BOT",92000],
+  ["VIT-010","Vitamin D3 Nutri Drops 10ml","VIT",148000],["VIT-011","Vitamin tổng hợp Nutri Plus 60 viên","VIT",275000],["DD-020","Dinh dưỡng y học Nutri Care 400g","DD",420000],
+  ["DD-021","Dinh dưỡng y học Nutri Care vị vani 900g","DD",810000],["DD-030","Dung dịch dinh dưỡng Nutri Liquid 237ml","DD",52000],["SUA-033","Sữa bột Nutri Gold số 3 1,5kg","SUA",918000]
+].map(([ma, ten, nhom, gia]) => ({ gia: ma, t1: ma + "  " + ten, ma, ten, nhom, giaBan: gia }));
+const bo = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function danhDau(text, q) {
+  if (!q) return esc(text);
+  const i = bo(text).indexOf(bo(q)); if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+}
+function ComboBox(host, { id, ds, chuaChon, hang, trong, toiDa = 8, giaTriCu }) {
+  let chon = giaTriCu ? { gia: giaTriCu } : null, q = "", mo = false, cs = 0, ket = [];
+  host.innerHTML = `<div class="cb-o"><input type="text" id="${id}" role="combobox" aria-expanded="false" aria-controls="${id}-ds" aria-autocomplete="list" autocomplete="off" placeholder="${chuaChon}"><div class="cb-nut"><button type="button" tabindex="-1" aria-label="Bỏ chọn" hidden>×</button><button type="button" tabindex="-1" aria-label="Mở danh sách">▾</button></div></div><div class="cb-ds" id="${id}-ds" role="listbox" hidden></div>`;
+  const inp = host.querySelector("input"), dsEl = host.querySelector(".cb-ds"), [xoa, mui] = host.querySelectorAll(".cb-nut button");
+  const nhanChon = () => chon ? (ds.find(x => x.gia === chon.gia)?.t1 ?? chon.gia).replace(/\s{2,}/, " — ") : "";
+  function ve() {
+    ket = ds.filter(x => !q || bo(x.t1).includes(bo(q)));
+    const cat = ket.slice(0, toiDa); cs = Math.min(cs, Math.max(cat.length - 1, 0));
+    dsEl.hidden = !mo; inp.setAttribute("aria-expanded", mo);
+    xoa.hidden = !chon;
+    if (!mo) return;
+    dsEl.innerHTML = cat.length ? cat.map((x, i) => `<div class="cb-muc" role="option" id="${id}-o${i}" data-i="${i}" aria-selected="${i === cs}">${hang(x, q, chon && chon.gia === x.gia)}</div>`).join("") : `<div class="cb-trong">${trong(q)}</div>`;
+    if (ket.length > toiDa) dsEl.insertAdjacentHTML("beforeend", `<div class="cb-chan">Còn ${ket.length - toiDa} kết quả nữa. Gõ thêm để thu hẹp.</div>`);
+    inp.setAttribute("aria-activedescendant", cat.length ? `${id}-o${cs}` : "");
+    dsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+  }
+  function dat(x) { chon = x; q = ""; mo = false; inp.value = nhanChon(); ve(); }
+  inp.addEventListener("focus", () => { mo = true; inp.select(); ve(); });
+  inp.addEventListener("input", () => { q = inp.value; mo = true; cs = 0; ve(); });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); mo = true; cs = Math.min(cs + 1, Math.min(ket.length, toiDa) - 1); ve(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); cs = Math.max(cs - 1, 0); ve(); }
+    else if (e.key === "Enter") { if (mo && ket[cs]) { e.preventDefault(); dat(ket[cs]); } }
+    else if (e.key === "Escape") { mo = false; q = ""; inp.value = nhanChon(); ve(); }
+  });
+  dsEl.addEventListener("mousedown", e => { const m = e.target.closest(".cb-muc"); if (m) { e.preventDefault(); dat(ket[+m.dataset.i]); inp.blur(); } });
+  dsEl.addEventListener("mousemove", e => { const m = e.target.closest(".cb-muc"); if (m && +m.dataset.i !== cs) { cs = +m.dataset.i; dsEl.querySelectorAll(".cb-muc").forEach((n, i) => n.setAttribute("aria-selected", i === cs)); } });
+  inp.addEventListener("blur", () => { mo = false; q = ""; inp.value = nhanChon(); ve(); });
+  xoa.addEventListener("mousedown", e => { e.preventDefault(); chon = null; inp.value = ""; ve(); inp.focus(); });
+  mui.addEventListener("mousedown", e => { e.preventDefault(); mo ? inp.blur() : inp.focus(); });
+  inp.value = nhanChon(); ve();
+}
+ComboBox(document.getElementById("cb-tinh"), { id: "tinh", ds: TINH, chuaChon: "Gõ hoặc chọn tỉnh/thành phố", giaTriCu: null,
+  hang: (x, q, da) => `<div class="t1"><span>${danhDau(x.t1, q)}</span>${da ? '<span class="da">✓</span>' : ""}</div>`,
+  trong: q => `Không có tỉnh/thành phố nào khớp "<b>${esc(q)}</b>". Kiểm tra lại chính tả hoặc chọn từ danh sách.` });
+ComboBox(document.getElementById("cb-sp"), { id: "sp", ds: SP, chuaChon: "Gõ mã hoặc tên sản phẩm",
+  hang: (x, q, da) => `<div class="t1"><span><strong>${danhDau(x.ma, q)}</strong> · ${danhDau(x.ten, q)}</span>${da ? '<span class="da">✓</span>' : ""}</div><div class="t2">Nhóm ${x.nhom} · Giá bán Công ty <span class="gia">${x.giaBan.toLocaleString("vi-VN")} đ</span></div>`,
+  trong: q => `Không có sản phẩm nào khớp "<b>${esc(q)}</b>". Thử gõ mã sản phẩm hoặc bớt chữ.` });
+
+/* --- 3 --- */
+const LOAI = [[1, "Loại 1", "Hộ kinh doanh"], [2, "Loại 2", "Công ty điểm trưng bày"], [3, "Loại 3", "Bệnh viện, phòng khám"]];
+const dich = new Set([1, 3]);
+const loaiEl = document.getElementById("loai");
+loaiEl.innerHTML = LOAI.map(([n, t, m]) => `<label class="tich"><input type="checkbox" value="${n}" ${dich.has(n) ? "checked" : ""}><span>${t}<small>${m}</small></span></label>`).join("");
+function veLoai() {
+  const cs = [...dich].sort(); const ma = (document.getElementById("ma-qd").value || "CK").trim();
+  document.getElementById("loai-ghi").innerHTML = cs.length ? `Đã chọn <strong>${cs.length}</strong> loại: mỗi loại một quy định riêng.` : `Không tích loại nào nghĩa là <strong>mọi loại</strong> khách hàng.`;
+  const dong = cs.length ? cs.map(n => `<div><span class="ma">${esc(ma)}-L${n}</span> · nhóm SUA · <strong>khách loại ${n}</strong></div>`).join("") : `<div><span class="ma">${esc(ma)}</span> · nhóm SUA · <strong>mọi loại khách</strong></div>`;
+  const nhac = cs.length === 3 ? `<div class="ghi" style="color:var(--canh-bao)">Cả 3 loại: ra 3 quy định riêng, không phải 1 quy định "mọi loại".</div>` : "";
+  const so = cs.length || 1;
+  document.getElementById("xt").innerHTML = `<h3 style="margin:0">Sẽ tạo ${so} quy định</h3>${dong}${nhac}`;
+  document.getElementById("nut-tao").textContent = so > 1 ? `Tạo ${so} quy định` : "Tạo";
+}
+loaiEl.addEventListener("change", e => { const n = +e.target.value; e.target.checked ? dich.add(n) : dich.delete(n); veLoai(); });
+document.getElementById("ma-qd").addEventListener("input", veLoai); veLoai();
+
+/* --- 6 --- */
+const tu = document.getElementById("kh-tu"), den = document.getElementById("kh-den"), r1 = document.getElementById("kh-r1"), r2 = document.getElementById("kh-r2"), tr = document.getElementById("kh-tr");
+const MOC = [["Dưới 10%", null, 10], ["10% – 20%", 10, 20], ["20% – 30%", 20, 30], ["Trên 30%", 30, null]];
+const chipEl = document.getElementById("kh-chip");
+const CUM = 50;
+const so = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+function ve6(nguon) {
+  let a = so(tu.value), b = so(den.value);
+  if (nguon !== "r") { r1.value = a ?? 0; r2.value = b == null ? CUM : Math.min(b, CUM); }
+  const lo = a ?? 0, hi = Math.min(b ?? CUM, CUM);
+  tr.style.left = (lo / CUM * 100) + "%"; tr.style.right = (100 - hi / CUM * 100) + "%";
+  const sai = a != null && b != null && a > b;
+  document.getElementById("kh-tt").innerHTML = sai ? `<span style="color:var(--do)">Số đầu đang lớn hơn số cuối. Đổi chỗ hai số.</span>` : "";
+  chipEl.innerHTML = MOC.map(([t, x, y]) => `<button type="button" class="chip ${a === x && b === y ? "hoat" : ""}">${t}</button>`).join("");
+  const co = a != null || b != null;
+  const nhan = a != null && b != null ? `${a}% – ${b}%` : a != null ? `từ ${a}% trở lên` : `đến ${b}%`;
+  document.getElementById("kh-tag").innerHTML = co && !sai ? `<span class="chip hoat">Tỷ lệ chiết khấu: ${nhan} <b data-x aria-label="Bỏ tiêu chí" role="button" tabindex="0">×</b></span>` : `<span class="ghi">Chưa đặt tiêu chí nào.</span>`;
+  const n = !co || sai ? 117 : Math.max(0, Math.round(117 * ((Math.min(b ?? 100, 100) - Math.max(a ?? 0, 0) + 8) / 108)) % 118);
+  document.getElementById("kh-kq").textContent = sai ? "" : `${co ? n : 117} hồ sơ khớp điều kiện`;
+}
+tu.addEventListener("input", () => ve6()); den.addEventListener("input", () => ve6());
+r1.addEventListener("input", () => { if (+r1.value > +r2.value) r1.value = r2.value; tu.value = +r1.value === 0 ? "" : r1.value; ve6("r"); });
+r2.addEventListener("input", () => { if (+r2.value < +r1.value) r2.value = r1.value; den.value = +r2.value >= CUM ? "" : r2.value; ve6("r"); });
+chipEl.addEventListener("click", e => { const i = [...chipEl.children].indexOf(e.target.closest(".chip")); if (i < 0) return; tu.value = MOC[i][1] ?? ""; den.value = MOC[i][2] ?? ""; ve6(); });
+document.getElementById("kh-tag").addEventListener("click", e => { if (e.target.matches("[data-x]")) { tu.value = ""; den.value = ""; ve6(); } });
+tu.value = 10; den.value = 25; ve6();
+</script>

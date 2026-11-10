@@ -1297,13 +1297,14 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
      * một hồ sơ, nên cộng cả cột là cộng thừa gấp mấy lần. `0080` phải viết một
      * đoạn chú thích để cảnh báo; gỡ hai cột đi thì cái bẫy biến mất.
      *
-     * *Chiết khấu cao nhất* Ở LẠI có chủ ý: nó là phép MAX chứ không phải phép
-     * cộng, nên lặp lại bao nhiêu lần thì `MAX` của cột vẫn ra đúng con số ấy.
+     * `0279` — *Chiết khấu cao nhất* và *Nhóm sản phẩm* (cấp hồ sơ) cũng gỡ: khối
+     * dòng đã có hai con số của riêng từng dòng.
      */
-    for (const bo of ['totalNet', 'lineCount']) {
+    for (const bo of ['totalNet', 'lineCount', 'maxDiscount', 'productGroupCodes']) {
       expect(COLUMNS.map((c) => c.key), `cột ${bo} vẫn còn`).not.toContain(bo);
     }
-    expect(COLUMNS.map((c) => c.key)).toContain('maxDiscount');
+    expect(COLUMNS.map((c) => c.key)).toContain('groupCode');
+    expect(COLUMNS.map((c) => c.key)).toContain('discountRate');
 
     // Khối dòng sản phẩm ĐỨNG CUỐI: thứ tự cột là hợp đồng với người dùng.
     const dau = COLUMNS.findIndex((c) => c.key === 'productCode');

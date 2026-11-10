@@ -318,14 +318,12 @@ export class CatalogController {
   }
 
   /**
-   * Sửa NGƯỠNG và NGÀY HIỆU LỰC (`0028`).
+   * Sửa NGƯỠNG, NGÀY HIỆU LỰC và — từ `0279` — NHÓM SẢN PHẨM, LOẠI KHÁCH HÀNG.
    *
-   * Hai khoá khớp không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng
-   * (`specificity`). Ngày kết thúc thì không còn tồn tại từ 0020: quy định vô
-   * thời hạn, muốn dừng thì xoá dòng hoặc khai một dòng cụ thể hơn đè lên.
-   *
-   * `effectiveFrom` bọc `opt()` vì vắng mặt là GIỮ NGUYÊN — cột `NOT NULL` nên
-   * không có trạng thái "không có giá trị" nào để một lần gửi thiếu diễn đạt.
+   * Hai ô phạm vi chỉ đổi khi khoá CÓ MẶT trong thân (rỗng/`null` = mọi giá trị);
+   * vắng khoá là giữ nguyên — xem `RulesService.update`. `effectiveFrom` bọc
+   * `opt()` vì vắng mặt là GIỮ NGUYÊN: cột `NOT NULL`, không có trạng thái "không
+   * có giá trị" nào để một lần gửi thiếu diễn đạt.
    */
   @Roles('QUAN_TRI')
   @Patch('discount-rules/:code')
@@ -333,8 +331,22 @@ export class CatalogController {
     const b = validate(body, {
       thresholdRate2: int(0, 10_000),
       effectiveFrom: opt(ngayIso()),
+      productGroupCode: opt(str(1, 40)),
+      customerType: opt(int(1, 3)),
     });
-    return this.rules.update(code, b, me.id);
+    // `opt()` gộp "vắng" và "rỗng" làm một; ở đây hai thứ khác nghĩa, nên hỏi
+    // thân thô xem khoá có được gửi không.
+    const gui = (k: string) => (body as Record<string, unknown>)[k] !== undefined;
+    return this.rules.update(
+      code,
+      {
+        thresholdRate2: b.thresholdRate2,
+        effectiveFrom: b.effectiveFrom,
+        ...(gui('productGroupCode') ? { productGroupCode: b.productGroupCode ?? null } : {}),
+        ...(gui('customerType') ? { customerType: b.customerType ?? null } : {}),
+      },
+      me.id,
+    );
   }
 
   /** Xoá một quy định — đòi gõ lại MÃ QUY ĐỊNH (`0036`). Xem `deleteGroup`. */

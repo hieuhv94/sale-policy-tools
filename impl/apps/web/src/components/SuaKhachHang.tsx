@@ -549,7 +549,7 @@ export function BieuMauKhachHang({
           duyệt tự chọn mục đầu tiên — biểu mẫu lập mới sẽ mở ra với *An Giang*
           đã điền sẵn, và người dùng không đọc kỹ sẽ lưu đúng cái tên ấy.
         */}
-        <Truong id="kh-tinh" nhan="Tỉnh/Thành phố (theo đăng ký kinh doanh)" bắtBuộc>
+        <Truong id="kh-tinh" nhan="Tỉnh/Thành phố (theo phân cách hành chính cũ)" bắtBuộc>
           {(p) => (
             <select
               {...p}

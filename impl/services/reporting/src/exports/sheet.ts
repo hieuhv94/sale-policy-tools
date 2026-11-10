@@ -54,12 +54,16 @@ export const COLUMNS: Col[] = [
    * giá thu về là tổng cột *Giá thu về* — Excel cộng hộ, chính xác hơn và không
    * nhân đôi.
    *
-   * *Chiết khấu cao nhất* thì Ở LẠI, và không phải vì bỏ sót: nó là một phép
-   * MAX chứ không phải phép cộng, nên lặp lại bao nhiêu lần thì `MAX` của cột
-   * vẫn ra đúng con số ấy. Cái bẫy chỉ có ở phép cộng.
+   * *Nhóm sản phẩm* và *Chiết khấu cao nhất (%)* ĐÃ GỠ (`0279`).
+   *
+   * Cũng là con số của CẢ HỒ SƠ (tập nhóm của mọi dòng · phép MAX trên mọi dòng)
+   * lặp lại trên từng dòng sản phẩm. Phép MAX không bị cộng thừa như hai cột của
+   * `0081` — lý do giữ nó ở đó — nhưng nó VẪN thừa: khối dòng đã có *Nhóm SP* và
+   * *Chiết khấu (%)* của riêng từng dòng, và cột *Nhóm sản phẩm* liệt kê nhóm của
+   * mọi dòng ngay cạnh một dòng chỉ thuộc một nhóm thì đọc như nhóm của dòng ấy.
+   * Cột `max_discount` / `product_group_codes` ở `rpt.policy_row` GIỮ — bộ lọc và
+   * danh sách hồ sơ vẫn dùng.
    */
-  { header: 'Nhóm sản phẩm', key: 'productGroupCodes', width: 20, kind: 'list' },
-  { header: 'Chiết khấu cao nhất (%)', key: 'maxDiscount', width: 20, kind: 'rate' },
   { header: 'Ngày tạo', key: 'createdAt', width: 18, kind: 'datetime' },
   /*
    * KHỐI DÒNG SẢN PHẨM (`0080`) — mỗi sản phẩm một DÒNG riêng.

@@ -22587,3 +22587,16 @@ Ca kiểm: ca ghim "đúng ba biểu mẫu dùng ngăn" đảo thành ca cấm �
 **Đo trên demo thật** (dựng lại `dist` bằng root rồi `chown`; Chrome không giao diện + CDP; tdv01 cho khách hàng và hồ sơ, admin01 cho sản phẩm) ở 1440 · 1024 · 768 · 390 · 320: cả ba hộp căn giữa (lề trái/phải chênh đúng bề rộng thanh cuộn của trang), nút gửi luôn trong khung nhìn, hộp không cuộn ngang. Dưới 640px hộp rộng `100% − 32px`. **Có sẵn, KHÔNG do chặng này:** trang chi tiết hồ sơ cuộn ngang ở 1024 (1116px) và 768 (856px) ngay cả khi không mở hộp nào — chưa sửa.
 
 **1193/1193 ca giao diện xanh** (`docker run` rời, demo bật).
+
+
+## P320 — `0279` Nhãn tỉnh · sửa phạm vi quy định chiết khấu · gỡ hai cột Excel
+
+Lượt phản hồi sáu mục; ba mục (ô chọn có gõ · tích nhiều loại khách · lọc theo khoảng chiết khấu) **chờ duyệt mockup** (`artifacts/chon-nhanh-mockup.html`, https://claude.ai/artifact/83KuMjVrvSceXHgch8hc8H) nên chưa đụng mã. Ba mục làm ngay:
+
+**Nhãn** *Tỉnh/Thành phố (theo đăng ký kinh doanh)* → *(theo phân cách hành chính cũ)*; ô *Số nhà, Phường xã* giữ nguyên.
+
+**Sửa nhóm sản phẩm và loại khách hàng của quy định chiết khấu** — đảo `0028` (khoá phạm vi vì đổi chúng là đổi `specificity`). Điểm khó là **hai nghĩa mà `opt()` gộp làm một**: vắng khoá = giữ nguyên, rỗng/`null` = "mọi giá trị". Controller đọc SỰ CÓ MẶT của khoá trong thân thô; client cũ gửi thiếu hai khoá không bao giờ vô tình đưa quy định về "mọi nhóm, mọi loại". Biểu mẫu mới luôn gửi đủ hai khoá. Đụng quy định khác cùng phạm vi + ngày thì `uq_rule_pham_vi` vỡ, cùng mã `RULE_SCOPE_DUPLICATE` như đường tạo. Mã quy định vẫn không sửa. Ô nhóm bày thêm mục của chính nhóm cũ nếu nó không còn trong danh sách (không thì lượt Lưu âm thầm nới về "mọi nhóm"). Hộp *Sửa* chỉ chọn MỘT loại — mỗi dòng chỉ mang một loại. **Bẫy của chính ca kiểm**: ca "rỗng = mọi giá trị" để lại một quy định TOÀN CỤC mà ca `0025` sau đó đòi "không có quy định nào" → đỏ ở chỗ chẳng liên quan; ca nay tự xoá. Trọng số `specificity` hiện là nhóm 2 + loại 1 (`0026` bỏ kênh), không phải 4/2/1 của `0005`. Ca cũ *"KHÔNG sửa được ba khoá khớp"* đảo thành ca kênh vẫn bị bỏ qua. Phá lại (hoàn tác `services/catalog`): ba ca `0279` đỏ.
+
+**Excel danh sách CSBH bỏ hai cột cấp hồ sơ *Nhóm sản phẩm* và *Chiết khấu cao nhất (%)*.** Ý nghĩa: cột đầu là tập nhóm của MỌI dòng, cột sau là MAX tỷ lệ của MỌI dòng, cả hai lặp lại trên từng dòng sản phẩm. `0081` giữ cột MAX vì "không bị cộng thừa"; đúng, nhưng nó vẫn thừa — khối dòng đã có *Nhóm SP* và *Chiết khấu (%)* của riêng dòng, và liệt kê mọi nhóm cạnh một dòng chỉ thuộc một nhóm đọc như nhóm của dòng ấy. Cột `max_discount`/`product_group_codes` ở `rpt.policy_row` GIỮ: bộ lọc và danh sách vẫn dùng.
+
+**3463+ xanh:** `tests/web` đủ, `catalog.test.ts` 122/122 và `reporting.test.ts` đủ (chạy riêng hai tệp sau `make demo-down`); `make test` đầy đủ chưa chạy.
