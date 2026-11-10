@@ -22637,3 +22637,12 @@ Khách hàng chọn **hướng đổi mô hình** (không tạo nhiều dòng) s
 **Lượt `make test` đầu: 8 đỏ, không cái nào là lỗi mã** — hai ca `policy.test.ts` vẫn khai quy định bằng `customerType` đơn (khai trùng "mọi loại" nên 409), hai ca quét mã nguồn `tinh-thanh.test.ts` đòi `<select>` và `<option value="">` (đổi sang canh *không tự điền*: ô mới không có mục rỗng), và ca đếm migration trong tài liệu (83 → 84; **một chỗ viết `**83**` có dấu sao nên `sed` bản thường bỏ sót**).
 
 **3519/3519 xanh** (`make test` đầy đủ, demo tắt).
+
+
+## P323 — `0282` Rà soát *Hướng dẫn* theo P319–P322 — CHỈ FRONTEND + TÀI LIỆU
+
+Rà trang *Hướng dẫn* trong ứng dụng (`lib/huong-dan.ts`) và ảnh chụp theo năm thay đổi vừa qua. **Chữ**: mục chung *Làm quen với màn hình* thêm đoạn nói về ô chọn có gõ (bấm, gõ, gõ không dấu, Esc, và *chữ gõ chỉ để tìm*); Tỉnh/Thành phố đổi nhãn và nói gõ để tìm; nhắc "gõ để tìm" ở các bước thêm sản phẩm, gửi duyệt, thêm sản phẩm vào danh mục, Nhật ký; trang *Chiết khấu* sửa ba chỗ — một quy định mang **một hoặc nhiều loại khách**, hộp *Thêm* dùng ba ô tích và trùng tính theo từng loại, hộp *Sửa* đổi được nhóm và loại (chỉ mã là không). **Ảnh**: chụp lại bốn ảnh trên demo thật (Chrome không giao diện, `--hide-scrollbars` cho khớp bộ ảnh cũ) — `tdv/them-dong-san-pham` (hết ngăn trượt), `tdv/gui-duyet` (ô chọn người có gõ), `quan-tri/them-quy-dinh` (ba ô tích), `quan-tri/them-san-pham` (ô nhóm có gõ). **Không chụp lại** các ảnh mà chỗ đổi chỉ là hình dạng ô chọn (`sale-admin/tao-ban-mem`, `ke-toan/xuat-hop-dong-hop-thoai`, `quan-tri/nhat-ky`, `quan-tri/chiet-khau`): `<select>` và ô chọn có gõ trông gần giống nhau ở trạng thái đóng, chỉ thêm mũi tên nhỏ. Cột Excel đã gỡ (P320) không có trong *Hướng dẫn* trong ứng dụng; `docs/03` đã sửa từ trước.
+
+Ảnh `them-quy-dinh` có một dòng `CK-MOI` (loại 1 và 2, 20%) phía sau hộp thoại — quy định do người dùng tự khai trên demo, **không xoá**.
+
+**1215/1215 ca giao diện xanh.**

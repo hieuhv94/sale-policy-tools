@@ -88,6 +88,7 @@ export const HUONG_DAN_CHUNG: MucChung[] = [
       'Thanh bên trái liệt kê các trang bạn được dùng, tuỳ vai trò. Bấm nút ở đầu thanh để thu gọn thành cột biểu tượng khi cần thêm chỗ cho bảng.',
       'Chuông ở thanh trên báo việc mới: số trên chuông là số việc đang chờ bạn xử lý, dấu chấm nghĩa là có tin để bạn biết. Bấm vào một dòng để mở thẳng hồ sơ liên quan.',
       'Giao diện sáng hoặc tối đổi ở menu tài khoản. Trên điện thoại, thanh bên là ngăn kéo mở bằng nút ba gạch.',
+      'Các ô chọn có danh sách dài (tỉnh/thành phố, sản phẩm, nhóm sản phẩm, người duyệt…) cho gõ để tìm: bấm vào ô, gõ vài chữ rồi bấm hoặc dùng mũi tên và Enter để chọn. Gõ không dấu cũng ra, ví dụ “ha noi” ra Hà Nội. Esc đóng danh sách. Chữ gõ chỉ để tìm, bạn vẫn phải chọn một mục trong danh sách.',
       'Trong hộp thoại, bấm ra ngoài không đóng hộp. Muốn thoát thì bấm Huỷ, nút × hoặc phím Esc, để không mất dở dang những gì đang gõ.',
     ],
   },
@@ -198,7 +199,7 @@ const TDV: HuongDanVaiTro = {
           noiDung: [
             'Vào Khách hàng, bấm nút lập mới rồi điền: mã khách hàng, tên hộ kinh doanh hoặc tên công ty, loại khách hàng, Tỉnh/Thành phố, Số nhà và Phường xã, người đại diện, chức danh, mã số thuế, số điện thoại.',
             'Mã số thuế bắt buộc và không được trùng khách đang hợp tác. Gõ xong phần mềm kiểm ngay, trùng thì báo dưới ô và nút Lưu không bấm được.',
-            'Tỉnh/Thành phố là ô chọn trong danh sách 63 đơn vị, theo tên cũ như trên giấy đăng ký kinh doanh. Số điện thoại không bắt buộc, nhưng nếu điền thì phải đủ 10 chữ số.',
+            'Tỉnh/Thành phố (theo phân cách hành chính cũ) là ô chọn trong danh sách 63 đơn vị, theo tên cũ như trên giấy đăng ký kinh doanh. Bấm vào ô rồi gõ vài chữ để tìm, gõ không dấu cũng được. Số điện thoại không bắt buộc, nhưng nếu điền thì phải đủ 10 chữ số.',
             'Chức danh chọn Giám đốc hoặc Chủ hộ kinh doanh. Chức danh khác thì chọn “Khác (tự nhập)” và gõ vào ô hiện ra.',
           ],
           anh: ANH('tdv/khach-hang-danh-sach.png', 'Danh sách khách hàng của Trình dược viên.'),
@@ -262,7 +263,7 @@ const TDV: HuongDanVaiTro = {
         {
           tieuDe: 'Thêm một dòng sản phẩm',
           noiDung: [
-            'Trên trang hồ sơ, bấm Thêm sản phẩm. Chọn sản phẩm rồi nhập Giá bán buôn và các khoản CPBH. Giá bán Công ty hiện ngay trên ô giá bán buôn để bạn đối chiếu.',
+            'Trên trang hồ sơ, bấm Thêm sản phẩm. Chọn sản phẩm (gõ mã hoặc một phần tên để tìm) rồi nhập Giá bán buôn và các khoản CPBH. Giá bán Công ty hiện ngay trên ô giá bán buôn để bạn đối chiếu.',
             'Bốn con số CPBH, Giá thu về, Tỷ lệ CK và QĐCK hiện ngay trong hộp thoại, trước khi bạn bấm Xác nhận. Đó chính là những con số sẽ nằm trong bảng.',
             'Gõ số tiền thì gõ số trần, ví dụ 1000000. Dòng nhỏ dưới ô sẽ cho bạn thấy số đã phân nhóm (1.000.000) để soát số 0.',
             'Số khoản CPBH tuỳ dòng: bấm “Thêm khoản chi phí” để có thêm ô, “Bớt” để bỏ. Mỗi khoản có thể ghi thêm một câu Nội dung ngắn, khi đó cạnh con số trên bảng có dấu ? để người duyệt đọc.',
@@ -321,7 +322,7 @@ const TDV: HuongDanVaiTro = {
         {
           tieuDe: 'Gửi duyệt',
           noiDung: [
-            'Bấm Gửi duyệt ở đầu trang hồ sơ. Hộp thoại mở ra để bạn chọn hai người: Trưởng bộ phận duyệt (người sẽ ký số) và Kế toán tiếp nhận (nhận cả lần 1 và lần 2).',
+            'Bấm Gửi duyệt ở đầu trang hồ sơ. Hộp thoại mở ra để bạn chọn hai người (gõ tên để tìm): Trưởng bộ phận duyệt (người sẽ ký số) và Kế toán tiếp nhận (nhận cả lần 1 và lần 2).',
             'Chỉ người bạn chọn mới thấy hồ sơ này trong hộp việc của họ. Nút Xác nhận chỉ bấm được khi đã chọn đủ cả hai.',
             'Gửi xong hồ sơ rời trạng thái Nháp, và bạn không sửa được nữa cho tới khi nó bị trả về.',
           ],
@@ -1635,7 +1636,7 @@ const QUAN_TRI: HuongDanVaiTro = {
         {
           tieuDe: 'Thêm sản phẩm',
           noiDung: [
-            'Bấm Thêm sản phẩm, điền mã vật tư, tên, nhóm và giá bán Công ty. Giá bắt buộc ngay khi tạo, và ngày áp dụng luôn là hôm nay. Mã vật tư không sửa được sau khi tạo vì hồ sơ CSBH đã lập đóng băng mã này.',
+            'Bấm Thêm sản phẩm, điền mã vật tư, tên, nhóm (gõ tên hoặc mã nhóm để tìm) và giá bán Công ty. Giá bắt buộc ngay khi tạo, và ngày áp dụng luôn là hôm nay. Mã vật tư không sửa được sau khi tạo vì hồ sơ CSBH đã lập đóng băng mã này.',
             'Danh mục chỉ có một loại giá là giá bán Công ty. Giá bán buôn do Trình dược viên nhập trong từng hồ sơ, không khai ở đây.',
           ],
           anh: ANH('quan-tri/them-san-pham.png', 'Hộp thoại Thêm sản phẩm.'),
@@ -1677,7 +1678,7 @@ const QUAN_TRI: HuongDanVaiTro = {
         {
           tieuDe: 'Hiểu một quy định',
           noiDung: [
-            'Mỗi quy định là một ngưỡng chiết khấu cho một phạm vi: một nhóm sản phẩm, một loại khách hàng, hoặc cả hai. Ô để trống nghĩa là mọi giá trị. Đây là nguồn ngưỡng duy nhất: sản phẩm không có quy định nào phủ thì dòng hồ sơ của nó không có ngưỡng.',
+            'Mỗi quy định là một ngưỡng chiết khấu cho một phạm vi: một nhóm sản phẩm, một hoặc nhiều loại khách hàng, hoặc cả hai. Ô để trống nghĩa là mọi giá trị; với loại khách hàng, không tích loại nào hoặc tích đủ cả ba đều là mọi loại. Đây là nguồn ngưỡng duy nhất: sản phẩm không có quy định nào phủ thì dòng hồ sơ của nó không có ngưỡng.',
             'Nhiều quy định cùng khớp một tình huống là bình thường. Quy định cụ thể hơn thắng: nhóm sản phẩm mạnh hơn loại khách hàng. Khi bằng nhau thì quy định mới hơn thắng.',
             'Vượt ngưỡng không bị chặn, chỉ được đánh dấu đỏ cho người duyệt nhìn thấy.',
           ],
@@ -1687,13 +1688,14 @@ const QUAN_TRI: HuongDanVaiTro = {
           tieuDe: 'Thêm quy định',
           noiDung: [
             'Bấm Thêm quy định. Mã quy định do bạn đặt, nên đặt mã đọc được và nói lên phạm vi, ví dụ CK-SUA-L1, vì mã này hiện lại trong cột QĐCK của từng dòng hồ sơ. Mã không phân biệt hoa thường và không sửa được sau khi tạo.',
-            'Khai trùng đúng phạm vi và đúng ngày hiệu lực với một dòng đã có thì hệ thống từ chối. Hãy sửa ngưỡng của dòng đang có, hoặc khai ngày hiệu lực muộn hơn để đè lên. Ô để trống cũng tính là trùng.',
+            'Loại khách hàng là ba ô tích: tích loại 1 và loại 3 là một quy định, một mã, một ngưỡng cho cả hai loại, không phải hai quy định. Câu dưới ô nói rõ quy định sẽ áp cho loại nào. Khai trùng phạm vi và ngày hiệu lực với một dòng đã có thì hệ thống từ chối, và trùng được tính theo từng loại: đã có quy định loại 1 và 3 cho nhóm ấy thì khai thêm quy định loại 3 bị từ chối, còn loại 2 thì được. Hãy sửa ngưỡng của dòng đang có, hoặc khai ngày hiệu lực muộn hơn để đè lên. Ô để trống cũng tính là trùng.',
           ],
           anh: ANH('quan-tri/them-quy-dinh.png', 'Hộp thoại Thêm quy định chiết khấu.'),
         },
         {
           tieuDe: 'Sửa và xoá',
           noiDung: [
+            'Bấm Sửa để đổi ngưỡng, ngày hiệu lực, nhóm sản phẩm và loại khách hàng (ba ô tích, đặt sẵn đúng các loại đang có). Chỉ mã quy định là không sửa được. Đổi nhóm hoặc loại khách là đổi thứ tự ưu tiên của quy định, và đổi vào đúng phạm vi và ngày của một quy định khác thì hệ thống từ chối.',
             'Sửa và xoá không làm đổi hồ sơ đã lập, vì mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập. Thay đổi chỉ áp cho hồ sơ lập từ đây về sau.',
             'Xoá đòi gõ lại mã quy định. Hồ sơ đã gửi duyệt còn dùng quy định ấy sẽ hiện trong khối Yêu cầu cập nhật của người phụ trách, với ngưỡng mới là rỗng. Hệ thống không gửi thư báo việc này.',
           ],
@@ -1775,7 +1777,7 @@ const QUAN_TRI: HuongDanVaiTro = {
         {
           tieuDe: 'Tra nhật ký',
           noiDung: [
-            'Nhật ký giữ 6 tháng gần nhất và mở mặc định ở tháng này. Cột Người thực hiện hiện họ tên, dòng nhỏ bên dưới là tên đăng nhập và vai trò.',
+            'Nhật ký giữ 6 tháng gần nhất và mở mặc định ở tháng này. Cột Người thực hiện hiện họ tên, dòng nhỏ bên dưới là tên đăng nhập và vai trò. Ba ô lọc Người thực hiện, Hành động và Đối tượng cho gõ để tìm.',
             'Bấm Xem thay đổi ở những dòng có sửa dữ liệu để đọc giá trị trước và sau, kèm lý do. Bấm mã tra cứu để xem cả chuỗi: một thao tác của người dùng thường sinh ra nhiều dòng ở nhiều phần khác nhau của hệ thống, và mã này nối chúng lại.',
             'Nhật ký chỉ đọc tại chỗ, không có nút xuất file. Khi người dùng báo lỗi, hãy hỏi họ đang làm gì và lúc mấy giờ, rồi tìm theo tên tài khoản và thời gian.',
           ],
