@@ -1,0 +1,216 @@
+<title>Mockup lọc khoảng chiết khấu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Bố cục: nửa trên là chính bộ lọc của trang Hồ sơ CSBH (lưới 4 cột, ô mới nằm ở chỗ trống cuối lưới); nửa dưới là danh sách mẫu để thấy "ít nhất một sản phẩm" hoạt động ra sao. Màu và phông lấy từ chính phần mềm. */
+:root {
+  --nen: #f4f6f9; --the: #ffffff; --chu: #121a26; --chu-phu: #4a566a; --chu-nhat: #7a8699;
+  --vien: #e1e6ed; --vien-dam: #c6ceda; --xanh: #0b4da3; --xanh-nhat: #e8eff9; --xanh-dam: #083c80;
+  --tot: #136c33; --tot-nen: #e3f5e9; --canh-bao: #a15c00; --canh-bao-nen: #fdf3e2; --loi: #b3261e; --loi-nen: #fdeceb;
+  --bong: 0 1px 2px rgb(18 26 38 / 6%), 0 8px 24px rgb(18 26 38 / 10%);
+  --phong: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --nen: #0f141d; --the: #172030; --chu: #e8edf6; --chu-phu: #a3afc3; --chu-nhat: #7d8aa0;
+  --vien: #2a3548; --vien-dam: #3a475d; --xanh: #6aa6ee; --xanh-nhat: #1b2c47; --xanh-dam: #8fbcf3;
+  --tot: #6fd08e; --tot-nen: #12301e; --canh-bao: #f0b45a; --canh-bao-nen: #33280f; --loi: #ff8a80; --loi-nen: #3a1714;
+  --bong: 0 8px 24px rgb(0 0 0 / 50%); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --nen: #0f141d; --the: #172030; --chu: #e8edf6; --chu-phu: #a3afc3; --chu-nhat: #7d8aa0;
+  --vien: #2a3548; --vien-dam: #3a475d; --xanh: #6aa6ee; --xanh-nhat: #1b2c47; --xanh-dam: #8fbcf3;
+  --tot: #6fd08e; --tot-nen: #12301e; --canh-bao: #f0b45a; --canh-bao-nen: #33280f; --loi: #ff8a80; --loi-nen: #3a1714;
+  --bong: 0 8px 24px rgb(0 0 0 / 50%); color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--nen); color: var(--chu); font: 400 14px/1.55 var(--phong); }
+.trang { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; }
+h3 { font-size: 12px; margin: 0; letter-spacing: .06em; text-transform: uppercase; color: var(--chu-nhat); font-weight: 600; }
+p { margin: 0; }
+.nhe { color: var(--chu-phu); }
+.khoi { display: grid; gap: 12px; }
+.the { background: var(--the); border: 1px solid var(--vien); border-radius: 10px; padding: 20px; min-width: 0; }
+.ghi { font-size: 12.5px; color: var(--chu-phu); }
+.hoi { background: var(--canh-bao-nen); border: 1px solid var(--canh-bao); border-radius: 8px; padding: 12px 14px; font-size: 13px; }
+.hoi b { color: var(--canh-bao); }
+:focus-visible { outline: 2px solid var(--xanh); outline-offset: 1px; }
+input[type=number], select { font: inherit; color: var(--chu); background: var(--the); border: 1px solid var(--vien-dam); border-radius: 6px; padding: 8px 12px; width: 100%; min-height: 40px; }
+label.nhan, .nhan { display: block; font-size: 12.5px; font-weight: 500; margin-bottom: 4px; }
+/* lưới bộ lọc thật: 4 cột, 3 hàng, ô thứ 12 còn trống */
+.luoi-loc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
+.o-mo { border: 1px solid var(--vien); background: var(--nen); color: var(--chu-nhat); border-radius: 6px; padding: 9px 12px; min-height: 40px; font-size: 13px; }
+.moi { grid-column: span 1; background: var(--xanh-nhat); border: 1px solid var(--xanh); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: start; }
+.moi .hang { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.o-pt { position: relative; }
+.o-pt input { padding-right: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.o-pt span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--chu-nhat); pointer-events: none; font-size: 13px; }
+.loi-o { color: var(--loi); font-size: 12.5px; }
+.o-pt.sai input { border-color: var(--loi); }
+.chip-hd { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--xanh); background: var(--xanh-nhat); color: var(--xanh); border-radius: 999px; padding: 3px 6px 3px 12px; font-size: 12.5px; font-weight: 600; font-family: inherit; }
+.chip-hd button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0 4px; min-width: 24px; min-height: 24px; }
+/* danh sách mẫu */
+.dk { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 16px; align-items: end; }
+.kq-dau { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ds { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ho-so { background: var(--the); border: 1px solid var(--vien); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.ho-so.loai { opacity: .45; }
+.ho-so .ma { font-weight: 600; color: var(--xanh); }
+.ho-so .kh { font-size: 13px; }
+.dong-sp { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; font-size: 13px; padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; }
+.dong-sp .nhom { color: var(--chu-nhat); font-size: 12px; }
+.dong-sp .tl { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.dong-sp.khop { background: var(--tot-nen); border-color: var(--tot); }
+.dong-sp.khop .tl { color: var(--tot); }
+.dong-sp.khop .tl::after { content: " ✓"; }
+.dong-sp.mo { color: var(--chu-phu); }
+.nut-chon { display: inline-flex; border: 1px solid var(--vien-dam); border-radius: 8px; overflow: hidden; }
+.nut-chon button { font: inherit; border: 0; background: var(--the); color: var(--chu); padding: 8px 14px; cursor: pointer; min-height: 40px; }
+.nut-chon button[aria-pressed=true] { background: var(--xanh); color: var(--the); font-weight: 600; }
+:root[data-theme="dark"] .nut-chon button[aria-pressed=true] { color: #0f141d; }
+.cot2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .luoi-loc { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .luoi-loc { grid-template-columns: minmax(0, 1fr); } .moi { grid-column: auto; } }
+</style>
+
+<div class="trang">
+  <header class="khoi">
+    <h1>Bộ lọc Hồ sơ CSBH: thêm khoảng tỷ lệ chiết khấu</h1>
+    <p class="nhe">Cách hiểu đã chốt: hồ sơ hiện ra khi có <b>ít nhất một sản phẩm</b> với tỷ lệ chiết khấu nằm trong khoảng. Các ô bên dưới thao tác được; dữ liệu là mẫu.</p>
+  </header>
+
+  <!-- ============ A. vị trí ============ -->
+  <section class="khoi" aria-labelledby="a">
+    <h2 id="a">A · Ô mới nằm ở đâu trong bộ lọc</h2>
+    <div class="the khoi">
+      <div class="luoi-loc" role="group" aria-label="Bộ lọc, bản vẽ lại">
+        <div class="o-mo">Áp dụng từ</div><div class="o-mo">Áp dụng đến</div><div class="o-mo">Duyệt từ</div><div class="o-mo">Duyệt đến</div>
+        <div class="o-mo">Mã khách hàng</div><div class="o-mo">Tên khách hàng</div><div class="o-mo">Tên sản phẩm</div><div class="o-mo">Nhóm sản phẩm</div>
+        <div class="o-mo">TDV phụ trách</div><div class="o-mo">Trạng thái</div><div class="o-mo">Hạn xử lý</div>
+        <div class="moi">
+          <span class="nhan" id="m-t" style="margin:0">Tỷ lệ chiết khấu</span>
+          <div class="hang" role="group" aria-labelledby="m-t">
+            <div><label class="nhan" for="m-tu" style="font-weight:400">Từ</label><div class="o-pt" id="m-ptu"><input type="number" id="m-tu" inputmode="decimal" min="0" max="100" step="0.01" placeholder="0"><span>%</span></div></div>
+            <div><label class="nhan" for="m-den" style="font-weight:400">Đến</label><div class="o-pt" id="m-pden"><input type="number" id="m-den" inputmode="decimal" min="0" max="100" step="0.01" placeholder="không giới hạn"><span>%</span></div></div>
+          </div>
+          <p class="loi-o" id="m-loi" role="alert" hidden>Số đầu đang lớn hơn số cuối.</p>
+          <p class="ghi" id="m-ghi">Có ít nhất một sản phẩm trong khoảng này.</p>
+        </div>
+      </div>
+      <p class="ghi">Mười ô cũ giữ nguyên chỗ. Ô mới chiếm đúng ô trống cuối lưới nên không đẩy hàng nào xuống. Chỉ nhập một đầu cũng được: <b>chỉ “Từ 20”</b> nghĩa là từ 20% trở lên, <b>chỉ “Đến 10”</b> nghĩa là tới 10%. Hai đầu đều tính cả giá trị biên, vì tỷ lệ trên màn hình đã làm tròn hai chữ số.</p>
+    </div>
+    <div class="cot2">
+      <div class="the khoi">
+        <h3>Khi đang lọc</h3>
+        <p class="ghi">Dải “Đang lọc thêm theo…” hiện như các tiêu chí khác, bấm × để bỏ riêng tiêu chí này:</p>
+        <div><span class="chip-hd">Tỷ lệ chiết khấu: 20% – 25% <button type="button" aria-label="Bỏ tiêu chí tỷ lệ chiết khấu">×</button></span></div>
+        <p class="ghi">Chỉ một đầu: <span class="chip-hd">Tỷ lệ chiết khấu: từ 20% trở lên <button type="button" aria-label="Bỏ">×</button></span></p>
+      </div>
+      <div class="the khoi">
+        <h3>Khi nhập sai</h3>
+        <div class="luoi-loc" style="grid-template-columns:1fr 1fr">
+          <div><span class="nhan">Từ</span><div class="o-pt sai"><input type="number" value="30" aria-label="Từ"><span>%</span></div></div>
+          <div><span class="nhan">Đến</span><div class="o-pt sai"><input type="number" value="12" aria-label="Đến"><span>%</span></div></div>
+        </div>
+        <p class="loi-o">Số đầu đang lớn hơn số cuối. Đổi chỗ hai số.</p>
+        <p class="ghi">Lọc không chạy cho tới khi sửa xong, và số hồ sơ khớp giữ nguyên thay vì nhảy về 0.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B. kết quả ============ -->
+  <section class="khoi" aria-labelledby="b">
+    <h2 id="b">B · “Ít nhất một sản phẩm” trông thế nào trên danh sách</h2>
+    <div class="the khoi">
+      <div class="dk">
+        <div><label class="nhan" for="b-tu">Từ</label><div class="o-pt"><input type="number" id="b-tu" inputmode="decimal" value="20" step="0.01"><span>%</span></div></div>
+        <div><label class="nhan" for="b-den">Đến</label><div class="o-pt"><input type="number" id="b-den" inputmode="decimal" value="25" step="0.01"><span>%</span></div></div>
+        <div><label class="nhan" for="b-nhom">Nhóm sản phẩm (để thử)</label>
+          <select id="b-nhom"><option value="">Tất cả nhóm</option><option value="SUA">Sữa bột (SUA)</option><option value="BOT">Bột ăn dặm (BOT)</option><option value="VIT">Vitamin (VIT)</option></select></div>
+      </div>
+      <div class="kq-dau">
+        <div id="b-chip"></div>
+        <span class="tong" id="b-tong" aria-live="polite"></span>
+      </div>
+      <div class="ds" id="b-ds"></div>
+      <p class="ghi">Ô xanh có dấu ✓ là dòng sản phẩm làm hồ sơ ấy hiện ra. Hồ sơ không có dòng nào khớp thì mờ đi ở đây để bạn thấy, còn trên màn hình thật nó <b>không hiện</b>. Thẻ hồ sơ thật chỉ thêm một dòng nhỏ <i>“2 sản phẩm trong khoảng 20% – 25%”</i>, không liệt kê từng dòng.</p>
+    </div>
+  </section>
+
+  <!-- ============ C. câu hỏi ============ -->
+  <section class="khoi" aria-labelledby="c">
+    <h2 id="c">C · Khi dùng cùng Nhóm sản phẩm hoặc Tên sản phẩm</h2>
+    <div class="the khoi">
+      <p>Chọn nhóm <b>Sữa bột (SUA)</b> ở khối B rồi đổi qua lại hai cách hiểu này. Hồ sơ <b>Công ty Thương mại Nam Dược</b> và <b>Chuỗi nhà thuốc Sức Khoẻ Vàng</b> là hai hồ sơ để so.</p>
+      <div class="nut-chon" role="group" aria-label="Cách hiểu khi dùng cùng nhóm sản phẩm">
+        <button type="button" id="cach-a" aria-pressed="true">Mỗi tiêu chí tính riêng</button>
+        <button type="button" id="cach-b" aria-pressed="false">Cùng một sản phẩm</button>
+      </div>
+      <p class="ghi" id="cach-ghi"></p>
+    </div>
+    <div class="hoi">
+      <b>Cần chốt:</b>
+      <ol style="margin:6px 0 0;padding-left:18px;display:grid;gap:6px">
+        <li><b>Nhóm/Tên sản phẩm cùng với tỷ lệ</b>: cách A (đang là cách của bộ lọc hiện nay, đơn giản, dễ hiểu theo từng ô) hay cách B (đúng hơn với câu hỏi “sản phẩm nhóm SUA nào chiết khấu 20–25%”, nhưng phải đổi cách máy chủ đọc bộ lọc sản phẩm)? Tôi nghiêng về <b>B</b> nếu các bạn dùng nhóm và tỷ lệ cùng nhau để tìm.</li>
+        <li><b>Xuất Excel</b>: bộ lọc chọn hồ sơ, file lại mỗi sản phẩm một dòng. Giữ <b>mọi dòng</b> của hồ sơ khớp (đề xuất, đủ ngữ cảnh), hay chỉ giữ dòng nằm trong khoảng?</li>
+        <li><b>Hồ sơ Nháp</b>: tỷ lệ của hồ sơ chưa gửi duyệt đổi theo từng lượt sửa giá. Có đưa Nháp vào kết quả lọc không, hay chỉ tính hồ sơ đã gửi duyệt (tỷ lệ đã đóng băng)?</li>
+      </ol>
+    </div>
+  </section>
+</div>
+
+<script>
+const HO_SO = [
+  { ma: 'CSBH-2026-000117', kh: 'Trung tâm Y tế TP Hưng Yên', dong: [['Nutricare Gold 900g', 'SUA', 15.61], ['Dầu óc chó Nutricare 250ml', 'DAU', 16.0], ['Nutricare Canxi 900g', 'CAL', 15.5]] },
+  { ma: 'CSBH-2026-000112', kh: 'Nhà thuốc Tràng An', dong: [['Nutricare Gold 900g', 'SUA', 21.4], ['Bột ăn dặm gạo sữa 200g', 'BOT', 8.0]] },
+  { ma: 'CSBH-2026-000107', kh: 'Khoa Dinh dưỡng — Bệnh viện Đà Nẵng', dong: [['Dinh dưỡng y học 400g', 'DD', 12.0], ['Dinh dưỡng y học 900g', 'DD', 13.5]] },
+  { ma: 'CSBH-2026-000103', kh: 'Chuỗi nhà thuốc Sức Khoẻ Vàng', dong: [['Sữa bột Nutri Mom 400g', 'SUA', 24.8], ['Vitamin D3 Nutri Drops 10ml', 'VIT', 22.0], ['Bột yến mạch 200g', 'BOT', 9.5]] },
+  { ma: 'CSBH-2026-000098', kh: 'Công ty TNHH Thương mại Nam Dược', dong: [['Sữa bột Nutri Gold 400g', 'SUA', 30.2], ['Bột ăn dặm gạo sữa 200g', 'BOT', 22.0]] },
+  { ma: 'CSBH-2026-000111', kh: 'Nhà thuốc Thái Hoà', dong: [['Cháo dinh dưỡng 240g', 'CHAO', 20.0], ['Ngũ cốc Nutricare 500g', 'NGU', 20.0]] }
+];
+const $ = (id) => document.getElementById(id);
+const so = (v) => (v === '' || v == null || isNaN(+v)) ? null : +v;
+const fmt = (n) => n.toFixed(2).replace('.', ',') + '%';
+let cach = 'A';
+const GHI = {
+  A: 'Cách A, mỗi tiêu chí tính riêng: hồ sơ cần CÓ sản phẩm nhóm SUA, và CÓ sản phẩm 20–25% (không nhất thiết là cùng một sản phẩm). Nam Dược hiện ra vì có Sữa Gold 30,20% (SUA) và Bột ăn dặm 22,00% (không phải SUA). Đó là chỗ dễ gây hiểu nhầm.',
+  B: 'Cách B, cùng một sản phẩm: phải có ÍT NHẤT MỘT sản phẩm vừa thuộc nhóm SUA vừa nằm trong 20–25%. Nam Dược biến mất (sản phẩm SUA của họ là 30,20%). Sức Khoẻ Vàng vẫn hiện vì Sữa Mom 24,80% thoả cả hai.'
+};
+function ve() {
+  const tu = so($('b-tu').value), den = so($('b-den').value), nhom = $('b-nhom').value;
+  const sai = tu != null && den != null && tu > den;
+  const trong = (x) => (tu == null || x >= tu) && (den == null || x <= den);
+  const co = tu != null || den != null;
+  let dem = 0;
+  const moTa = tu != null && den != null ? `${fmt(tu)} – ${fmt(den)}` : tu != null ? `từ ${fmt(tu)} trở lên` : den != null ? `đến ${fmt(den)}` : '';
+  $('b-ds').innerHTML = HO_SO.map((h) => {
+    const dongKhop = h.dong.map(([t, g, r]) => co && !sai && trong(r) && (cach === 'B' ? (!nhom || g === nhom) : true));
+    const coDong = !co || sai || dongKhop.some(Boolean);
+    const coNhom = !nhom || h.dong.some(([, g]) => g === nhom);
+    const hien = coDong && coNhom;
+    if (hien) dem++;
+    const dsHtml = h.dong.map(([t, g, r], i) => {
+      const k = dongKhop[i];
+      return `<div class="dong-sp ${k ? 'khop' : 'mo'}"><span>${t}<br><span class="nhom">${g}</span></span><span class="tl">${fmt(r)}</span></div>`;
+    }).join('');
+    const n = dongKhop.filter(Boolean).length;
+    return `<div class="ho-so ${hien ? '' : 'loai'}"><div><span class="ma">${h.ma}</span><div class="kh">${h.kh}</div></div>${dsHtml}${hien && co && !sai ? `<div class="ghi">${n} sản phẩm trong khoảng ${moTa}</div>` : ''}${hien ? '' : '<div class="ghi"><b>Không hiện</b> trên màn hình thật.</div>'}</div>`;
+  }).join('');
+  $('b-tong').textContent = `${dem} hồ sơ khớp điều kiện`;
+  const nhan = tu != null && den != null ? `${fmt(tu)} – ${fmt(den)}` : tu != null ? `từ ${fmt(tu)} trở lên` : den != null ? `đến ${fmt(den)}` : '';
+  $('b-chip').innerHTML = co && !sai ? `<span class="chip-hd">Tỷ lệ chiết khấu: ${nhan} <button type="button" id="b-x" aria-label="Bỏ tiêu chí tỷ lệ chiết khấu">×</button></span>` : `<span class="ghi">${sai ? 'Số đầu đang lớn hơn số cuối.' : 'Chưa đặt khoảng nào.'}</span>`;
+  const x = $('b-x'); if (x) x.onclick = () => { $('b-tu').value = ''; $('b-den').value = ''; ve(); };
+  $('cach-ghi').textContent = GHI[cach];
+}
+['b-tu', 'b-den', 'b-nhom'].forEach((i) => $(i).addEventListener('input', ve));
+$('cach-a').onclick = () => { cach = 'A'; $('cach-a').setAttribute('aria-pressed', 'true'); $('cach-b').setAttribute('aria-pressed', 'false'); ve(); };
+$('cach-b').onclick = () => { cach = 'B'; $('cach-b').setAttribute('aria-pressed', 'true'); $('cach-a').setAttribute('aria-pressed', 'false'); ve(); };
+// ô mẫu ở khối A
+function veA() {
+  const a = so($('m-tu').value), b = so($('m-den').value), sai = a != null && b != null && a > b;
+  $('m-loi').hidden = !sai; $('m-ptu').classList.toggle('sai', sai); $('m-pden').classList.toggle('sai', sai);
+  $('m-ghi').hidden = sai;
+}
+['m-tu', 'm-den'].forEach((i) => $(i).addEventListener('input', veA));
+ve();
+</script>

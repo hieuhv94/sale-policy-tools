@@ -194,6 +194,8 @@ type PolicyOpts = CustomerOpts & {
   productName?: string;
   /** Tên sản phẩm THỨ HAI — dựng hồ sơ nhiều dòng cho `0080`. */
   themSanPham?: string;
+  /** Nhóm của sản phẩm THỨ HAI — mặc định cùng nhóm với sản phẩm đầu (`0283`: hai dòng KHÁC nhóm). */
+  groupSanPhamThem?: string;
   groupCode?: string;
   appliedDate?: string;
 };
@@ -205,7 +207,7 @@ async function draft(o: PolicyOpts = {}): Promise<{ id: string; customerCode: st
   // `themSanPham` dựng hồ sơ NHIỀU DÒNG — cần cho `0080`, nơi mỗi sản phẩm là
   // một dòng riêng trong file Excel và "số hồ sơ" khác hẳn "số dòng".
   const them = o.themSanPham
-    ? [await makeProduct(o.themSanPham, o.groupCode ?? groupA)]
+    ? [await makeProduct(o.themSanPham, o.groupSanPhamThem ?? o.groupCode ?? groupA)]
     : [];
   const ngay = o.appliedDate ? { ngayApDung: o.appliedDate } : {};
   const r = await ppost(
@@ -396,8 +398,8 @@ describe('RPT-14 read-model trễ hơn nguồn nhưng hội tụ', () => {
 // RPT-01 — chín tiêu chí, mỗi tiêu chí một test
 // =============================================================================
 
-describe('RPT-01 từng tiêu chí trong 9 tiêu chí ở muc 9.2', () => {
-  it('có đúng 9 tiêu chí, khai báo ở một chỗ', async () => {
+describe('RPT-01 từng tiêu chí trong 10 tiêu chí ở muc 9.2', () => {
+  it('có đúng 10 tiêu chí, khai báo ở một chỗ', async () => {
     /*
      * `0077` bỏ *địa chỉ đăng ký* và *mã số thuế* — hai ô không ai lọc theo — và
      * gộp *người đề nghị* vào *TDV phụ trách*; đổi lại *hạn xử lý* vào hẳn muc
@@ -405,11 +407,12 @@ describe('RPT-01 từng tiêu chí trong 9 tiêu chí ở muc 9.2', () => {
      */
     const r = await rget('/reports/filter-keys');
     expect(r.status).toBe(200);
-    expect(r.body.criteria).toBe(9);
-    expect(SO_TIEU_CHI).toBe(9);
-    // 11 tham số cho 9 tiêu chí: hai tiêu chí thời gian mỗi cái có hai đầu.
-    expect(r.body.keys).toHaveLength(11);
-    expect(FILTER_KEYS).toHaveLength(11);
+    // `0283` thêm *Tỷ lệ chiết khấu* — tiêu chí thứ mười, cũng là một khoảng nên có hai khoá.
+    expect(r.body.criteria).toBe(10);
+    expect(SO_TIEU_CHI).toBe(10);
+    // 13 tham số cho 10 tiêu chí: ba tiêu chí khoảng (áp dụng, duyệt, chiết khấu) mỗi cái có hai đầu.
+    expect(r.body.keys).toHaveLength(13);
+    expect(FILTER_KEYS).toHaveLength(13);
     for (const bo of ['address', 'taxId', 'requesterId']) {
       expect(FILTER_KEYS as readonly string[], `${bo} phải đã bị gỡ`).not.toContain(bo);
     }
@@ -581,6 +584,177 @@ describe('RPT-02 kết hợp 5 điều kiện cùng lúc', () => {
     expect(ids).toContain(hit.id);
     expect(ids).not.toContain(miss.id);
     expect(r.body.appliedCriteria).toBe(5);
+  });
+});
+
+// =============================================================================
+// `0283` — tên · nhóm · khoảng chiết khấu cùng đúng trên MỘT dòng sản phẩm
+// =============================================================================
+
+describe('`0283` ba tiêu chí về sản phẩm gắn với MỘT dòng', () => {
+  /*
+   * Hai hồ sơ dựng để phân biệt cách A (mỗi tiêu chí đúng ở một dòng nào đó) với cách B (cùng một dòng).
+   * `draft()` đặt giá bán Công ty 100.000, nên tỷ lệ chiết khấu suy ra từ giá thu về:
+   *   dòng 1: bán buôn 90.000, CPBH 3.000  → thu về 87.000 → 13,00%
+   *   dòng 2: bán buôn 80.000, CPBH 2.000  → thu về 78.000 → 22,00%
+   */
+  let h1 = ''; // dòng 1 nhóm A (13%), dòng 2 nhóm B (22%)
+  let h2 = ''; // một dòng nhóm B (13%)
+  let ten1 = '';
+  let ten2 = '';
+
+  beforeAll(async () => {
+    ten1 = `Sua Mot ${uniq('P')}`;
+    ten2 = `Bot Hai ${uniq('P')}`;
+    h1 = (await draft({ productName: ten1, groupCode: groupA, themSanPham: ten2, groupSanPhamThem: groupB })).id;
+    h2 = (await draft({ productName: `Chi Nhom B ${uniq('P')}`, groupCode: groupB })).id;
+  });
+
+  const tap = async (qs: string): Promise<Set<string>> => {
+    const r = await rget(`/reports/policies?${qs}&limit=200`, 'bld01');
+    expect(r.status, qs).toBe(200);
+    return new Set(r.body.items.map((x: { policyId: string }) => x.policyId));
+  };
+
+  it('khoảng chiết khấu: hồ sơ hiện khi CÓ ÍT NHẤT MỘT dòng trong khoảng', async () => {
+    const ids = await tap('discountFrom=20&discountTo=25');
+    expect(ids.has(h1), 'h1 có dòng 22%').toBe(true);
+    expect(ids.has(h2), 'h2 chỉ có dòng 13%').toBe(false);
+  });
+
+  it('CÙNG MỘT dòng: nhóm A + từ 20% KHÔNG ra h1 — dòng nhóm A là 13%, dòng 22% thuộc nhóm B', async () => {
+    // Đây là cả điểm của chặng. Cách A (mỗi tiêu chí đúng ở một dòng nào đó) cho h1 hiện ra, vì h1 có một
+    // dòng nhóm A và có một dòng ≥ 20%.
+    const ids = await tap(`productGroupCode=${groupA}&discountFrom=20`);
+    expect(ids.has(h1)).toBe(false);
+  });
+
+  it('nhóm B + từ 20%: ra h1 (dòng nhóm B là 22%), KHÔNG ra h2 (dòng nhóm B là 13%)', async () => {
+    const ids = await tap(`productGroupCode=${groupB}&discountFrom=20`);
+    expect(ids.has(h1)).toBe(true);
+    expect(ids.has(h2)).toBe(false);
+  });
+
+  it('tên sản phẩm + nhóm cũng cùng một dòng: tên của dòng nhóm A không ghép được với nhóm B', async () => {
+    expect((await tap(`productName=${encodeURIComponent(ten1)}&productGroupCode=${groupB}`)).has(h1)).toBe(false);
+    expect((await tap(`productName=${encodeURIComponent(ten2)}&productGroupCode=${groupB}`)).has(h1)).toBe(true);
+    // Tên + nhóm + tỷ lệ cả ba: tên 2 · nhóm B · 22% — đúng một dòng thoả cả ba.
+    expect((await tap(`productName=${encodeURIComponent(ten2)}&productGroupCode=${groupB}&discountFrom=20&discountTo=25`)).has(h1)).toBe(true);
+    // Đổi khoảng khỏi 22%: cùng tên, cùng nhóm nhưng sai tỷ lệ.
+    expect((await tap(`productName=${encodeURIComponent(ten2)}&productGroupCode=${groupB}&discountTo=15`)).has(h1)).toBe(false);
+  });
+
+  it('hai đầu đều BAO GỒM giá trị biên, và chỉ một đầu cũng được', async () => {
+    expect((await tap('discountFrom=22&discountTo=22')).has(h1), '22 = 22').toBe(true);
+    expect((await tap('discountFrom=13&discountTo=13')).has(h2), '13 = 13').toBe(true);
+    expect((await tap('discountFrom=22.01')).has(h1), 'vừa quá 22').toBe(false);
+    expect((await tap('discountTo=12.99')).has(h2), 'vừa dưới 13').toBe(false);
+    // Chỉ "đến": h1 có dòng 13% nên hiện, h2 cũng hiện.
+    const den = await tap('discountTo=13');
+    expect(den.has(h1) && den.has(h2)).toBe(true);
+    // Chỉ "từ" 14: chỉ h1 (dòng 22%).
+    const tu = await tap('discountFrom=14');
+    expect(tu.has(h1)).toBe(true);
+    expect(tu.has(h2)).toBe(false);
+  });
+
+  it('bản sao cũ của tên vẫn chuẩn hoá: không dấu, hoa thường', async () => {
+    expect((await tap(`productName=${encodeURIComponent(ten2.toLowerCase())}`)).has(h1)).toBe(true);
+  });
+
+  it('đếm và danh sách nói về CÙNG một tập', async () => {
+    const qs = `productGroupCode=${groupB}&discountFrom=20`;
+    const ds = await tap(qs);
+    const dem = await rget(`/reports/policies/count?${qs}`, 'bld01');
+    expect(dem.body.total).toBe(ds.size);
+  });
+
+  it.each([
+    ['discountFrom=abc', 'discountFrom'],
+    ['discountFrom=-1', 'discountFrom'],
+    ['discountTo=101', 'discountTo'],
+    ['discountTo=20.123', 'discountTo'],
+    ['discountFrom=30&discountTo=12', 'discountFrom'],
+  ])('bản vào hỏng "%s" thì 400, nói rõ trường', async (qs, truong) => {
+    const r = await rget(`/reports/policies?${qs}&limit=5`, 'bld01');
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe(truong);
+  });
+
+  // ---- bản xem trước và lượt xuất theo ô tích ----------------------------------------------------
+
+  it('xem trước MẶC ĐỊNH chỉ có dòng khớp; tích "mọi sản phẩm" thì có cả dòng không khớp', async () => {
+    const hep = await rget(`/reports/exports/preview?productGroupCode=${groupB}&discountFrom=20&limit=100`, 'bld01');
+    expect(hep.status).toBe(200);
+    expect(hep.body.tatCa).toBe(false);
+    const dongH1 = (hep.body.dong as { policyId: string; productName: string; discountRate: string }[]).filter((d) => d.policyId === h1);
+    expect(dongH1.map((d) => d.productName), 'chỉ dòng 22% nhóm B').toEqual([ten2]);
+    expect(Number(dongH1[0]!.discountRate)).toBe(22);
+
+    const rong = await rget(`/reports/exports/preview?productGroupCode=${groupB}&discountFrom=20&tatCaSanPham=1&limit=100`, 'bld01');
+    expect(rong.body.tatCa).toBe(true);
+    const dongH1Rong = (rong.body.dong as { policyId: string; productName: string }[]).filter((d) => d.policyId === h1);
+    expect(dongH1Rong.map((d) => d.productName).sort(), 'cả hai dòng của h1').toEqual([ten1, ten2].sort());
+    expect(rong.body.soDong).toBeGreaterThan(hep.body.soDong);
+    // Cùng tập HỒ SƠ ở cả hai cách: ô tích chỉ đổi số DÒNG, không đổi hồ sơ nào hiện.
+    expect(rong.body.soHoSo).toBe(hep.body.soHoSo);
+  });
+
+  it('xem trước: `soDong` là số dòng của CẢ lượt, `daCat` báo bản xem trước ngắn hơn, `tran` là trần xuất', async () => {
+    const r = await rget('/reports/exports/preview?limit=1', 'bld01');
+    expect(r.status).toBe(200);
+    expect(r.body.dong).toHaveLength(1);
+    expect(r.body.soDong).toBeGreaterThan(1);
+    expect(r.body.daCat).toBe(true);
+    expect(r.body.tran).toBe(20_000);
+  });
+
+  it('xem trước: `limit` ngoài 1..200 thì 400, và đường `preview` không bị đọc thành một mã việc', async () => {
+    expect((await rget('/reports/exports/preview?limit=0', 'bld01')).status).toBe(400);
+    expect((await rget('/reports/exports/preview?limit=201', 'bld01')).status).toBe(400);
+    expect((await rget('/reports/exports/preview?limit=5', 'bld01')).status).toBe(200);
+  });
+
+  it('xem trước đi qua PHẠM VI: TDV chỉ thấy hồ sơ của mình', async () => {
+    const mine = await draft({ who: 'tdv01', groupCode: groupB });
+    const other = await draft({ who: 'tdv02', groupCode: groupB });
+    const r = await rget(`/reports/exports/preview?productGroupCode=${groupB}&limit=200`, 'tdv01');
+    const ma = new Set((r.body.dong as { policyId: string }[]).map((d) => d.policyId));
+    expect(ma.has(mine.id)).toBe(true);
+    expect(ma.has(other.id)).toBe(false);
+  });
+
+  it('TẢI ĐÚNG THEO LỰA CHỌN: file mặc định chỉ dòng khớp, file "mọi sản phẩm" có cả dòng không khớp', async () => {
+    const loc = { customerCode: '', productGroupCode: groupB, discountFrom: '20', discountTo: '25' } as Record<string, string>;
+    delete loc['customerCode'];
+    const cotTen = COLUMNS.findIndex((c) => c.key === 'productName') + 1;
+    const cotMa = COLUMNS.findIndex((c) => c.key === 'code') + 1;
+    const tenTrongFile = (ws: ExcelJS.Worksheet) => {
+      const r: string[] = [];
+      for (let i = 2; i <= ws.rowCount; i++) r.push(String(ws.getRow(i).getCell(cotTen).value));
+      return r;
+    };
+
+    const hep = await xuatRoiDoc(loc);
+    const tenHep = tenTrongFile(hep);
+    expect(tenHep).toContain(ten2);
+    expect(tenHep, 'dòng nhóm A (13%) KHÔNG có trong file mặc định').not.toContain(ten1);
+
+    const rong = await xuatRoiDoc({ ...loc, tatCaSanPham: 'true' } as unknown as Record<string, string>);
+    const tenRong = tenTrongFile(rong);
+    expect(tenRong).toContain(ten1);
+    expect(tenRong).toContain(ten2);
+    expect(tenRong.length).toBeGreaterThan(tenHep.length);
+    expect(cotMa).toBeGreaterThan(0);
+  });
+
+  it('không tiêu chí sản phẩm nào thì ô tích không đổi gì: hai file giống nhau', async () => {
+    const mine = await draft({ who: 'tdv01', themSanPham: `Them ${uniq('P')}` });
+    const loc = { customerCode: mine.customerCode };
+    const a = await xuatRoiDoc(loc);
+    const b = await xuatRoiDoc({ ...loc, tatCaSanPham: 'true' } as unknown as Record<string, string>);
+    expect(b.rowCount).toBe(a.rowCount);
+    expect(a.rowCount).toBe(3); // tiêu đề + hai dòng sản phẩm
   });
 });
 

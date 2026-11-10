@@ -22646,3 +22646,20 @@ Rà trang *Hướng dẫn* trong ứng dụng (`lib/huong-dan.ts`) và ảnh ch�
 Ảnh `them-quy-dinh` có một dòng `CK-MOI` (loại 1 và 2, 20%) phía sau hộp thoại — quy định do người dùng tự khai trên demo, **không xoá**.
 
 **1215/1215 ca giao diện xanh.**
+
+
+## P324 — `0283` Lọc theo khoảng chiết khấu, "cùng một dòng" và bản xem trước khi xuất Excel (migration `0134`)
+
+Brainstorm mục 6 chốt bốn điều: **ý nghĩa** *"có ít nhất một sản phẩm trong khoảng"* · **cách B** — tên, nhóm, tỷ lệ cùng đúng trên MỘT dòng (khách hàng suy từ "giữa các tiêu chí là *và*") · **hồ sơ Nháp có tính** · **xuất Excel có bản xem trước**, mặc định chỉ dòng khớp, ô tích *Thêm mọi sản phẩm trong CSBH*, tải đúng theo lựa chọn.
+
+**Cách B đảo `0077`.** Tên và nhóm đọc trên hai MẢNG cấp hồ sơ (`product_names_norm &&`, `product_group_codes &&`) nên chọn nhóm SUA + tên "Bột ăn dặm" ra cả hồ sơ có một dòng bột ăn dặm (BOT) cạnh một dòng SUA khác; thêm khoảng chiết khấu theo kiểu ấy ghép tỷ lệ của sản phẩm này với nhóm của sản phẩm kia. Giờ ba tiêu chí đi vào MỘT truy vấn con trên `rpt.policy_line`: `policy_id IN (SELECT … WHERE tên AND nhóm AND tỷ lệ)`. **`IN` chứ không `EXISTS`**: trong truy vấn con, `policy_id` không qualify trỏ vào CHÍNH bảng dòng, `l.policy_id = policy_id` là hằng đúng và mọi hồ sơ có dòng nào đó đều khớp; `build()` nhận thêm `policyIdCot` vì `all()` nối cả hai bảng. Tên từng dòng cần một cột: `product_name_norm` là **cột sinh** từ `sys.khong_dau` (migration `0134`, cùng lối `0049`) — dòng cũ tính ngay, không cần đồng bộ lại, có ca so với `norm()` của Node. Hệ quả: `ix_rpt_pnames` (GIN trên mảng cấp hồ sơ) không còn được bộ lọc dùng. `Built.dongKhop(bí danh)` trả CHÍNH điều kiện ấy cho bảng dòng, để xuất file và xem trước chỉ giữ dòng khớp mà không có câu thứ hai.
+
+**Khoảng chiết khấu**: khoá `discountFrom`/`discountTo` (`FILTER_KEYS` 11→13, tiêu chí 9→10 vì mỗi khoảng là một tiêu chí), so `discount_rate numeric(5,2)` — đúng con số hiện trên màn hình nên hai đầu bao gồm mà không còn khe biên. Máy chủ chỉ nhận `^\d{1,3}(\.\d{1,2})?$` ≤ 100 và đầu trước ≤ đầu sau (400 kèm `field`). Giao diện (`lib/loc-chiet-khau.ts`, phần thuần) là chỗ DUY NHẤT đổi dấu phẩy ↔ dấu chấm và quyết lúc nào khoảng đủ tốt để gửi: **gõ dở hay sai thứ tự thì KHÔNG gửi** — kẻo máy chủ trả 400 và danh sách nhảy sang trạng thái lỗi giữa lúc đang gõ. Hai khoá đổi cùng một lượt qua `datNhieu` (gọi `datMot` hai lần thì lần sau ghi đè lần trước vì đọc `boLoc` cũ).
+
+**Xuất Excel**: `NutXuatExcel` mở hộp xem trước (`GET /reports/exports/preview`, khai TRƯỚC `exports/:jobId` kẻo `preview` bị đọc thành mã việc), nút **Tải file Excel** nằm dưới bảng và tự tải khi file dựng xong. `ReportsService.all(…, {chiDongKhop})` và `demDong()` là câu lệnh của CẢ xem trước lẫn lượt xuất, và `tatCaSanPham` đi vào `rpt.export_job.filter` (`__tatCa`) — **xem thế nào tải thế ấy**. Ô tích chỉ có nghĩa khi bộ lọc có tiêu chí sản phẩm (tên · nhóm · khoảng); không thì nó tắt kèm câu nói vì sao và cờ không bao giờ đi lên. Đổi bộ lọc hay ô tích là VỨT việc đang có. **Đổi hành vi mặc định**: lọc theo nhóm/tên giờ cho file chỉ có dòng khớp (trước đó mọi dòng của hồ sơ khớp). Trần 20.000 dòng báo từ bản xem trước (`tran` do máy chủ trả).
+
+**Ca kiểm**: 18 ca `0283` ở `reporting.test.ts` — ca đáng giá nhất là *"nhóm A + từ 20% KHÔNG ra h1"* (dòng nhóm A là 13%, dòng 22% thuộc nhóm B); **phá lại** về một truy vấn con cho MỖI tiêu chí (cách A) thì đúng hai ca đỏ. Cộng 2 ca CSDL cho cột sinh, tệp `loc-chiet-khau.test.tsx` (hàm thuần + ô), và chín ca xuất Excel viết lại ở `bo-loc-ho-so.test.tsx` (ca cũ đi thẳng *bấm → tải*, nay *bấm → xem → tải*). Bẫy của chính lượt này: ca đếm tiêu chí ở `reporting.test.ts` đòi 9 và 11 khoá — đỏ ĐÚNG, đổi con số.
+
+Không làm: chụp lại ảnh *Hướng dẫn* cho hộp xem trước mới.
+
+**3564/3564 xanh** (`make test` đầy đủ, demo tắt).

@@ -363,7 +363,7 @@ const TDV: HuongDanVaiTro = {
       mucDich: 'Tìm lại bất kỳ hồ sơ nào trong phạm vi của bạn.',
       khoi: [
         'Hai cách xem: Kanban theo trạng thái, hoặc Bảng.',
-        'Bộ lọc 9 tiêu chí kết hợp được với nhau.',
+        'Bộ lọc 10 tiêu chí kết hợp được với nhau.',
       ],
       chiTiet: true,
       buoc: [
@@ -378,7 +378,7 @@ const TDV: HuongDanVaiTro = {
         {
           tieuDe: 'Dùng bộ lọc',
           noiDung: [
-            'Bộ lọc gồm: khoảng ngày áp dụng, khoảng ngày duyệt, mã khách hàng, tên khách hàng, tên sản phẩm, nhóm sản phẩm, trạng thái và hạn xử lý. Các ô có chữ “chọn nhiều” cho chọn cùng lúc nhiều giá trị.',
+            'Bộ lọc gồm: khoảng ngày áp dụng, khoảng ngày duyệt, mã khách hàng, tên khách hàng, tên sản phẩm, nhóm sản phẩm, trạng thái, hạn xử lý và tỷ lệ chiết khấu (hai số Từ và Đến, ra hồ sơ có ít nhất một sản phẩm trong khoảng). Các ô có chữ “chọn nhiều” cho chọn cùng lúc nhiều giá trị.',
             'Bộ lọc áp cho mọi cột Kanban. Lọc theo Trạng thái thì chỉ còn các cột được chọn.',
           ],
         },
@@ -536,8 +536,8 @@ const TBP: HuongDanVaiTro = {
         {
           tieuDe: 'Lọc và xuất Excel',
           noiDung: [
-            'Bộ lọc có 9 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ.',
-            'Nút Xuất Excel xuất đúng danh sách đang lọc.',
+            'Bộ lọc có 10 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý, tỷ lệ chiết khấu (khoảng Từ–Đến). Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ. Tên sản phẩm, nhóm sản phẩm và tỷ lệ chiết khấu cùng nói về một sản phẩm: lọc “nhóm SUA” và “từ 20%” ra hồ sơ có một sản phẩm vừa thuộc nhóm SUA vừa chiết khấu từ 20%.',
+            'Nút Xuất Excel xuất đúng danh sách đang lọc. Bấm Xuất Excel là mở bản xem trước các dòng sẽ có trong file, chưa tải gì. Mặc định file chỉ có các sản phẩm khớp tiêu chí về sản phẩm; tích “Thêm mọi sản phẩm trong CSBH” thì có cả sản phẩm còn lại của hồ sơ. File tải về đúng như bản xem trước.',
           ],
         },
       ],
@@ -796,8 +796,8 @@ const KE_TOAN: HuongDanVaiTro = {
         {
           tieuDe: 'Lọc và xuất Excel',
           noiDung: [
-            'Bộ lọc có 9 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ.',
-            'Nút Xuất Excel xuất đúng danh sách đang lọc.',
+            'Bộ lọc có 10 tiêu chí kết hợp được với nhau: ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý, tỷ lệ chiết khấu (khoảng Từ–Đến). Điều kiện lọc được giữ trong phiên làm việc, bấm “Xoá bộ lọc” để về danh sách đầy đủ. Tên sản phẩm, nhóm sản phẩm và tỷ lệ chiết khấu cùng nói về một sản phẩm: lọc “nhóm SUA” và “từ 20%” ra hồ sơ có một sản phẩm vừa thuộc nhóm SUA vừa chiết khấu từ 20%.',
+            'Nút Xuất Excel xuất đúng danh sách đang lọc. Bấm Xuất Excel là mở bản xem trước các dòng sẽ có trong file, chưa tải gì. Mặc định file chỉ có các sản phẩm khớp tiêu chí về sản phẩm; tích “Thêm mọi sản phẩm trong CSBH” thì có cả sản phẩm còn lại của hồ sơ. File tải về đúng như bản xem trước.',
           ],
         },
       ],
@@ -1075,7 +1075,7 @@ const SALE_ADMIN: HuongDanVaiTro = {
         {
           tieuDe: 'Lọc và xuất Excel',
           noiDung: [
-            'Bộ lọc có 9 tiêu chí kết hợp được với nhau, và được giữ trong phiên làm việc. Bấm “Xoá bộ lọc” để về danh sách đầy đủ. Nút Xuất Excel xuất đúng danh sách đang lọc.',
+            'Bộ lọc có 10 tiêu chí kết hợp được với nhau, và được giữ trong phiên làm việc. Bấm “Xoá bộ lọc” để về danh sách đầy đủ. Tỷ lệ chiết khấu lọc theo khoảng Từ–Đến, ra hồ sơ có ít nhất một sản phẩm trong khoảng. Tên sản phẩm, nhóm sản phẩm và tỷ lệ chiết khấu cùng nói về một sản phẩm: lọc “nhóm SUA” và “từ 20%” ra hồ sơ có một sản phẩm vừa thuộc nhóm SUA vừa chiết khấu từ 20%. Nút Xuất Excel xuất đúng danh sách đang lọc. Bấm Xuất Excel là mở bản xem trước các dòng sẽ có trong file, chưa tải gì. Mặc định file chỉ có các sản phẩm khớp tiêu chí về sản phẩm; tích “Thêm mọi sản phẩm trong CSBH” thì có cả sản phẩm còn lại của hồ sơ. File tải về đúng như bản xem trước.',
           ],
         },
       ],
@@ -1368,7 +1368,7 @@ const BAN_LANH_DAO: HuongDanVaiTro = {
       duong: '/ho-so',
       ten: 'Hồ sơ CSBH: danh sách',
       mucDich: 'Xem tất cả hồ sơ theo trạng thái, tìm bất kỳ hồ sơ nào và xuất Excel.',
-      khoi: ['Kanban theo trạng thái, hoặc dạng Bảng.', 'Bộ lọc 9 tiêu chí.', 'Nút Xuất Excel.'],
+      khoi: ['Kanban theo trạng thái, hoặc dạng Bảng.', 'Bộ lọc 10 tiêu chí.', 'Nút Xuất Excel.'],
       chiTiet: true,
       buoc: [
         {
@@ -1382,8 +1382,8 @@ const BAN_LANH_DAO: HuongDanVaiTro = {
         {
           tieuDe: 'Lọc và xuất Excel',
           noiDung: [
-            'Bộ lọc gồm ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc.',
-            'Nút Xuất Excel ở góc trên bên phải xuất đúng danh sách đang lọc, nên số dòng trong file khớp con số “N hồ sơ khớp điều kiện” dưới tiêu đề. Việc xuất chạy nền: bấm xong bạn dùng tiếp trang khác, khi file sẵn sàng nút đổi thành “Tải file”.',
+            'Bộ lọc gồm ngày áp dụng, ngày duyệt, mã và tên khách hàng, tên và nhóm sản phẩm, tỷ lệ chiết khấu (khoảng Từ–Đến), Trình dược viên phụ trách, trạng thái, hạn xử lý. Điều kiện lọc được giữ trong phiên làm việc. Tên sản phẩm, nhóm sản phẩm và tỷ lệ chiết khấu cùng nói về một sản phẩm: lọc “nhóm SUA” và “từ 20%” ra hồ sơ có một sản phẩm vừa thuộc nhóm SUA vừa chiết khấu từ 20%.',
+            'Nút Xuất Excel ở góc trên bên phải xuất đúng danh sách đang lọc, nên số dòng trong file khớp con số “N hồ sơ khớp điều kiện” dưới tiêu đề. Bấm Xuất Excel là mở bản xem trước các dòng sẽ có trong file; mặc định chỉ có các sản phẩm khớp tiêu chí về sản phẩm, tích “Thêm mọi sản phẩm trong CSBH” thì có cả sản phẩm còn lại của hồ sơ. Bấm Tải file Excel để dựng và tải xuống đúng như bản xem trước.',
             'Mỗi sản phẩm là một dòng riêng trong file, cột tiền là số nên cộng và lọc được ngay trong Excel.',
           ],
         },

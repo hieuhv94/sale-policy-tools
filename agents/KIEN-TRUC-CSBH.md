@@ -18,7 +18,7 @@ cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên 
 | | | | |
 |---|---|---|---|
 | **10** service ứng dụng | **1998** ca kiểm đang chạy | **11** trạng thái hồ sơ | **6** vai trò |
-| **10** tài khoản mẫu | **84** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
+| **10** tài khoản mẫu | **85** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
@@ -139,7 +139,7 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 | policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái **11 trạng thái** (`sửa 28/09`), phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
 | document | Dựng bản CSBH và hợp đồng từ mẫu `.docx`, băm và lưu file. **Sở hữu nghiệp vụ văn bản mẫu**: ba loại mẫu (`0165`) do Quản trị tải lên, bảng ánh xạ trường, trộn dữ liệu và sinh PDF | `doc.*` — mẫu, ánh xạ và **file**, gồm bản mềm đã lưu (`0167`); **không lưu hợp đồng** | Gọi Gotenberg — ngốn RAM và CPU theo đợt. Tách để giới hạn tài nguyên riêng, không làm chậm API nghiệp vụ. **Ký số nội bộ đã gỡ `0103`**; **xoá scan khi in lại đã bỏ `0050`** — Sale Admin chủ động gỡ và thay. Mẫu nằm ở đây chứ không ở `catalog` vì mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này. |
 | notification | Email theo bảng bước §3, gộp một luồng cho mỗi khách hàng, nhắc SLA, DLQ | `ntf.*` | Phụ thuộc SMTP bên ngoài, hay lỗi và cần retry lâu. Không được để việc gửi thư làm hỏng transaction duyệt hồ sơ. |
-| reporting | Read-model phẳng phục vụ **9 tiêu chí lọc** (`sửa 21/08`), báo cáo tiến độ, thống kê (`0094`), xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
+| reporting | Read-model phẳng phục vụ **10 tiêu chí lọc** (`sửa 21/08`, `sửa 12/11`), báo cáo tiến độ, thống kê (`0094`), xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
 | audit | Nhật ký chỉ ghi thêm, giá trị trước/sau, báo cáo nhật ký người dùng | `aud.*` | Cần chế độ quyền CSDL khác hẳn phần còn lại (chỉ INSERT). Tách schema là cách duy nhất cưỡng chế được điều đó. |
 | sla-worker | Cron 5 phút: quét hạn 14 ngày, gửi nhắc trước 24 giờ, chuyển `QUA_HAN_DUYET`, tự xoá hồ sơ quá hạn quá 3 ngày (`0047`), rà CSBH bị ảnh hưởng khi đổi giá | dùng `pol.*` (chung mã nguồn với policy) | Là tiến trình nền, cần scale và restart độc lập với API. Dùng chung code với policy nên không phát sinh chi phí đồng bộ mô hình. |
 
@@ -166,7 +166,7 @@ Nguyên tắc chọn: ưu tiên thứ đội 3–5 người vận hành được
 | Ngôn ngữ & runtime | **TypeScript · Node 22 LTS** | Một ngôn ngữ cho backend, worker và SPA. Kiểu dữ liệu của response dùng chung, đổi hợp đồng API là compile lỗi ngay ở frontend. Ảnh Docker ~180MB, khởi động <2s. | *Java/Spring Boot*: mỗi container 400–600MB RAM × 10 = quá nặng cho VM 8GB. *Go*: nhanh nhưng phần lớn công việc ở đây là CRUD + form + báo cáo, boilerplate không đáng. *Python/FastAPI*: tốt, nhưng không chia sẻ được kiểu với frontend. |
 | Framework backend | **NestJS 10** | Module hóa sẵn theo đúng biên giới service; guard/interceptor là chỗ tự nhiên để cắm kiểm quyền theo vai trò + phạm vi + trạng thái hồ sơ (§10). Sinh OpenAPI tự động để dùng cho contract test. | *Express thuần*: 10 service sẽ thành 10 kiểu cấu trúc khác nhau. *Fastify thuần*: nhanh hơn nhưng ở 50 user thì tốc độ framework không phải nút cổ chai. |
 | CSDL | **PostgreSQL 16** | Ba thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực” và cho “mã số thuế duy nhất giữa khách đang hợp tác” (`0175`), `numeric` chính xác cho tiền và tỷ lệ, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. (*Recursive CTE cho cây phân quyền* — lý do thứ tư của bản thiết kế — mất theo cây tổ chức `16/08`.) | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
-| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 84 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
+| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 85 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
 | Bus sự kiện | **RabbitMQ 3.13**, topic exchange `csbh.events` | Có sẵn DLQ, retry theo TTL, giao diện quản trị để kế toán vận hành nhìn được hàng đợi email lỗi. Chiếm ~120MB RAM. | *Kafka*: thừa mấy bậc cho vài nghìn sự kiện/tháng, tốn ~1GB RAM. *Redis Streams*: đã có Redis nhưng thiếu routing theo topic và DLQ, phải tự viết. *NATS*: nhẹ hơn nhưng đội ít quen, công cụ vận hành mỏng hơn. |
 | Hàng đợi việc & cache | **Redis 7** (`ioredis`) | Cache ảnh chụp danh tính cho token (`0090`), khoá phân tán cho cron SLA. **BullMQ đã bỏ khỏi lựa chọn**: xuất Excel và sinh PDF chạy đồng bộ trong lời gọi, còn thư retry đi qua RabbitMQ với DLQ — không còn loại job nào cần lịch trình riêng. | *Dùng RabbitMQ cho cả cache*: sai công cụ. |
 | Lưu file | **MinIO** (S3 API) | File ký, bản scan, hợp đồng phải xóa được *thật* khi kế toán yêu cầu in lại (§10) — S3 API cho xóa theo object và bật versioning chọn lọc. Sau này chuyển lên S3/Cloud không đổi code. | *Lưu vào thư mục ổ đĩa*: khó sao lưu nhất quán, khó cấp link có hạn. *BLOB trong Postgres*: phình DB, sao lưu chậm. |
@@ -1428,7 +1428,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
-| RPT-01 | Lần lượt dùng từng tiêu chí trong **9 tiêu chí** ở §9.2 (`sửa 21/08`) | Cả 9 đều lọc đúng — một test case con cho mỗi tiêu chí | §9.2 | `P0` |
+| RPT-01 | Lần lượt dùng từng tiêu chí trong **10 tiêu chí** ở §9.2 (`sửa 21/08`, `sửa 12/11`) | Cả 10 đều lọc đúng — một test case con cho mỗi tiêu chí | §9.2 | `P0` |
 | RPT-02 | Kết hợp 5 điều kiện cùng lúc | Trả đúng giao của các điều kiện | §9.2 | `P0` |
 | RPT-03 | Bấm xóa bộ lọc | Trả lại danh sách đầy đủ trong phạm vi của người dùng, không phải toàn hệ thống | §9.2 | `P1` |
 | RPT-04 | Đặt bộ lọc, chuyển màn hình rồi quay lại trong cùng phiên | Điều kiện lọc được giữ nguyên | §9.2 | `P1` |
@@ -1494,7 +1494,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | FE-07 | Bàn phím ảo mở lên khi đang nhập ở cuối biểu mẫu | Nút hành động chính vẫn nhìn thấy được, không bị bàn phím hay thanh điều hướng đáy che | — | `P0` |
 | FE-08 | Chạm vào mọi nút trên điện thoại | Vùng bấm tối thiểu 44×44px, không có hai nút sát nhau dưới 8px | — | `P1` |
 | FE-09 | Chạm vào ô nhập tiền và ô nhập CPBH trên điện thoại | Gọi bàn phím số, không phải bàn phím chữ | §7 | `P1` |
-| FE-10 | Mở bộ lọc **9 tiêu chí** trên điện thoại | Nằm trong tấm trượt lên; đóng lại vẫn giữ điều kiện đã chọn và số kết quả | §9.2 | `P1` |
+| FE-10 | Mở bộ lọc **10 tiêu chí** trên điện thoại | Nằm trong tấm trượt lên; đóng lại vẫn giữ điều kiện đã chọn và số kết quả | §9.2 | `P1` |
 | FE-11 | Đặt cỡ chữ hệ thống lên 200% | Bố cục không vỡ, không chồng chữ, không mất nút | — | `P1` |
 | FE-12 | Màn hình tra cứu của bld01 trên điện thoại | Tìm được một khách hàng và xem được CSBH đang áp dụng trong không quá 3 lần chạm | §2.6 | `P1` |
 | FE-13 | Logo trên thanh tiêu đề | Có mặt ở mọi màn hình sau đăng nhập; bấm vào quay về trang chủ | — | `P1` |

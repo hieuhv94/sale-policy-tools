@@ -92,21 +92,25 @@ export class ExportsService {
    * thời điểm việc chạy: người dùng bấm xuất rồi bị chuyển sang nhánh khác hai giây sau
    * thì file phải chứa đúng những gì họ được xem lúc bấm.
    */
-  async request(me: AuthUser, filter: Filter): Promise<{ jobId: string; status: string }> {
+  async request(
+    me: AuthUser,
+    filter: Filter,
+    opts: { tatCa?: boolean } = {},
+  ): Promise<{ jobId: string; status: string }> {
     // File Excel xuất ra phải chứa đúng những dòng màn hình cho xem, nên nó đi
     // qua cùng một phạm vi — kể cả luật riêng của Kế toán (`0144`).
     const pv = await this.scope.phamViCua(me);
     const row = await this.db.one<{ id: string }>(
       `INSERT INTO rpt.export_job (requested_by, requested_role, filter)
        VALUES ($1, $2, $3::jsonb) RETURNING id`,
-      [me.id, me.role, JSON.stringify({ ...filter, __scope: pv.ids })],
+      [me.id, me.role, JSON.stringify({ ...filter, __scope: pv.ids, __tatCa: opts.tatCa === true })],
     );
     const jobId = row!.id;
 
     // Chạy ở lượt sau của vòng lặp sự kiện. `void` có chủ ý: người gọi KHÔNG
     // chờ, đó là toàn bộ điểm của endpoint này. Lỗi được bắt bên trong `run` và
     // ghi vào chính bản ghi việc, nên không có promise nào bị bỏ rơi.
-    const p = this.run(jobId, filter, pv).finally(() => this.running.delete(p));
+    const p = this.run(jobId, filter, pv, opts.tatCa === true).finally(() => this.running.delete(p));
     this.running.add(p);
     return { jobId, status: 'CHO_XU_LY' };
   }
@@ -116,7 +120,7 @@ export class ExportsService {
     await Promise.allSettled([...this.running]);
   }
 
-  private async run(jobId: string, filter: Filter, pv: PhamVi): Promise<void> {
+  private async run(jobId: string, filter: Filter, pv: PhamVi, tatCa: boolean): Promise<void> {
     // Giành việc bằng chính câu UPDATE. Hai bản service cùng khởi động lại và
     // cùng nhặt việc tồn đọng thì chỉ một bản đổi được trạng thái.
     const claimed = await this.db.q<{ id: string }>(
@@ -127,7 +131,8 @@ export class ExportsService {
     if (claimed.length === 0) return;
 
     try {
-      const rows = await this.reports.all(pv, filter, EXPORT_MAX_ROWS + 1);
+      // `tatCa` là lựa chọn người dùng đã thấy ở bản xem trước (`0283`): tải xuống PHẢI đúng như đã xem.
+      const rows = await this.reports.all(pv, filter, EXPORT_MAX_ROWS + 1, { chiDongKhop: !tatCa });
       if (rows.length > EXPORT_MAX_ROWS) {
         throw new Error(
           `Bộ lọc khớp hơn ${EXPORT_MAX_ROWS} dòng sản phẩm. Hãy thu hẹp bộ lọc rồi xuất lại.`,

@@ -961,3 +961,26 @@ describe('0280 · customer_types — tập loại khách của quy định chi�
     expect(ck.rows[0]!.def).toMatch(/ARRAY\[\(1\)::smallint, \(2\)::smallint, \(3\)::smallint\]/);
   });
 });
+
+/**
+ * `0283` (migration `0134`) — tên sản phẩm chuẩn hoá của TỪNG DÒNG trong read-model báo cáo.
+ */
+describe('0283 · rpt.policy_line.product_name_norm', () => {
+  it('là cột SINH từ `sys.khong_dau(product_name)` — không có đường ghi nào để quên điền', async () => {
+    const r = await db.query<{ is_generated: string; generation_expression: string }>(
+      `SELECT is_generated, generation_expression FROM information_schema.columns
+        WHERE table_schema = 'rpt' AND table_name = 'policy_line' AND column_name = 'product_name_norm'`,
+    );
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]!.is_generated).toBe('ALWAYS');
+    expect(r.rows[0]!.generation_expression).toContain('khong_dau');
+  });
+
+  it('cho cùng kết quả với `norm()` của Node trên tên sản phẩm tiếng Việt (bộ lọc so hai bên với nhau)', async () => {
+    const mau = ['Nutricare Metaligold Đặc Biệt', 'Sữa bột  NUTRI   Gold 900g', 'Dầu óc chó Nutricare 250ml', 'Đường Ăn Kiêng'];
+    for (const ten of mau) {
+      const r = await db.query<{ n: string }>(`SELECT sys.khong_dau($1) AS n`, [ten]);
+      expect(r.rows[0]!.n, ten).toBe(norm(ten));
+    }
+  });
+});

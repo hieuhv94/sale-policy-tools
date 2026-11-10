@@ -2031,7 +2031,7 @@ mở được nhớ trên máy; nút **Về bộ cột mặc định** trả l�
 thêm** để xem tiếp. Bộ lọc bên dưới áp cho **mọi cột**; lọc theo *Trạng thái* thì chỉ còn các cột được chọn.
 
 
-*Hồ sơ CSBH* → **Bộ lọc** — **9 tiêu chí** `sửa 21/08`, kết hợp được với nhau:
+*Hồ sơ CSBH* → **Bộ lọc** — **10 tiêu chí** `sửa 21/08` (`sửa 12/11` thêm *Tỷ lệ chiết khấu*), kết hợp được với nhau:
 
 | Tiêu chí | Cách nhập |
 |---|---|
@@ -2043,11 +2043,16 @@ thêm** để xem tiếp. Bộ lọc bên dưới áp cho **mọi cột**; lọc
 | **TDV phụ trách** | **Chọn nhiều** |
 | **Trạng thái** | **Chọn nhiều** |
 | Hạn xử lý | Chọn một |
+| **Tỷ lệ chiết khấu** `mới 12/11` | Hai số **Từ** và **Đến** (%), nhập một đầu cũng được |
 
 **Năm tiêu chí chọn được nhiều thứ cùng lúc** `mới 21/08`. Gõ vài chữ, danh sách hiện ra, bấm để
 chọn — mỗi thứ đã chọn thành một **thẻ** bấm vào là gỡ. Chọn ba khách hàng thì ra hồ sơ của **cả
 ba**; thêm hai trạng thái thì ra hồ sơ của ba khách hàng ấy **và** đang ở một trong hai trạng thái.
 Trong một ô là *hoặc*, giữa hai ô là *và*.
+
+**Tỷ lệ chiết khấu theo khoảng** `mới 12/11`. Gõ *Từ 20* và *Đến 25* để tìm hồ sơ có **ít nhất một sản phẩm** chiết khấu từ 20% đến 25%; hai đầu đều tính cả giá trị biên. Chỉ gõ *Từ 20* là từ 20% trở lên, chỉ gõ *Đến 10* là tới 10%. Gõ dấu phẩy (*22,5*) như quen. Số đầu lớn hơn số cuối thì ô báo lỗi và chưa lọc.
+
+**Tên sản phẩm, Nhóm sản phẩm và Tỷ lệ chiết khấu cùng nói về MỘT sản phẩm** `sửa 12/11`. Chọn *nhóm SUA* và *từ 20%* là tìm hồ sơ có **một sản phẩm vừa thuộc nhóm SUA vừa chiết khấu từ 20%** — không phải hồ sơ có một sản phẩm SUA nào đó và một sản phẩm khác chiết khấu 20%. Trước `12/11`, nhóm và tên sản phẩm chỉ cần đúng ở hai sản phẩm khác nhau của cùng một hồ sơ; nay chúng phải đúng ở cùng một dòng. Các tiêu chí còn lại (ngày, khách hàng, TDV, trạng thái, hạn xử lý) nói về cả hồ sơ.
 
 > **Vì sao chọn thay vì gõ.** Mã khách hàng và nhóm sản phẩm là mã có thật trong danh mục. Trước đây
 > phải nhớ và gõ đúng; gõ sai một ký tự thì kết quả rỗng, và không có gì phân biệt *"không có hồ sơ
@@ -2157,12 +2162,18 @@ Vài điều nên biết khi đọc con số:
 
 Nút **Xuất Excel** nằm ở màn hình **Hồ sơ CSBH**, góc trên bên phải — không phải ở trang Thống kê.
 
-Đặt ở đó vì đó là màn hình có bộ lọc: file xuất ra chứa **đúng kết quả bạn đang xem**, nên số dòng
-trong file bằng đúng con số *"N hồ sơ khớp điều kiện"* ngay dưới tiêu đề. Trước đây nút nằm ở trang
-Thống kê, cách bộ lọc một màn hình, nên nó chỉ xuất được **tất cả** hồ sơ trong phạm vi.
+**Bấm nút là mở BẢN XEM TRƯỚC, chưa tải gì** `sửa 12/11`. Hộp thoại cho thấy 50 dòng đầu của file, hai con số của cả lượt (*N hồ sơ · M dòng sản phẩm trong file*) và một ô tích. Nút **Tải file Excel** nằm dưới bảng: bấm là máy chủ dựng file rồi tải về luôn, không phải bấm hai lần.
 
-Xuất chạy **chạy nền**: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng nút đổi thành
-*Tải file (N dòng)*. Cột tiền là **số** nên cộng và lọc được ngay trong Excel.
+**Hai cách chọn dòng vào file** `mới 12/11`:
+
+- **Mặc định**: chỉ những **dòng sản phẩm khớp tiêu chí về sản phẩm** (tên, nhóm, tỷ lệ chiết khấu). Lọc *nhóm SUA* và *20–25%* thì file chỉ có các dòng sản phẩm nhóm SUA chiết khấu 20–25%.
+- **Tích *Thêm mọi sản phẩm trong CSBH***: file có **mọi dòng** của các hồ sơ khớp, kể cả dòng không khớp. Hồ sơ nào hiện ra vẫn là hồ sơ nào — ô tích chỉ đổi số dòng.
+
+Bộ lọc không có tiêu chí nào về sản phẩm thì hai cách cho cùng một file, nên ô tích **mờ đi** kèm câu nói vì sao. **File tải về đúng như bản xem trước**: đổi ô tích hay bộ lọc là bản xem trước và nút tải làm lại từ đầu.
+
+File vượt **20.000 dòng** thì hộp thoại nói ra và khoá nút tải — hãy thu hẹp bộ lọc. Nút **Tải file Excel** ghi sẵn số dòng sẽ có.
+
+Đặt ở màn hình này vì đó là màn hình có bộ lọc: số dòng trong file là số dòng sản phẩm của đúng kết quả bạn đang xem. Xuất chạy **nền**: đóng hộp thoại giữa chừng cũng không hỏng file. Cột tiền là **số** nên cộng và lọc được ngay trong Excel.
 
 **Tên file** `sửa 21/08` có dạng `CSBH_20260821_143012.xlsx` — chữ số là **ngày tháng và giờ phút
 giây lúc file được dựng**, theo giờ Việt Nam. Năm đứng trước nên xếp thư mục tải về theo tên là ra
@@ -2192,10 +2203,10 @@ khối cột cuối là số liệu của **riêng dòng đó**:
 > cũ không hỏng.
 
 Vì vậy **số dòng trong file lớn hơn số hồ sơ**: màn hình ghi *"58 hồ sơ khớp điều kiện"* còn nút ghi
-*"Tải file (312 dòng)"* — 312 là số dòng sản phẩm của 58 hồ sơ đó.
+*"Tải file Excel (312 dòng)"* — 312 là số dòng sản phẩm của 58 hồ sơ đó.
 
-**Đổi bộ lọc thì phải bấm xuất lại** — nút quay về *Xuất Excel*. Đây là chủ ý: giữ liên kết cũ thì
-bạn tải về một file của bộ lọc trước, mang số dòng của một danh sách không còn trên màn hình.
+**Đổi bộ lọc hay ô tích thì phải dựng file lại** — nút quay về *Tải file Excel*. Đây là chủ ý: giữ liên kết cũ thì
+bạn tải về một file của lựa chọn trước, mang số dòng của một danh sách không còn trên màn hình.
 
 File kết xuất **chỉ người bấm xuất tải được**, và hết hạn lưu sau 24 giờ.
 

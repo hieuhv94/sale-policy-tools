@@ -4934,3 +4934,15 @@ svg.bd-nho { width: 62px; margin: 0; }
 .the-tich:has(input:focus-visible) { box-shadow: var(--vong-tieu-diem); }
 .the-tich input { width: 1.125rem; height: 1.125rem; margin: 0; flex: none; accent-color: var(--mau-thuong-hieu); }
 .nhom-tich .ghi-chu { margin: 0; }
+
+/* --- Ô lọc khoảng tỷ lệ chiết khấu (`0283`) ----------------------------------
+   Nằm trong lưới `.luoi-loc` như một ô thường: nhãn nhỏ phía trên, hai số cạnh nhau. */
+.khoang-chiet-khau { border: 0; margin: 0; padding: 0; min-width: 0; }
+.khoang-chiet-khau legend { padding: 0; margin-bottom: var(--k1); font-size: var(--chu-nho); font-weight: 500; color: var(--mau-chu); }
+.khoang-hang { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--k2); align-items: center; }
+.khoang-hang label { font-size: var(--chu-nho); color: var(--mau-chu-phu); font-weight: 400; }
+.o-phan-tram { position: relative; display: block; min-width: 0; }
+.o-phan-tram .o-nhap { padding-right: var(--k5); }
+.o-phan-tram > span { position: absolute; right: var(--k3); top: 50%; transform: translateY(-50%); color: var(--mau-chu-nhat); pointer-events: none; }
+.the-tich-rong { flex: none; width: 100%; align-items: flex-start; }
+.the-tich-rong small { display: block; }

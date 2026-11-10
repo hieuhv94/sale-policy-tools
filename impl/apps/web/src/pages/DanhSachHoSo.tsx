@@ -22,6 +22,7 @@ import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, ONhapNgay, OTimKiem, Trong } from '../components/Chung.js';
 import { ChonNhieu, type NguonChon, type TuyChon } from '../components/ChonNhieu.js';
 import { NutXuatExcel } from '../components/NutXuatExcel.js';
+import { OKhoangChietKhau } from '../components/OKhoangChietKhau.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { MOI_TRANG, soTrangCua } from '../lib/phan-trang.js';
 import { MOI_TRANG_THAI } from '../lib/tong-quan.js';
@@ -93,14 +94,14 @@ type TimO = 'khach-hang' | 'san-pham';
 type TieuChi = {
   khoa: string;
   nhan: string;
-  kieu?: 'date' | 'chon' | 'nhieu';
+  kieu?: 'date' | 'chon' | 'nhieu' | 'khoang';
   /** Chỉ ô `nhieu`: lấy tuỳ chọn ở đâu. */
   tim?: TimO;
   goiY?: string;
 };
 
 /**
- * Chín tiêu chí của muc 9.2, đúng thứ tự hiện trên biểu mẫu (`0077`).
+ * Mười tiêu chí của muc 9.2, đúng thứ tự hiện trên biểu mẫu (`0077`; ô thứ mười ở `0283`).
  *
  * Thứ tự không tuỳ tiện: hai khoảng thời gian trước (câu hỏi thu hẹp mạnh nhất),
  * rồi khách hàng, rồi sản phẩm, rồi người, rồi tình trạng. Đi từ "kỳ nào" tới
@@ -138,7 +139,15 @@ const TIEU_CHI: TieuChi[] = [
    * đồng hồ.
    */
   { khoa: 'han', nhan: 'Hạn xử lý', kieu: 'chon' },
+  /*
+   * Khoảng tỷ lệ chiết khấu (`0283`) — ô thứ mười, ở ô trống cuối lưới bốn cột. Một ô nhưng HAI khoá
+   * (`discountFrom` + `discountTo`): khoá thứ hai không có ô riêng nên nằm ở `KHOA_DI_KEM`.
+   */
+  { khoa: 'discountFrom', nhan: 'Tỷ lệ chiết khấu', kieu: 'khoang' },
 ];
+
+/** Khoá đi cùng một ô nhưng không có ô riêng — vẫn nhận được từ liên kết và vẫn lưu cùng bộ lọc. */
+const KHOA_DI_KEM = ['discountTo'] as const;
 
 /**
  * Tiêu chí đặt được TỪ LIÊN KẾT nhưng KHÔNG có ô nhập trong biểu mẫu.
@@ -168,6 +177,7 @@ const TIEU_CHI_AN: Record<string, string> = {
  */
 export const KHOA_NHAN_TU_LIEN_KET = [
   ...TIEU_CHI.map((t) => t.khoa),
+  ...KHOA_DI_KEM,
   ...Object.keys(TIEU_CHI_AN),
 ];
 
@@ -409,6 +419,15 @@ export function DanhSachHoSo() {
     void dat('/reports/filters/ho-so', moi).catch(baoLuuHong);
   };
 
+  // Đổi NHIỀU khoá một lượt (khoảng chiết khấu: hai khoá). Gọi `datMot` hai lần thì lượt sau ghi đè lượt
+  // trước, vì mỗi lượt đọc `boLoc` cũ.
+  const datNhieu = (patch: Record<string, string>) => {
+    const moi: BoLoc = { ...boLoc, ...patch };
+    for (const k of Object.keys(patch)) if (!patch[k]) delete moi[k];
+    datBoLoc(moi);
+    void dat('/reports/filters/ho-so', moi).catch(baoLuuHong);
+  };
+
   const xoaLoc = async () => {
     datBoLoc({});
     await dang('/reports/filters/ho-so/clear', {}).catch(baoLuuHong);
@@ -532,6 +551,17 @@ export function DanhSachHoSo() {
                     // Nối bằng dấu phẩy: `datMot` và cả đường ống bên dưới nó
                     // vẫn làm việc với chuỗi, đúng như máy chủ nhận.
                     doi={(v) => datMot(t.khoa, v.join(','))}
+                  />
+                );
+              }
+              if (t.kieu === 'khoang') {
+                return (
+                  <OKhoangChietKhau
+                    key={t.khoa}
+                    id="loc-chiet-khau"
+                    tu={boLoc['discountFrom'] ?? ''}
+                    den={boLoc['discountTo'] ?? ''}
+                    doi={datNhieu}
                   />
                 );
               }

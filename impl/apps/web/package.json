@@ -61,6 +61,8 @@
     "./so-lieu": "./src/components/khoi/SoLieu.tsx",
     "./chon-nhieu": "./src/components/ChonNhieu.tsx",
     "./chon-co-go": "./src/components/ChonCoGo.tsx",
+    "./o-khoang-chiet-khau": "./src/components/OKhoangChietKhau.tsx",
+    "./loc-chiet-khau": "./src/lib/loc-chiet-khau.ts",
     "./lich-su-csbh": "./src/components/LichSuCsbh.tsx",
     "./nut-xuat-excel": "./src/components/NutXuatExcel.tsx",
     "./hop-viec": "./src/components/khoi/HopViec.tsx",

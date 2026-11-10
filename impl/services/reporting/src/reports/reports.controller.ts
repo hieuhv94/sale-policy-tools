@@ -8,17 +8,20 @@
  * người dùng mà chưa hiện trên trang chủ là lỗi nghiệp vụ, còn một báo cáo trễ
  * vài giây thì không (RPT-14). Test quét bảng định tuyến và đỏ ngay nếu ai thêm.
  */
-import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, docKy, docSoKy, Roles, type AuthUser } from '@csbh/http-kit';
 import { ReportsService } from './reports.service.js';
 import { ThongKeService } from './thong-ke.service.js';
 import { FilterStore } from './filter-store.js';
 import { cleanFilter, FILTER_KEYS, SO_TIEU_CHI, type Filter } from './filter.js';
-import { ExportsService } from '../exports/exports.service.js';
+import { EXPORT_MAX_ROWS, ExportsService } from '../exports/exports.service.js';
 
 /** Ai cũng xem được báo cáo — nhưng chỉ trong phạm vi dữ liệu của mình. */
 const VIEWERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI'];
+
+/** `true`, `1` hoặc `'1'`/`'true'` đều là bật — body JSON và query string nói hai kiểu. */
+const laBat = (v: unknown): boolean => v === true || v === 1 || v === '1' || v === 'true';
 
 @Controller('reports')
 export class ReportsController {
@@ -178,7 +181,28 @@ export class ReportsController {
   @Post('exports')
   @HttpCode(202)
   request(@CurrentUser() me: AuthUser, @Body() body: Record<string, unknown>) {
-    return this.exports.request(me, cleanFilter(body ?? {}));
+    // `tatCaSanPham` (`0283`) không phải một tiêu chí lọc nên không đi qua `cleanFilter`: nó chỉ nói file
+    // giữ MỌI dòng của hồ sơ khớp hay chỉ các dòng khớp tiêu chí sản phẩm.
+    return this.exports.request(me, cleanFilter(body ?? {}), { tatCa: laBat(body?.['tatCaSanPham']) });
+  }
+
+  /**
+   * Bản xem trước của lượt xuất — khai TRƯỚC `exports/:jobId` để `preview` không bị đọc thành một mã việc.
+   */
+  @Roles(...VIEWERS)
+  @Get('exports/preview')
+  xemTruoc(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {
+    const limit = q['limit'] === undefined ? 50 : Number(q['limit']);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'limit',
+        message: 'limit phải là số nguyên trong khoảng 1..200',
+      });
+    }
+    return this.reports
+      .xemTruocXuat(me, cleanFilter(q), { tatCa: laBat(q['tatCaSanPham']), limit })
+      .then((r) => ({ ...r, tran: EXPORT_MAX_ROWS }));
   }
 
   @Roles(...VIEWERS)

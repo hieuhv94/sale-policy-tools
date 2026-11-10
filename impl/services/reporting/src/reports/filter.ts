@@ -52,6 +52,12 @@ export type Filter = {
   productName?: string | undefined;
   productGroupCode?: string | undefined;
   /**
+   * KHOẢNG tỷ lệ chiết khấu của MỘT dòng sản phẩm, tính theo phần trăm, hai đầu đều BAO GỒM (`0283`).
+   * Số thập phân dạng chuỗi (`20`, `22.5`); vắng một đầu là không giới hạn đầu đó.
+   */
+  discountFrom?: string | undefined;
+  discountTo?: string | undefined;
+  /**
    * TDV phụ trách KHÁCH HÀNG — không phải người lập hồ sơ (`0077`).
    *
    * Trước `0077` có thêm `requesterId` (người lập). Hai cột chỉ lệch nhau sau
@@ -124,7 +130,7 @@ export const SAP_QUA_HAN = `(status <> 'QUA_HAN_DUYET'
     AND sla_due_at IS NOT NULL
     AND sla_due_at <= now() + interval '1 day')`;
 
-/** Tên tham số nhận từ query string, theo đúng thứ tự 9 tiêu chí ở muc 9.2. */
+/** Tên tham số nhận từ query string, theo đúng thứ tự 10 tiêu chí ở muc 9.2 (`0283` thêm khoảng chiết khấu). */
 export const FILTER_KEYS = [
   'appliedFrom',
   'appliedTo',
@@ -134,6 +140,8 @@ export const FILTER_KEYS = [
   'customerName',
   'productName',
   'productGroupCode',
+  'discountFrom',
+  'discountTo',
   'tdvUserId',
   'status',
   'han',
@@ -275,13 +283,40 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
       if (!UUID.test(x)) throw bad('tdvUserId', `"${x}" không phải uuid`);
     }
   }
+  // Khoảng chiết khấu: số 0–100, tối đa hai chữ số thập phân (đúng độ chính xác lưu trong
+  // `rpt.policy_line.discount_rate`), và đầu trước không được lớn hơn đầu sau.
+  for (const k of ['discountFrom', 'discountTo'] as const) {
+    const v = out[k];
+    if (v === undefined) continue;
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(v) || Number(v) > 100) {
+      throw bad(k, 'phải là số từ 0 đến 100, tối đa hai chữ số thập phân');
+    }
+  }
+  if (
+    out['discountFrom'] !== undefined &&
+    out['discountTo'] !== undefined &&
+    Number(out['discountFrom']) > Number(out['discountTo'])
+  ) {
+    throw bad('discountFrom', 'số đầu không được lớn hơn số cuối');
+  }
   if (out['han'] && !(HAN_XU_LY as readonly string[]).includes(out['han'])) {
     throw bad('han', `chỉ nhận ${HAN_XU_LY.join(' hoặc ')}`);
   }
   return out as Filter;
 }
 
-export type Built = { where: string; params: unknown[] };
+export type Built = {
+  where: string;
+  params: unknown[];
+  /**
+   * Điều kiện của chính DÒNG sản phẩm (tên · nhóm · khoảng chiết khấu), viết cho bí danh bảng dòng — hoặc
+   * `''` khi không tiêu chí sản phẩm nào đang bật. Dùng lại các tham số đã có trong `params`.
+   *
+   * Hồ sơ khớp bộ lọc khi CÓ MỘT dòng thoả điều kiện này (cách B, `0283`); file Excel và bản xem trước
+   * dùng chính nó để chỉ giữ các dòng khớp.
+   */
+  dongKhop: (bd: string) => string;
+};
 
 /**
  * Dựng mệnh đề WHERE. `params[0]` LUÔN là danh sách phạm vi.
@@ -318,7 +353,7 @@ export type PhamVi = { ids: string[]; vaiTro: string };
  */
 const KE_TOAN_CHUA_TOI_LUOT = '(da_qua_tbp = false)';
 
-export function build(f: Filter, pv: PhamVi): Built {
+export function build(f: Filter, pv: PhamVi, policyIdCot = 'policy_id'): Built {
   const params: unknown[] = [pv.ids];
   // Phạm vi: id của tôi ở MỘT TRONG BỐN cột người (`0031`). Cùng phép lọc với
   // `thuocPhamVi` bên policy — hai chỗ phải trả lời giống hệt nhau, nếu không
@@ -371,21 +406,40 @@ export function build(f: Filter, pv: PhamVi): Built {
   if (f.customerName) add((i) => `customer_name_norm LIKE $${i}`, contains(f.customerName));
 
   /*
-   * 5. Tên sản phẩm — khớp nếu hồ sơ CÓ bất kỳ sản phẩm nào trong danh sách đã
-   *    chọn (`0077`).
+   * 5 + 6 + 6b. Tên sản phẩm · Nhóm sản phẩm · Khoảng chiết khấu — BA tiêu chí về MỘT dòng sản phẩm
+   * (`0283`, đảo `0077`).
    *
-   * Đổi từ "có chứa" sang khớp ĐÚNG TÊN trên mảng đã bỏ dấu. Ô nhập giờ là ô
-   * chọn: người dùng gõ để TÌM, rồi chọn ra từng sản phẩm cụ thể, nên thứ gửi
-   * lên là tên đầy đủ chứ không phải mảnh từ khoá. Đổi lại được hai thứ — `&&`
-   * dùng được chỉ mục GIN `ix_rpt_pnames`, còn `LIKE '%…%'` trên từng phần tử
-   * thì không; và chọn ba sản phẩm ra đúng ba sản phẩm ấy, không kèm theo mọi
-   * mặt hàng khác có tên chứa cùng một chữ.
+   * Hồ sơ khớp khi CÓ ÍT NHẤT MỘT dòng thoả TẤT CẢ tiêu chí sản phẩm đang bật. Trước `0283` tên và nhóm
+   * đọc trên hai MẢNG của cả hồ sơ (`&&`), nên chọn nhóm SUA và tên "Bột ăn dặm" ra cả hồ sơ có một dòng
+   * bột ăn dặm (nhóm BOT) cạnh một dòng khác thuộc SUA — không có sản phẩm nào vừa đúng tên vừa đúng nhóm.
+   * Thêm khoảng chiết khấu theo kiểu ấy còn tệ hơn: tỷ lệ 22% của một mặt hàng ghép với nhóm của mặt hàng
+   * khác. Khách hàng chốt 12/11/2026: các tiêu chí giữa là "và", nên cả ba phải cùng đúng trên MỘT sản phẩm.
+   *
+   * Tên chuẩn hoá nằm ở `rpt.policy_line.product_name_norm` (cột sinh, `0134`): so TỪNG DÒNG, không còn
+   * `ix_rpt_pnames` (GIN trên mảng cấp hồ sơ) — phép tra đi qua khoá chính `(policy_id, seq)` của bảng dòng.
+   * Dùng `IN (SELECT …)` chứ không `EXISTS`: trong truy vấn con, `policy_id` không qualify sẽ trỏ vào CHÍNH
+   * bảng dòng, và điều kiện `l.policy_id = policy_id` là một hằng đúng — mọi hồ sơ có dòng nào đó đều khớp.
+   * `policyIdCot` là tên cột bên ngoài, vì `all()` nối cả hai bảng và `policy_id` ở đó nhập nhằng.
+   *
+   * Khoảng chiết khấu so trên `discount_rate numeric(5,2)` — đúng con số hiện trên màn hình, đã làm tròn
+   * hai chữ số, nên hai đầu BAO GỒM mà không còn khe biên.
    */
-  if (f.productName) add((i) => `product_names_norm && $${i}::text[]`, normAll(tach(f.productName)));
-
-  // 6. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
+  const dongCau: string[] = [];
+  const themDong = (sql: (i: number) => string, value: unknown): void => {
+    params.push(value);
+    dongCau.push(sql(params.length));
+  };
+  if (f.productName) {
+    themDong((i) => `{L}.product_name_norm = ANY($${i}::text[])`, normAll(tach(f.productName!)));
+  }
   if (f.productGroupCode) {
-    add((i) => `product_group_codes && $${i}::text[]`, tach(f.productGroupCode));
+    themDong((i) => `{L}.group_code = ANY($${i}::text[])`, tach(f.productGroupCode!));
+  }
+  if (f.discountFrom !== undefined) themDong((i) => `{L}.discount_rate >= $${i}::numeric`, f.discountFrom);
+  if (f.discountTo !== undefined) themDong((i) => `{L}.discount_rate <= $${i}::numeric`, f.discountTo);
+  const dieuKienDong = (bd: string): string => dongCau.join(' AND ').replaceAll('{L}', bd);
+  if (dongCau.length > 0) {
+    cond.push(`${policyIdCot} IN (SELECT pl.policy_id FROM rpt.policy_line pl WHERE ${dieuKienDong('pl')})`);
   }
 
   // 7. TDV phụ trách — CHỈ thu hẹp trong phạm vi, xem chú thích đầu file.
@@ -426,7 +480,7 @@ export function build(f: Filter, pv: PhamVi): Built {
   if (f.han === 'SAP_QUA_HAN') cond.push(SAP_QUA_HAN);
   if (f.han === 'QUA_HAN') cond.push(`status = 'QUA_HAN_DUYET'`);
 
-  return { where: cond.join(' AND '), params };
+  return { where: cond.join(' AND '), params, dongKhop: dieuKienDong };
 }
 
 /** Đếm số tiêu chí đang áp — dùng cho phần đầu báo cáo và cho log. */

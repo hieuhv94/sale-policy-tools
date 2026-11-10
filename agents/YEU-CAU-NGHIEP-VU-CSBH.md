@@ -1107,11 +1107,13 @@ không phải một dấu chấm. Quá 99 thì ghi `99+`. Chuông hỏi lại m�
 
 ### 9.2. Bộ lọc và báo cáo
 
-Bộ lọc **9 tiêu chí** `sửa 21/08`, cho phép kết hợp nhiều điều kiện, xóa bộ lọc, xuất Excel và giữ
+Bộ lọc **10 tiêu chí** `sửa 21/08` (`sửa 12/11` thêm *tỷ lệ chiết khấu*), cho phép kết hợp nhiều điều kiện, xóa bộ lọc, xuất Excel và giữ
 điều kiện lọc trong phiên làm việc:
 
 > thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · tên sản phẩm ·
-> nhóm sản phẩm · TDV phụ trách · trạng thái · hạn xử lý
+> nhóm sản phẩm · TDV phụ trách · trạng thái · hạn xử lý · **tỷ lệ chiết khấu** (khoảng từ–đến, `sửa 12/11`)
+
+**Tên sản phẩm · nhóm sản phẩm · tỷ lệ chiết khấu cùng nói về MỘT dòng sản phẩm** `sửa 12/11`: hồ sơ khớp khi có **ít nhất một sản phẩm** thoả đồng thời mọi tiêu chí sản phẩm đang bật (giữa các tiêu chí là *và*). Trước đó nhóm và tên chỉ cần đúng ở hai sản phẩm khác nhau của cùng hồ sơ. Khoảng chiết khấu: hai đầu đều bao gồm, vắng một đầu là không giới hạn, so trên con số đã làm tròn hai chữ số hiện trên màn hình; hồ sơ **Nháp** cũng được tính (tỷ lệ hiện tại).
 
 **Năm tiêu chí nhận NHIỀU giá trị cùng lúc** `mới 21/08` — mã khách hàng, tên sản phẩm, nhóm sản
 phẩm, TDV phụ trách và trạng thái. Trong một tiêu chí, nhiều giá trị là **hoặc**; giữa hai tiêu chí
@@ -1126,6 +1128,8 @@ gõ để tìm, bấm để chọn, mỗi thứ đã chọn thành một thẻ b
 > quan đếm — nên bấm một dòng ở đó ra đúng con số vừa bấm.
 >
 > **Hạn xử lý** đi ngược chiều: từ một tham số kỹ thuật (`0060`) thành một tiêu chí chính thức.
+
+**Xuất Excel có BẢN XEM TRƯỚC** `sửa 12/11`: bấm nút mở hộp thoại với 50 dòng đầu, số hồ sơ và số dòng của cả lượt, và ô tích *Thêm mọi sản phẩm trong CSBH*. **Mặc định chỉ các dòng sản phẩm khớp tiêu chí về sản phẩm**; tích ô thì file có mọi dòng của hồ sơ khớp. File tải về đúng như đã xem. Vượt trần 20.000 dòng thì không cho tải.
 
 **Xuất Excel theo KẾT QUẢ TÌM KIẾM** `sửa 21/08`, không phải toàn bộ phạm vi. Nút đứng ở màn hình
 *Hồ sơ CSBH* — màn hình duy nhất có bộ lọc — nên số dòng trong file luôn bằng con số hiện trên màn
@@ -3861,3 +3865,11 @@ một dòng mang cả tập (đắt) — và **chọn đổi mô hình**, vì m�
 Đồng thời: ô chọn có danh sách dài (Tỉnh/Thành phố, Sản phẩm, Nhóm sản phẩm, người duyệt…) **cho gõ để tìm**,
 gõ không dấu vẫn ra; Excel danh sách CSBH **bỏ hai cột cấp hồ sơ** *Nhóm sản phẩm* và *Chiết khấu cao nhất* (đã
 có số liệu của riêng từng dòng).
+
+
+**Lọc theo tỷ lệ chiết khấu và bản xem trước khi xuất Excel** (12/11) — thêm tiêu chí thứ mười *tỷ lệ chiết khấu*
+(khoảng từ–đến, một đầu cũng được, hai đầu bao gồm) · ý nghĩa là *"có ít nhất một sản phẩm trong khoảng"* · khách
+hàng chốt **cách B**: tên, nhóm và tỷ lệ cùng đúng trên **một** dòng sản phẩm, vì giữa các tiêu chí là *và* — cách
+cũ (mỗi tiêu chí đúng ở một dòng nào đó) có thể ghép nhóm của sản phẩm này với tỷ lệ của sản phẩm khác · hồ sơ
+Nháp có tính · nút *Xuất Excel* mở bản xem trước, **mặc định chỉ các dòng khớp**, ô tích *Thêm mọi sản phẩm trong CSBH*
+cho thêm mọi dòng, và **file tải về đúng theo lựa chọn đã xem**.

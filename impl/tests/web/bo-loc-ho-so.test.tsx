@@ -217,67 +217,153 @@ describe('`0077` ô chọn nhiều', () => {
 // Xuất Excel
 // =============================================================================
 
-describe('`0077` nút xuất Excel', () => {
-  const chan = (batLoc: (than: unknown) => void) => {
-    const f = vi.fn((duong: unknown, tuyChon?: { body?: string }) => {
-      const d = String(duong);
-      if (d.includes('/reports/exports') && tuyChon?.body !== undefined) {
-        batLoc(JSON.parse(tuyChon.body));
-        return Promise.resolve(json({ jobId: 'j1', status: 'CHO', rowCount: null, downloadUrl: null }));
-      }
-      return Promise.resolve(
-        json({ jobId: 'j1', status: 'XONG', rowCount: 27, downloadUrl: '/reports/exports/j1/file' }),
-      );
-    });
-    vi.stubGlobal('fetch', f);
-    return f;
+describe('`0077`/`0283` xuất Excel: xem trước rồi mới tải', () => {
+  const XEM = {
+    soHoSo: 2,
+    soDong: 3,
+    daCat: false,
+    tran: 20000,
+    dong: [
+      { code: 'CSBH-1', customerName: 'Nhà thuốc A', status: 'NHAP', productCode: 'SP-1', productName: 'Sữa Gold', groupCode: 'SUA', netPrice: '535000', discountRate: '22.00', overThreshold: false },
+      { code: 'CSBH-1', customerName: 'Nhà thuốc A', status: 'NHAP', productCode: 'SP-2', productName: 'Bột ăn dặm', groupCode: 'BOT', netPrice: '89000', discountRate: '8.00', overThreshold: false },
+      { code: 'CSBH-2', customerName: 'Nhà thuốc B', status: 'NHAP', productCode: 'SP-3', productName: 'Sữa Mom', groupCode: 'SUA', netPrice: '361000', discountRate: '24.80', overThreshold: true },
+    ],
   };
-
-  it('gửi lên ĐÚNG bộ lọc đang áp, không phải `{}`', async () => {
-    /*
-     * Đây chính là lỗi đang sửa. Máy chủ vốn nhận và tôn trọng một bộ lọc từ
-     * ngày đầu (`POST /reports/exports` gọi `cleanFilter`); cả khả năng ấy nằm
-     * đó không ai gọi tới, vì nút duy nhất trong phần mềm gửi lên một object
-     * rỗng — và nó đứng ở trang *Báo cáo*, nơi không có bộ lọc nào để gửi.
-     */
+  type Vet = { xemTruoc: string[]; thanXuat: unknown[] };
+  const chan = (xem: Record<string, unknown> = XEM): Vet => {
+    const vet: Vet = { xemTruoc: [], thanXuat: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((duong: unknown, tuyChon?: { body?: string }) => {
+        const d = String(duong);
+        if (d.includes('/reports/exports/preview')) {
+          vet.xemTruoc.push(d);
+          return Promise.resolve(json(xem));
+        }
+        if (d.includes('/reports/exports') && tuyChon?.body !== undefined) {
+          vet.thanXuat.push(JSON.parse(tuyChon.body));
+          return Promise.resolve(json({ jobId: 'j1', status: 'CHO', rowCount: null, downloadUrl: null }));
+        }
+        return Promise.resolve(
+          json({ jobId: 'j1', status: 'XONG', rowCount: 27, downloadUrl: '/reports/exports/j1/file' }),
+        );
+      }),
+    );
+    return vet;
+  };
+  const moHop = async (boLoc: Record<string, string>) => {
     const nguoi = userEvent.setup();
-    let daGui: unknown = null;
-    chan((than) => (daGui = than));
-
-    const boLoc = { status: 'NHAP,CHO_TBP_DUYET', productGroupCode: 'SUA' };
     render(<NutXuatExcel boLoc={boLoc} />);
     await nguoi.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    await screen.findByRole('dialog');
+    await screen.findByText(/dòng sản phẩm trong file/);
+    return nguoi;
+  };
 
-    await waitFor(() => expect(daGui).not.toBeNull());
-    expect(daGui).toEqual(boLoc);
+  it('bấm nút KHÔNG tải gì: mở hộp xem trước với đúng bộ lọc, và hai con số của cả lượt', async () => {
+    const vet = chan();
+    await moHop({ status: 'NHAP', productGroupCode: 'SUA' });
+    expect(vet.thanXuat).toHaveLength(0);
+    expect(vet.xemTruoc).toHaveLength(1);
+    expect(vet.xemTruoc[0]).toContain('status=NHAP');
+    expect(vet.xemTruoc[0]).toContain('productGroupCode=SUA');
+    expect(vet.xemTruoc[0]).toContain('limit=50');
+    expect(vet.xemTruoc[0]).not.toContain('tatCaSanPham');
+    expect(screen.getByText(/dòng sản phẩm trong file/).textContent).toMatch(/2.*hồ sơ.*3.*dòng sản phẩm/);
+    // Bảng xem trước có mặt các dòng.
+    expect(screen.getByText('Sữa Gold')).toBeDefined();
+    expect(screen.getByText('Bột ăn dặm')).toBeDefined();
   });
 
-  it('xong thì nút đổi thành *Tải file* kèm SỐ DÒNG', async () => {
+  it('MẶC ĐỊNH chỉ dòng khớp: ô tích tắt, lượt xuất không mang cờ, và bộ lọc đi nguyên vẹn', async () => {
+    const vet = chan();
+    const boLoc = { status: 'NHAP,CHO_TBP_DUYET', productGroupCode: 'SUA', discountFrom: '20', discountTo: '25' };
+    const nguoi = await moHop(boLoc);
+    const o = screen.getByRole('checkbox', { name: /Thêm mọi sản phẩm trong CSBH/ }) as HTMLInputElement;
+    expect(o.checked).toBe(false);
+    expect(o.disabled).toBe(false);
+    await nguoi.click(screen.getByRole('button', { name: /Tải file Excel/ }));
+    await waitFor(() => expect(vet.thanXuat).toHaveLength(1));
+    // Đây chính là lỗi cũ đã sửa ở `0077`: bộ lọc phải đi lên, không phải `{}`.
+    expect(vet.thanXuat[0]).toEqual(boLoc);
+  });
+
+  it('TÍCH ô: bản xem trước hỏi lại VỚI cờ, và file tải về mang đúng cờ ấy', async () => {
+    const vet = chan();
+    const nguoi = await moHop({ productGroupCode: 'SUA' });
+    await nguoi.click(screen.getByRole('checkbox', { name: /Thêm mọi sản phẩm trong CSBH/ }));
+    await waitFor(() => expect(vet.xemTruoc).toHaveLength(2));
+    expect(vet.xemTruoc[1]).toContain('tatCaSanPham=1');
+    await screen.findByText(/dòng sản phẩm trong file/);
+    await nguoi.click(screen.getByRole('button', { name: /Tải file Excel/ }));
+    await waitFor(() => expect(vet.thanXuat).toHaveLength(1));
+    // Xem thế nào tải thế ấy.
+    expect(vet.thanXuat[0]).toEqual({ productGroupCode: 'SUA', tatCaSanPham: true });
+  });
+
+  it('không tiêu chí sản phẩm nào: ô tích TẮT kèm một câu nói vì sao, và cờ không bao giờ đi lên', async () => {
+    const vet = chan();
+    const nguoi = await moHop({ status: 'NHAP' });
+    const o = screen.getByRole('checkbox', { name: /Thêm mọi sản phẩm trong CSBH/ }) as HTMLInputElement;
+    expect(o.disabled).toBe(true);
+    expect(screen.getByText(/không có tiêu chí về sản phẩm/)).toBeDefined();
+    await nguoi.click(screen.getByRole('button', { name: /Tải file Excel/ }));
+    await waitFor(() => expect(vet.thanXuat).toHaveLength(1));
+    expect(vet.thanXuat[0]).not.toHaveProperty('tatCaSanPham');
+  });
+
+  it('ba tiêu chí sản phẩm đều mở được ô tích: tên, nhóm, khoảng chiết khấu', async () => {
+    for (const boLoc of [{ productName: 'Sữa' }, { productGroupCode: 'SUA' }, { discountFrom: '20' }, { discountTo: '30' }]) {
+      chan();
+      const { unmount } = render(<NutXuatExcel boLoc={boLoc} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+      await screen.findByText(/dòng sản phẩm trong file/);
+      expect((screen.getByRole('checkbox', { name: /Thêm mọi sản phẩm/ }) as HTMLInputElement).disabled, JSON.stringify(boLoc)).toBe(false);
+      unmount();
+      cleanup();
+    }
+  });
+
+  it('ĐỔI ô tích hay bộ lọc thì vứt việc đang có, không để tải nhầm file của lựa chọn kia', async () => {
+    /*
+     * Không có nhánh này thì người dùng xem bản hẹp, bấm tải, tích ô rồi bấm tải lần nữa — và nhận về file
+     * dựng cho lựa chọn CŨ. Không có gì báo sai, chỉ có một file sai.
+     */
+    const vet = chan();
+    const nguoi = await moHop({ productGroupCode: 'SUA' });
+    await nguoi.click(screen.getByRole('button', { name: /Tải file Excel/ }));
+    await screen.findByRole('button', { name: /Đã dựng xong/ }, { timeout: 3000 });
+
+    await nguoi.click(screen.getByRole('checkbox', { name: /Thêm mọi sản phẩm trong CSBH/ }));
+    await screen.findByRole('button', { name: /Tải file Excel/ });
+    expect(screen.queryByRole('button', { name: /Đã dựng xong/ })).toBeNull();
+    await nguoi.click(screen.getByRole('button', { name: /Tải file Excel/ }));
+    await waitFor(() => expect(vet.thanXuat).toHaveLength(2));
+    expect(vet.thanXuat[0]).not.toHaveProperty('tatCaSanPham');
+    expect(vet.thanXuat[1]).toHaveProperty('tatCaSanPham', true);
+  });
+
+  it('vượt trần số dòng: nói ra và KHÔNG cho tải', async () => {
+    chan({ ...XEM, soDong: 25000, daCat: true });
+    await moHop({ productGroupCode: 'SUA' });
+    expect(screen.getByText(/vượt trần 20000 dòng/)).toBeDefined();
+    expect((screen.getByRole('button', { name: /Tải file Excel/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('không hồ sơ nào khớp: nói ra, không có bảng, nút tải khoá', async () => {
+    chan({ ...XEM, soHoSo: 0, soDong: 0, dong: [] });
+    await moHop({ status: 'DA_XOA' });
+    expect(screen.getByText(/Không có hồ sơ nào khớp bộ lọc/)).toBeDefined();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect((screen.getByRole('button', { name: /Tải file Excel/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('bản xem trước hỏng thì có nút Thử lại, không treo ở "đang dựng"', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ code: 'INTERNAL' }), { status: 500, headers: { 'content-type': 'application/json' } }))));
     const nguoi = userEvent.setup();
-    chan(() => undefined);
     render(<NutXuatExcel boLoc={{}} />);
     await nguoi.click(screen.getByRole('button', { name: 'Xuất Excel' }));
-    // Số dòng trên nút là thứ người dùng đối chiếu với con số trên màn hình —
-    // hai con số ấy phải là một, và máy chủ có một ca riêng canh điều đó.
-    const nut = await screen.findByRole('button', { name: /Tải file \(27 dòng\)/ }, { timeout: 3000 });
-    expect(nut).toBeDefined();
-  });
-
-  it('ĐỔI bộ lọc thì vứt việc đang có, không để tải nhầm file cũ', async () => {
-    /*
-     * Không có nhánh này thì người dùng bấm xuất, đổi điều kiện, rồi bấm "Tải
-     * file" — và nhận về file của bộ lọc CŨ, mang đúng số dòng của một danh sách
-     * không còn trên màn hình. Không có gì báo sai, chỉ có một file sai.
-     */
-    const nguoi = userEvent.setup();
-    chan(() => undefined);
-    const { rerender } = render(<NutXuatExcel boLoc={{ status: 'NHAP' }} />);
-    await nguoi.click(screen.getByRole('button', { name: 'Xuất Excel' }));
-    await screen.findByRole('button', { name: /Tải file/ }, { timeout: 3000 });
-
-    rerender(<NutXuatExcel boLoc={{ status: 'DA_XOA' }} />);
-    expect(screen.queryByRole('button', { name: /Tải file/ })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDefined();
+    expect(await screen.findByRole('button', { name: /Thử lại/ })).toBeDefined();
   });
 
   it('tải file đi qua `taiVe`, KHÔNG phải một thẻ neo trỏ vào API', () => {

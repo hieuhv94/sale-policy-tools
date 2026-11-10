@@ -239,9 +239,21 @@ export class ReportsService {
     return Number(r?.n ?? 0);
   }
 
-  /** Toàn bộ tập đã lọc, để xuất Excel. Không phân trang — người gọi tự giới hạn. */
-  async all(pv: PhamVi, filter: Filter, cap: number): Promise<Record<string, unknown>[]> {
-    const { where, params } = build(filter, pv);
+  /**
+   * Toàn bộ tập đã lọc, để xuất Excel. Không phân trang — người gọi tự giới hạn.
+   *
+   * `chiDongKhop` (`0283`): chỉ giữ các DÒNG sản phẩm khớp tiêu chí về sản phẩm (tên · nhóm · khoảng chiết
+   * khấu). Mặc định `false` là hành vi cũ — mọi dòng của hồ sơ khớp. Không tiêu chí sản phẩm nào bật thì
+   * cờ này không có gì để lọc, và hai cách cho đúng cùng một kết quả.
+   */
+  async all(
+    pv: PhamVi,
+    filter: Filter,
+    cap: number,
+    opts: { chiDongKhop?: boolean } = {},
+  ): Promise<Record<string, unknown>[]> {
+    const { where, params, dongKhop } = build(filter, pv, 'r.policy_id');
+    const dong = opts.chiDongKhop ? dongKhop('l') : '';
     params.push(cap);
     /*
      * MỘT DÒNG CHO MỖI SẢN PHẨM (`0080`), không phải một dòng cho mỗi hồ sơ.
@@ -252,6 +264,9 @@ export class ReportsService {
      * biến mất khỏi báo cáo là kiểu sai không ai đi tìm: người dùng chỉ thấy con
      * số nhỏ hơn mình tưởng, và không có gì nói vì sao.
      *
+     * Điều kiện của DÒNG đi vào WHERE chứ không vào `ON` (`0283`): hồ sơ đã được `where` chọn vì CÓ một dòng
+     * khớp, nên ít nhất một dòng còn lại và không hồ sơ nào rơi khỏi kết quả.
+     *
      * Sắp theo `(created_at, policy_id, seq)`: hai lần xuất cùng một bộ lọc phải
      * cho ra hai file giống hệt nhau, kể cả thứ tự dòng — không thì không ai so
      * được hai file với nhau. `seq` giữ đúng thứ tự sản phẩm như trong hồ sơ.
@@ -260,11 +275,43 @@ export class ReportsService {
       `SELECT ${LIST_COLUMNS}, ${LINE_COLUMNS}
          FROM rpt.policy_row r
          LEFT JOIN rpt.policy_line l ON l.policy_id = r.policy_id
-        WHERE ${where}
+        WHERE ${where}${dong ? ` AND ${dong}` : ''}
         ORDER BY r.created_at DESC, r.policy_id DESC, l.seq
         LIMIT $${params.length}`,
       params,
     );
+  }
+
+  /** Số DÒNG sản phẩm một lượt xuất sẽ có — cùng câu lệnh với `all()`, chỉ đếm. */
+  async demDong(pv: PhamVi, filter: Filter, chiDongKhop: boolean): Promise<number> {
+    const { where, params, dongKhop } = build(filter, pv, 'r.policy_id');
+    const dong = chiDongKhop ? dongKhop('l') : '';
+    const r = await this.db.one<{ n: string }>(
+      `SELECT count(*)::text AS n
+         FROM rpt.policy_row r
+         LEFT JOIN rpt.policy_line l ON l.policy_id = r.policy_id
+        WHERE ${where}${dong ? ` AND ${dong}` : ''}`,
+      params,
+    );
+    return Number(r?.n ?? 0);
+  }
+
+  /**
+   * Bản XEM TRƯỚC của lượt xuất (`0283`): vài dòng đầu, và hai con số của cả lượt.
+   *
+   * Đi qua ĐÚNG `all()` và `demDong()` của lượt xuất thật — không có câu lệnh thứ hai để lệch khỏi file sẽ
+   * tải về. `tatCa` là lựa chọn của người dùng (thêm mọi sản phẩm của hồ sơ khớp), và lượt xuất sau đó phải
+   * mang đúng giá trị ấy.
+   */
+  async xemTruocXuat(me: AuthUser, filter: Filter, opts: { tatCa: boolean; limit: number }) {
+    const pv = await this.scope.phamViCua(me);
+    const chiDongKhop = !opts.tatCa;
+    const [soDong, soHoSo, dong] = await Promise.all([
+      this.demDong(pv, filter, chiDongKhop),
+      this.count(me, filter),
+      this.all(pv, filter, opts.limit, { chiDongKhop }),
+    ]);
+    return { soHoSo, soDong, dong, daCat: soDong > dong.length, tatCa: opts.tatCa };
   }
 
   /**
