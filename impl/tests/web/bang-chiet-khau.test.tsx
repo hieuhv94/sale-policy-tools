@@ -24,7 +24,7 @@ const QUY_DINH = [
   {
     code: 'CK-SUA-L1',
     productGroupCode: 'SUA',
-    customerType: 1,
+    customerTypes: [1],
     effectiveFrom: '2026-01-01',
     thresholdRate2: 2500,
     specificity: 3,
@@ -32,7 +32,7 @@ const QUY_DINH = [
   {
     code: 'CK-BOT-CHUNG',
     productGroupCode: 'BOT',
-    customerType: null,
+    customerTypes: null,
     effectiveFrom: '2026-01-01',
     thresholdRate2: 3000,
     specificity: 2,
@@ -234,7 +234,7 @@ describe('0028 cột Hiệu lực', () => {
   });
 });
 
-describe('`0279` sửa được nhóm sản phẩm và loại khách hàng', () => {
+describe('`0279`/`0280` sửa nhóm sản phẩm và TẬP loại khách hàng', () => {
   const moSua = async () => {
     const nguoi = userEvent.setup();
     await bay();
@@ -243,6 +243,7 @@ describe('`0279` sửa được nhóm sản phẩm và loại khách hàng', () 
     return nguoi;
   };
   const trongHop = () => within(screen.getByRole('dialog'));
+  const nhomLoai = () => trongHop().getByRole('group', { name: 'Loại khách hàng' });
   const than = () => {
     const goi = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
       (c) => (c[1] as { method?: string } | undefined)?.method === 'PATCH',
@@ -250,29 +251,97 @@ describe('`0279` sửa được nhóm sản phẩm và loại khách hàng', () 
     return goi ? (JSON.parse(String((goi[1] as { body: string }).body)) as Record<string, unknown>) : null;
   };
 
-  it('hộp sửa có hai ô chọn phạm vi, mã thì không sửa', async () => {
+  it('hộp sửa: nhóm là ô chọn có gõ, loại khách là BA ô tích, mã thì không sửa', async () => {
     await moSua();
     expect(trongHop().getByLabelText('Nhóm sản phẩm').getAttribute('role')).toBe('combobox');
-    expect(trongHop().getByLabelText('Loại khách hàng')).toBeInstanceOf(HTMLSelectElement);
+    expect(within(nhomLoai()).getAllByRole('checkbox')).toHaveLength(3);
     expect(trongHop().queryByLabelText(/Mã quy định/)).toBeNull();
   });
 
-  it('đổi loại khách rồi Lưu: thân PATCH mang CẢ HAI khoá phạm vi', async () => {
+  it('mở ra ĐÚNG tập đang có: quy định đầu mang loại 1 thì chỉ ô loại 1 được tích', async () => {
+    await moSua();
+    const o = within(nhomLoai()).getAllByRole('checkbox') as HTMLInputElement[];
+    expect(o.map((x) => x.checked)).toEqual([true, false, false]);
+  });
+
+  it('tích thêm loại 3 rồi Lưu: thân PATCH mang MẢNG [1,3] và cả hai khoá phạm vi', async () => {
     const nguoi = await moSua();
-    await nguoi.selectOptions(trongHop().getByLabelText('Loại khách hàng'), '3');
+    await nguoi.click(within(nhomLoai()).getAllByRole('checkbox')[2]!);
     await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(than()).not.toBeNull(), { timeout: 3000 });
     const t = than()!;
-    expect(t['customerType']).toBe(3);
+    expect(t['customerTypes']).toEqual([1, 3]);
     expect(t).toHaveProperty('productGroupCode');
   });
 
-  it('chọn "Mọi loại" gửi chuỗi rỗng, không bỏ khoá — vắng khoá nghĩa là giữ nguyên', async () => {
+  it('bỏ tích hết gửi mảng RỖNG, không bỏ khoá — vắng khoá nghĩa là giữ nguyên', async () => {
     const nguoi = await moSua();
-    await nguoi.selectOptions(trongHop().getByLabelText('Loại khách hàng'), '');
+    await nguoi.click(within(nhomLoai()).getAllByRole('checkbox')[0]!);
+    expect(trongHop().getByText(/Không tích loại nào nghĩa là mọi loại/)).toBeDefined();
     await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(than()).not.toBeNull(), { timeout: 3000 });
-    expect(than()!['customerType']).toBe('');
+    expect(than()!['customerTypes']).toEqual([]);
+  });
+});
+
+describe('`0280` hộp Thêm quy định: tích nhiều loại khách hàng', () => {
+  const moThem = async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.click(screen.getByRole('button', { name: /Thêm quy định/ }));
+    return nguoi;
+  };
+  const trongHop = () => within(screen.getByRole('dialog'));
+  const ticks = () => within(trongHop().getByRole('group', { name: 'Loại khách hàng' }));
+  const thanPost = () => {
+    const goi = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
+      (c) => (c[1] as { method?: string } | undefined)?.method === 'POST',
+    );
+    return goi ? (JSON.parse(String((goi[1] as { body: string }).body)) as Record<string, unknown>) : null;
+  };
+  const dienVaGui = async (nguoi: ReturnType<typeof userEvent.setup>) => {
+    await nguoi.type(trongHop().getByLabelText(/Mã quy định/), 'CK-MOI');
+    await nguoi.type(trongHop().getByLabelText(/Ngưỡng chiết khấu/), '20');
+    await nguoi.click(trongHop().getByRole('button', { name: 'Tạo' }));
+    await waitFor(() => expect(thanPost()).not.toBeNull(), { timeout: 3000 });
+  };
+
+  it('mở ra KHÔNG tích loại nào và câu dưới nói đó là mọi loại', async () => {
+    await moThem();
+    expect((ticks().getAllByRole('checkbox') as HTMLInputElement[]).map((x) => x.checked)).toEqual([false, false, false]);
+    expect(trongHop().getByText(/mọi loại khách/)).toBeDefined();
+  });
+
+  it('tích loại 1 và 3: thân POST mang `customerTypes: [1, 3]` — MỘT yêu cầu, không phải hai', async () => {
+    const nguoi = await moThem();
+    await nguoi.click(ticks().getAllByRole('checkbox')[0]!);
+    await nguoi.click(ticks().getAllByRole('checkbox')[2]!);
+    expect(trongHop().getByText(/khách loại 1 và 3/)).toBeDefined();
+    await dienVaGui(nguoi);
+    expect(thanPost()!['customerTypes']).toEqual([1, 3]);
+    const soPost = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.filter(
+      (c) => (c[1] as { method?: string } | undefined)?.method === 'POST',
+    );
+    expect(soPost).toHaveLength(1);
+  });
+
+  it('tích rồi bỏ tích: thứ tự bấm không quyết định thứ tự gửi', async () => {
+    const nguoi = await moThem();
+    await nguoi.click(ticks().getAllByRole('checkbox')[2]!);
+    await nguoi.click(ticks().getAllByRole('checkbox')[0]!);
+    await dienVaGui(nguoi);
+    expect(thanPost()!['customerTypes']).toEqual([1, 3]);
+  });
+
+  it('tích đủ ba loại: câu dưới nhắc đó cũng là mọi loại', async () => {
+    const nguoi = await moThem();
+    for (const c of ticks().getAllByRole('checkbox')) await nguoi.click(c);
+    expect(trongHop().getByText(/Tích đủ cả ba loại cũng là mọi loại/)).toBeDefined();
+  });
+
+  it('bảng đọc một quy định nhiều loại thành MỘT câu', async () => {
+    await bay(() => [{ ...QUY_DINH[0]!, customerTypes: [1, 3] }]);
+    expect(document.body.textContent).toContain('khách loại 1 và 3');
   });
 });
 

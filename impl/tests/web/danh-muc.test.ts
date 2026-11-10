@@ -17,13 +17,14 @@ import {
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
+  tomTatLoaiKhach,
   type QuyDinhChietKhau,
 } from '@csbh/web/danh-muc';
 
 const qd = (p: Partial<QuyDinhChietKhau>): QuyDinhChietKhau => ({
   code: 'QD-1',
   productGroupCode: null,
-  customerType: null,
+  customerTypes: null,
   effectiveFrom: '2026-01-01',
   thresholdRate2: 2500,
   specificity: 0,
@@ -71,15 +72,27 @@ describe('câu mô tả phạm vi áp dụng', () => {
   });
 
   it('điền đủ thì nêu đủ HAI phần — và chỉ hai (0026)', () => {
-    const s = phamViChietKhau(qd({ productGroupCode: 'SUA', customerType: 2 }));
+    const s = phamViChietKhau(qd({ productGroupCode: 'SUA', customerTypes: [2] }));
     expect(s).toBe('nhóm SUA · khách loại 2');
   });
 
-  it('loại khách 0 KHÔNG bị nhầm thành "mọi loại"', () => {
-    // Bẫy kinh điển: `q.customerType ? ... : 'mọi loại'` cho ra "mọi loại" khi
-    // giá trị là 0. Máy chủ chỉ nhận 1–3 nên 0 không hợp lệ, nhưng phép kiểm
-    // phải là `=== null` chứ không phải kiểm giá trị falsy.
-    expect(phamViChietKhau(qd({ customerType: 0 }))).toContain('khách loại 0');
+  it('nhiều loại đọc ra MỘT câu (`0280`): "khách loại 1 và 3"', () => {
+    expect(phamViChietKhau(qd({ customerTypes: [1, 3] }))).toBe('mọi nhóm sản phẩm · khách loại 1 và 3');
+    // Thứ tự lưu không quyết định thứ tự đọc.
+    expect(tomTatLoaiKhach([3, 1])).toBe('khách loại 1 và 3');
+  });
+
+  it('rỗng và ĐỦ BA loại đều đọc là "mọi loại khách" — hai cách viết của cùng một câu', () => {
+    expect(tomTatLoaiKhach([])).toBe('mọi loại khách');
+    expect(tomTatLoaiKhach([1, 2, 3])).toBe('mọi loại khách');
+    expect(tomTatLoaiKhach([3, 2, 1, 1])).toBe('mọi loại khách');
+    expect(phamViChietKhau(qd({ customerTypes: [] }))).toContain('mọi loại khách');
+  });
+
+  it('một loại 0 KHÔNG bị nhầm thành "mọi loại"', () => {
+    // Bẫy kinh điển của phép kiểm falsy. Máy chủ chỉ nhận 1–3, nhưng câu chữ phải
+    // nói đúng thứ nó được đưa, không đoán hộ.
+    expect(phamViChietKhau(qd({ customerTypes: [0] }))).toContain('khách loại 0');
   });
 });
 

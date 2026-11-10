@@ -20,9 +20,11 @@ import { dang, va, xoa } from '../../lib/api.js';
 import { homNayVN, ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
+  nhanLoaiKhach,
   doiSoThapPhan,
   nguongTuPhanTram,
   phamViChietKhau,
+  tomTatLoaiKhach,
   phanTramTuNguong,
   type NhomSanPham,
   type QuyDinhChietKhau,
@@ -277,6 +279,49 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 }
 
 /**
+ * Chọn TẬP loại khách của một quy định (`0280`) — ô tích, không phải ô chọn một.
+ *
+ * Không tích loại nào, hoặc tích đủ cả ba, đều nghĩa là *mọi loại*; câu dưới ô nói thẳng điều
+ * ấy để người dùng không đi tìm một nút "mọi loại" riêng. Dựng bằng `fieldset` + `legend` để
+ * trình đọc màn hình đọc nhóm như MỘT câu hỏi có ba đáp án.
+ */
+function NhomTichLoaiKhach({
+  id,
+  giaTri,
+  doi,
+}: {
+  id: string;
+  giaTri: number[];
+  doi: (v: number[]) => void;
+}) {
+  const bat = (l: number, co: boolean) =>
+    doi(co ? [...giaTri, l].sort((a, b) => a - b) : giaTri.filter((x) => x !== l));
+  return (
+    <fieldset className="nhom-tich" aria-describedby={`${id}-ghi`}>
+      <legend>Loại khách hàng</legend>
+      <div className="nhom-tich-lua-chon">
+        {LOAI_KHACH_HANG.map((l) => (
+          <label key={l} className="the-tich">
+            <input
+              type="checkbox"
+              id={`${id}-${l}`}
+              checked={giaTri.includes(l)}
+              onChange={(e) => bat(l, e.target.checked)}
+            />
+            <span>{nhanLoaiKhach(l)}</span>
+          </label>
+        ))}
+      </div>
+      <p className="ghi-chu" id={`${id}-ghi`} role="status">
+        Áp dụng cho <strong>{tomTatLoaiKhach(giaTri)}</strong>.
+        {giaTri.length === 0 && ' Không tích loại nào nghĩa là mọi loại.'}
+        {giaTri.length >= LOAI_KHACH_HANG.length && ' Tích đủ cả ba loại cũng là mọi loại.'}
+      </p>
+    </fieldset>
+  );
+}
+
+/**
  * Sửa ngưỡng, ngày hiệu lực VÀ HAI ô phạm vi (`0279`, đảo `0028`).
  *
  * `0028` giữ nhóm · loại khách ở dạng chữ vì đổi chúng là đổi `specificity`, tức
@@ -307,7 +352,7 @@ function HopThoaiSuaQuyDinh({
   // `tuNgay` là thứ gửi lên máy chủ, không chỉ là thứ bày ra màn hình.
   const [tuNgay, datTuNgay] = useState(String(q.effectiveFrom).slice(0, 10));
   const [maNhom, datMaNhom] = useState(q.productGroupCode ?? '');
-  const [loaiKhach, datLoaiKhach] = useState(q.customerType === null ? '' : String(q.customerType));
+  const [loaiKhach, datLoaiKhach] = useState<number[]>(q.customerTypes ?? []);
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
@@ -323,7 +368,7 @@ function HopThoaiSuaQuyDinh({
         thresholdRate2: nguongTuPhanTram(nguong),
         effectiveFrom: tuNgay,
         productGroupCode: maNhom,
-        customerType: loaiKhach === '' ? '' : Number(loaiKhach),
+        customerTypes: loaiKhach,
       });
       xong();
     } catch (err) {
@@ -362,18 +407,7 @@ function HopThoaiSuaQuyDinh({
           )}
         </Truong>
 
-        <Truong id="ck-sua-loai" nhan="Loại khách hàng">
-          {(p) => (
-            <select {...p} className="o-nhap" value={loaiKhach} onChange={(e) => datLoaiKhach(e.target.value)}>
-              <option value="">— Mọi loại —</option>
-              {LOAI_KHACH_HANG.map((l) => (
-                <option key={l} value={l}>
-                  Loại {l}
-                </option>
-              ))}
-            </select>
-          )}
-        </Truong>
+        <NhomTichLoaiKhach id="ck-sua-loai" giaTri={loaiKhach} doi={datLoaiKhach} />
         <p className="ghi-chu">
           Đổi nhóm hoặc loại khách là đổi <strong>thứ tự ưu tiên</strong>: quy định cụ thể hơn thắng
           quy định chung khi nhiều dòng cùng khớp. Đã có quy định khác{' '}
@@ -425,7 +459,7 @@ function HopThoaiTaoQuyDinh({
   const { bao } = useBaoLoi();
   const [ma, datMa] = useState('');
   const [maNhom, datMaNhom] = useState('');
-  const [loaiKhach, datLoaiKhach] = useState('');
+  const [loaiKhach, datLoaiKhach] = useState<number[]>([]);
   /*
    * `homNayVN()` chứ KHÔNG `new Date().toISOString().slice(0, 10)` (`0208`).
    *
@@ -453,7 +487,7 @@ function HopThoaiTaoQuyDinh({
       await dang('/catalog/discount-rules', {
         code: ma.trim(),
         ...(maNhom ? { productGroupCode: maNhom } : {}),
-        ...(loaiKhach ? { customerType: Number(loaiKhach) } : {}),
+        customerTypes: loaiKhach,
         effectiveFrom: tuNgay,
         thresholdRate2: nguongTuPhanTram(nguong),
       });
@@ -503,18 +537,7 @@ function HopThoaiTaoQuyDinh({
           )}
         </Truong>
 
-        <Truong id="ck-loai" nhan="Loại khách hàng">
-          {(p) => (
-            <select {...p} className="o-nhap" value={loaiKhach} onChange={(e) => datLoaiKhach(e.target.value)}>
-              <option value="">— Mọi loại —</option>
-              {LOAI_KHACH_HANG.map((l) => (
-                <option key={l} value={l}>
-                  Loại {l}
-                </option>
-              ))}
-            </select>
-          )}
-        </Truong>
+        <NhomTichLoaiKhach id="ck-loai" giaTri={loaiKhach} doi={datLoaiKhach} />
 
         <Truong
           id="ck-nguong"

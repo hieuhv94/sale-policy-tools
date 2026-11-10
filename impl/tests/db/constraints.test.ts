@@ -320,19 +320,19 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
     c: Client,
     v: {
       groupId?: string | null;
-      customerType?: number | null;
+      customerTypes?: number[] | null;
       from?: string;
       threshold?: number;
     } = {},
   ) =>
     c.query(
       `INSERT INTO cat.discount_rule
-         (code, product_group_id, customer_type, effective_from, threshold_rate2)
-       VALUES ($1,$2,$3,$4,$5)`,
+         (code, product_group_id, customer_types, effective_from, threshold_rate2)
+       VALUES ($1,$2,$3::smallint[],$4,$5)`,
       [
         `ZZ-CK-${crypto.randomUUID().slice(0, 8)}`,
         v.groupId ?? null,
-        v.customerType ?? null,
+        v.customerTypes ?? null,
         v.from ?? '2020-01-01',
         v.threshold ?? 1500,
       ],
@@ -341,9 +341,9 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
   it('hai dòng cùng nhóm, cùng loại KH, cùng ngày → 23505', async () => {
     await inRollback(db, async () => {
       const g = await mkGroup(db, 'DUP1');
-      await mkRule(db, { groupId: g, customerType: 1 });
+      await mkRule(db, { groupId: g, customerTypes: [1] });
       const err = await expectSqlErrorInTx(db, () =>
-        mkRule(db, { groupId: g, customerType: 1, threshold: 2500 }));
+        mkRule(db, { groupId: g, customerTypes: [1], threshold: 2500 }));
       expect(err.code).toBe('23505');
       expect(err.message).toContain('uq_rule_pham_vi');
     });
@@ -370,8 +370,8 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
   it('cùng phạm vi nhưng KHÁC ngày hiệu lực thì nhận — đó là cách đổi ngưỡng', async () => {
     await inRollback(db, async () => {
       const g = await mkGroup(db, 'DUP2');
-      await mkRule(db, { groupId: g, customerType: 2, from: '2020-01-01', threshold: 1500 });
-      await mkRule(db, { groupId: g, customerType: 2, from: '2026-01-01', threshold: 2000 });
+      await mkRule(db, { groupId: g, customerTypes: [2], from: '2020-01-01', threshold: 1500 });
+      await mkRule(db, { groupId: g, customerTypes: [2], from: '2026-01-01', threshold: 2000 });
       const r = await db.query(
         `SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
       expect(r.rows[0].n).toBe(2);
@@ -382,8 +382,8 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
     await inRollback(db, async () => {
       const g = await mkGroup(db, 'DUP3');
       await mkRule(db, { groupId: g });
-      await mkRule(db, { groupId: g, customerType: 1 });
-      await mkRule(db, { groupId: g, customerType: 2 });
+      await mkRule(db, { groupId: g, customerTypes: [1] });
+      await mkRule(db, { groupId: g, customerTypes: [2] });
       const r = await db.query(
         `SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
       expect(r.rows[0].n).toBe(3);
@@ -446,8 +446,8 @@ describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và mã quy định 
 describe('0024 · mã quy định chiết khấu', () => {
   const mkRule = (c: Client, ma: string) =>
     c.query(
-      `INSERT INTO cat.discount_rule (code, customer_type, effective_from, threshold_rate2)
-       VALUES ($1, 1, $2, 1500)`,
+      `INSERT INTO cat.discount_rule (code, customer_types, effective_from, threshold_rate2)
+       VALUES ($1, ARRAY[1]::smallint[], $2, 1500)`,
       [ma, `20${String(Math.floor(Math.random() * 90) + 10)}-01-01`],
     );
 
@@ -600,17 +600,17 @@ describe('0026 · chiết khấu chỉ phụ thuộc nhóm sản phẩm và lo�
           [`ZZ-G-SPEC-${crypto.randomUUID().slice(0, 8)}`],
         )
       ).rows[0]!.id;
-      const rule = (groupId: string | null, customerType: number | null) =>
+      const rule = (groupId: string | null, customerTypes: number[] | null) =>
         db.query(
           `INSERT INTO cat.discount_rule
-             (code, product_group_id, customer_type, effective_from, threshold_rate2)
-           VALUES ($1,$2,$3,'2019-01-01',1500)`,
-          [`ZZ-CK-${crypto.randomUUID().slice(0, 8)}`, groupId, customerType],
+             (code, product_group_id, customer_types, effective_from, threshold_rate2)
+           VALUES ($1,$2,$3::smallint[],'2019-01-01',1500)`,
+          [`ZZ-CK-${crypto.randomUUID().slice(0, 8)}`, groupId, customerTypes],
         );
       await rule(null, null);
-      await rule(null, 1);
+      await rule(null, [1]);
       await rule(g, null);
-      await rule(g, 1);
+      await rule(g, [1]);
       const r = await db.query<{ specificity: number }>(
         `SELECT specificity FROM cat.discount_rule
           WHERE effective_from = '2019-01-01' ORDER BY specificity`,
@@ -838,5 +838,126 @@ describe('`0059` không còn dòng lịch sử tải bản mềm hay hợp đồ
         WHERE action IN ('TAI_BAN_SCAN','TAI_TEP_DINH_KEM')`,
     );
     expect(Number(r.rows[0]!.n), 'bộ kiểm thử vừa tải bản scan vài lượt').toBeGreaterThan(0);
+  });
+});
+
+/**
+ * `0280` (migration `0133`) — một quy định mang một TẬP loại khách.
+ *
+ * Gọi thẳng CSDL, không qua service: service đã chuẩn hoá tập trước khi ghi, nên mọi ca ở
+ * `catalog.test.ts` xanh dù ràng buộc ở đây có hay không. Đây là chỗ canh chốt thứ hai — một
+ * script nhập liệu, một migration tay, một người sửa SQL — không đi qua `chuanLoaiKhach`.
+ */
+describe('0280 · customer_types — tập loại khách của quy định chiết khấu', () => {
+  const mkGroup = async (c: Client) =>
+    (
+      await c.query<{ id: string }>(
+        `INSERT INTO cat.product_group (code, name) VALUES ($1, 'Nhom test') RETURNING id`,
+        [`ZZ-G-TAP-${crypto.randomUUID().slice(0, 8)}`],
+      )
+    ).rows[0]!.id;
+  const rule = (c: Client, groupId: string | null, loai: string | null, from = '2020-01-01') =>
+    c.query(
+      `INSERT INTO cat.discount_rule (code, product_group_id, customer_types, effective_from, threshold_rate2)
+       VALUES ($1, $2, $3::smallint[], $4, 1500)`,
+      [`ZZ-CK-${crypto.randomUUID().slice(0, 8)}`, groupId, loai, from],
+    );
+
+  it('cột cũ `customer_type` đã biến mất, cột mới là mảng', async () => {
+    const r = await db.query<{ column_name: string; data_type: string }>(
+      `SELECT column_name, data_type FROM information_schema.columns
+        WHERE table_schema = 'cat' AND table_name = 'discount_rule'
+          AND column_name IN ('customer_type', 'customer_types')`,
+    );
+    expect(r.rows).toEqual([{ column_name: 'customer_types', data_type: 'ARRAY' }]);
+  });
+
+  it('CHECK: chỉ nhận {1}, {2}, {3}, {1,2}, {1,3}, {2,3} và NULL', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db);
+      for (const [i, loai] of ['{1}', '{2}', '{3}', '{1,2}', '{1,3}', '{2,3}', null].entries()) {
+        await rule(db, g, loai, `20${10 + i}-01-01`);
+      }
+      const r = await db.query(`SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
+      expect(r.rows[0].n).toBe(7);
+    });
+  });
+
+  it.each([
+    ['{1,2,3}', 'đủ ba loại phải viết là NULL'],
+    ['{3,1}', 'phải xếp tăng dần'],
+    ['{1,1}', 'không lặp'],
+    ['{4}', 'ngoài 1–3'],
+    ['{0}', 'ngoài 1–3'],
+    ['{}', 'rỗng phải là NULL'],
+    ['{1,NULL}', 'không phần tử NULL'],
+  ])('CHECK từ chối %s (%s)', async (loai) => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db);
+      const err = await expectSqlErrorInTx(db, () => rule(db, g, loai));
+      expect(err.code).toBe('23514');
+      expect(err.message).toContain('rule_loai_khach_hop_le');
+    });
+  });
+
+  it('hai tập GIAO NHAU ở một loại, cùng nhóm, cùng ngày → 23505', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db);
+      await rule(db, g, '{1,3}');
+      const err = await expectSqlErrorInTx(db, () => rule(db, g, '{3}'));
+      expect(err.code).toBe('23505');
+      expect(err.message).toContain('uq_rule_pham_vi_l3');
+    });
+  });
+
+  it('hai tập KHÔNG giao nhau thì nhận; khác ngày thì nhận; "mọi loại" sống chung với tập', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db);
+      await rule(db, g, '{1,3}');
+      await rule(db, g, '{2}');
+      await rule(db, g, '{1,3}', '2021-01-01');
+      await rule(db, g, null);
+      const r = await db.query(`SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
+      expect(r.rows[0].n).toBe(4);
+    });
+  });
+
+  it('hai dòng "mọi loại" cùng nhóm, cùng ngày → 23505 (kể cả cùng để trống nhóm)', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db);
+      await rule(db, g, null);
+      expect((await expectSqlErrorInTx(db, () => rule(db, g, null))).code).toBe('23505');
+    });
+    await inRollback(db, async () => {
+      await rule(db, null, null, '2031-05-05');
+      expect((await expectSqlErrorInTx(db, () => rule(db, null, null, '2031-05-05'))).code).toBe('23505');
+    });
+  });
+
+  it('NULL nhóm cũng là một giá trị trong chỉ mục: hai dòng {2} "mọi nhóm" cùng ngày → 23505', async () => {
+    await inRollback(db, async () => {
+      await rule(db, null, '{2}', '2032-02-02');
+      expect((await expectSqlErrorInTx(db, () => rule(db, null, '{1,2}', '2032-02-02'))).code).toBe('23505');
+    });
+  });
+
+  it('có ĐÚNG ba chỉ mục theo loại và một cho "mọi loại" — thêm loại thứ tư phải thêm chỉ mục', async () => {
+    const r = await db.query<{ indexname: string }>(
+      `SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'cat' AND tablename = 'discount_rule' AND indexname LIKE 'uq_rule_pham_vi%'
+        ORDER BY indexname`,
+    );
+    expect(r.rows.map((x) => x.indexname)).toEqual([
+      'uq_rule_pham_vi_l1',
+      'uq_rule_pham_vi_l2',
+      'uq_rule_pham_vi_l3',
+      'uq_rule_pham_vi_moi',
+    ]);
+    // Số loại khách của hệ thống = số chỉ mục theo loại. Gỡ một vế mà quên vế kia thì loại ấy
+    // hết được canh trùng mà không gì đỏ.
+    const ck = await db.query<{ def: string }>(
+      `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'rule_loai_khach_hop_le'`,
+    );
+    expect(ck.rows[0]!.def).toMatch(/ARRAY\[\(1\)::smallint, \(2\)::smallint, \(3\)::smallint\]/);
   });
 });

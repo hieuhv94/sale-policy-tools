@@ -222,7 +222,7 @@ async function main(): Promise<void> {
     const ma = `KN${soNgauNhien(5)}`;
     await goi('POST', '/catalog/product-groups', ADMIN, { code: `${ma}-NHOM`, name: 'Nhóm kiểm nghiệm' });
     await goi('POST', '/catalog/discount-rules', ADMIN, {
-      code: `${ma}-CK`, productGroupCode: `${ma}-NHOM`, customerType: 1, thresholdRate2: 1800, effectiveFrom: homNay(),
+      code: `${ma}-CK`, productGroupCode: `${ma}-NHOM`, customerTypes: [1], thresholdRate2: 1800, effectiveFrom: homNay(),
     });
     const sp = await goi<{ id: string }>('POST', '/catalog/products', ADMIN, {
       code: `${ma}-SP`, name: 'Sản phẩm kiểm nghiệm 900g', groupCode: `${ma}-NHOM`, price: '600000',

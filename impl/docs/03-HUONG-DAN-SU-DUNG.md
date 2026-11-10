@@ -2723,6 +2723,13 @@ có, hoặc khai **ngày hiệu lực muộn hơn** để đè lên. Dòng cũ *
 Lưu ý **ô để trống cũng tính là trùng**: hai dòng cùng bỏ trống ô nhóm sản phẩm đều nói *"mọi nhóm"*,
 nên chúng trùng nhau.
 
+**Một quy định áp cho NHIỀU loại khách** `sửa 12/11`. Ô *Loại khách hàng* là **ba ô tích**: tích loại
+1 và 3 là một quy định, một mã, một ngưỡng cho cả hai loại. **Không tích loại nào hoặc tích đủ cả ba
+đều nghĩa là *mọi loại*** — hệ thống chỉ có ba loại nên hai cách ấy là một câu; câu dưới ô nói thẳng
+điều đó. Quy định cho một **tập** loại cụ thể hơn *mọi loại* nên thắng ở những loại nằm trong tập.
+Trùng nhau tính theo **từng loại**: quy định loại 1 và 3 đã có cho nhóm và ngày ấy thì khai thêm quy
+định loại 3 (hoặc loại 2 và 3) bị từ chối, vì hai dòng cùng áp cho loại 3; khai loại 2 thì được.
+
 **Mã quy định do bạn đặt.** Ô *Mã quy định* đứng đầu biểu mẫu *Thêm quy định*. Đặt mã đọc được và
 nói lên phạm vi — ví dụ `CK-SUA-L1` — vì đây là thứ sẽ hiện lại ở cột *Id* và ở cột *QĐCK* của từng
 dòng hồ sơ.
@@ -2752,7 +2759,7 @@ bằng cột *Id* cộng cột *QĐCK*.
 - **Sửa được cả *nhóm sản phẩm* và *loại khách hàng*** `sửa 12/11`, cùng ngưỡng và ngày hiệu lực. Chỉ
   **mã quy định** là không sửa được. Đổi nhóm hoặc loại khách là đổi **thứ tự ưu tiên** (quy định cụ
   thể hơn thắng quy định chung); đổi vào đúng phạm vi và đúng ngày của một quy định khác thì hệ thống
-  từ chối. Hộp *Sửa* chọn **một** loại khách (hoặc *Mọi loại*) — mỗi dòng chỉ mang một loại.
+  từ chối. Hộp *Sửa* cũng là ba ô tích, đặt sẵn đúng tập đang có.
 - **Sửa được cả ngày hiệu lực**, không chỉ ngưỡng. Dời sang ngày khác thì quy định bắt đầu ăn từ
   ngày mới — hồ sơ đã lập không đổi. Dời trúng ngày của một quy định khác **cùng phạm vi** thì hệ
   thống từ chối: hai dòng như vậy không phân xử được.

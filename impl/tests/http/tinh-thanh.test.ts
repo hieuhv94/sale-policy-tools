@@ -140,7 +140,7 @@ describe('`0205` `chuanTinhThanh` — chuẩn hoá ở đường VÀO', () => {
 describe('`0205` biểu mẫu khách hàng dùng Ô CHỌN, không phải ô gõ', () => {
   const nguon = () => readFileSync('apps/web/src/components/SuaKhachHang.tsx', 'utf8');
 
-  it('ô Tỉnh/Thành phố là `<select>` dựng TỪ bảng, không phải `<input>`', () => {
+  it('ô Tỉnh/Thành phố là ô chọn có gõ (`ChonCoGo`) dựng TỪ bảng, không phải `<input>` tự do', () => {
     /*
      * Quét mã nguồn vì hai vế nằm ở hai thế giới: một ca dựng DOM đọc được rằng
      * màn hình có một `<select>`, nhưng nó không nói được rằng danh sách ấy đến
@@ -150,21 +150,25 @@ describe('`0205` biểu mẫu khách hàng dùng Ô CHỌN, không phải ô gõ
     const s = nguon();
     const khoi = s.slice(s.indexOf('id="kh-tinh"'), s.indexOf('id="kh-so-nha"'));
     expect(khoi).not.toBe('');
-    expect(khoi).toContain('<select');
+    // `0280` — `<select>` thành `ChonCoGo`: gõ để tìm, nhưng vẫn là danh sách ĐÓNG.
+    expect(khoi).toContain('<ChonCoGo');
+    expect(khoi).not.toContain('<select');
     expect(khoi).not.toContain('<input');
     expect(khoi).toContain('dsTinhThanh');
     expect(s).toContain("TINH_THANH,");
   });
 
-  it('có một mục RỖNG đứng đầu ô chọn', () => {
+  it('KHÔNG có mục rỗng trong danh sách: ô trống là "chưa chọn", không phải một đáp án', () => {
     /*
-     * `rong.province` là `''`. Một `<select>` không có mục nào mang `value=""`
-     * thì trình duyệt tự chọn mục đầu tiên — biểu mẫu lập khách hàng mới sẽ mở
-     * ra với *An Giang* điền sẵn, và người dùng không đọc kỹ lưu đúng cái tên
-     * ấy. Không lỗi nào hiện ra, và dữ liệu sai theo kiểu không ai kiểm lại.
+     * `0205` đòi một `<option value="">` vì `<select>` không có nó thì tự chọn mục đầu — biểu mẫu
+     * mới mở ra với *An Giang* điền sẵn. `ChonCoGo` không có hành vi ấy: giá trị rỗng hiện chữ
+     * gợi ý và KHÔNG có `mucRong`, nên người dùng không bao giờ thấy "— Chọn —" như một dòng để
+     * chọn. Phép canh đổi từ "có mục rỗng" sang "không tự điền".
      */
     const s = nguon();
     const khoi = s.slice(s.indexOf('id="kh-tinh"'), s.indexOf('id="kh-so-nha"'));
-    expect(khoi).toContain('<option value="">');
+    expect(khoi).toContain('goiY=');
+    expect(khoi).not.toContain('mucRong');
+    expect(khoi).toContain('giaTri={g.province}');
   });
 });

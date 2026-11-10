@@ -16,6 +16,7 @@ import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   CurrentUser,
+  danhSach,
   int,
   money,
   oneOf,
@@ -310,7 +311,8 @@ export class CatalogController {
        */
       code: str(1, 40),
       productGroupCode: opt(str(1, 40)),
-      customerType: opt(int(1, 3)),
+      // `0280` — một TẬP loại khách; rỗng (hoặc đủ ba loại) = mọi loại, xem `chuanLoaiKhach`.
+      customerTypes: opt(danhSach(int(1, 3), 3)),
       effectiveFrom: ngayIso(),
       thresholdRate2: int(0, 10_000),
     });
@@ -318,7 +320,7 @@ export class CatalogController {
   }
 
   /**
-   * Sửa NGƯỠNG, NGÀY HIỆU LỰC và — từ `0279` — NHÓM SẢN PHẨM, LOẠI KHÁCH HÀNG.
+   * Sửa NGƯỠNG, NGÀY HIỆU LỰC và — từ `0279` — NHÓM SẢN PHẨM, TẬP LOẠI KHÁCH HÀNG (`0280`).
    *
    * Hai ô phạm vi chỉ đổi khi khoá CÓ MẶT trong thân (rỗng/`null` = mọi giá trị);
    * vắng khoá là giữ nguyên — xem `RulesService.update`. `effectiveFrom` bọc
@@ -332,7 +334,7 @@ export class CatalogController {
       thresholdRate2: int(0, 10_000),
       effectiveFrom: opt(ngayIso()),
       productGroupCode: opt(str(1, 40)),
-      customerType: opt(int(1, 3)),
+      customerTypes: opt(danhSach(int(1, 3), 3)),
     });
     // `opt()` gộp "vắng" và "rỗng" làm một; ở đây hai thứ khác nghĩa, nên hỏi
     // thân thô xem khoá có được gửi không.
@@ -343,7 +345,7 @@ export class CatalogController {
         thresholdRate2: b.thresholdRate2,
         effectiveFrom: b.effectiveFrom,
         ...(gui('productGroupCode') ? { productGroupCode: b.productGroupCode ?? null } : {}),
-        ...(gui('customerType') ? { customerType: b.customerType ?? null } : {}),
+        ...(gui('customerTypes') ? { customerTypes: b.customerTypes ?? [] } : {}),
       },
       me.id,
     );

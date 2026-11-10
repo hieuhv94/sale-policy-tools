@@ -91,7 +91,7 @@ const SAN_PHAM = [
  */
 const QUY_DINH_CK = [
   { code: 'CK-SUA-BOT', productGroupCode: 'SUA-BOT', thresholdRate2: 1500 },
-  { code: 'CK-SUA-L1', productGroupCode: 'SUA-BOT', customerType: 1, thresholdRate2: 1800 },
+  { code: 'CK-SUA-L1', productGroupCode: 'SUA-BOT', customerTypes: [1], thresholdRate2: 1800 },
   { code: 'CK-YHOC', productGroupCode: 'DINH-DUONG-Y-HOC', thresholdRate2: 1200 },
 ];
 

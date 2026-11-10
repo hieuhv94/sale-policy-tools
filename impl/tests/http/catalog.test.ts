@@ -478,7 +478,7 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1500,
     });
@@ -502,7 +502,7 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 2,
+      customerTypes: [2],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 2000,
     });
@@ -521,14 +521,14 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 3,
+      customerTypes: [3],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1100,
     });
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 3,
+      customerTypes: [3],
       effectiveFrom: '2024-01-01',
       thresholdRate2: 2200,
     });
@@ -561,7 +561,7 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     const tao = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       effectiveTo: '2020-12-31',
       thresholdRate2: 5000,
@@ -589,7 +589,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     const mot = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1500,
     });
@@ -598,7 +598,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     const hai = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 2000,
     });
@@ -613,14 +613,14 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 3,
+      customerTypes: [3],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1234,
     });
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 3,
+      customerTypes: [3],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 9999,
     });
@@ -633,14 +633,14 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 2,
+      customerTypes: [2],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1100,
     });
     const sau = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 2,
+      customerTypes: [2],
       effectiveFrom: '2024-01-01',
       thresholdRate2: 2200,
     });
@@ -657,7 +657,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     const tao = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1700,
     });
@@ -1405,7 +1405,7 @@ describe('0026 kênh bán không còn ảnh hưởng tới ngưỡng', () => {
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       channelCode: 'KENH-CU',
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1700,
@@ -1571,7 +1571,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     const r = await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1500,
       ...over,
@@ -1587,7 +1587,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     ((await get('/catalog/discount-rules?limit=200')).body.items as {
       code: string;
       productGroupCode: string | null;
-      customerType: number | null;
+      customerTypes: number[] | null;
       specificity: number;
     }[]).find((x) => x.code === ma)!;
 
@@ -1687,7 +1687,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     // Hai dòng trùng phạm vi và trùng ngày không phân xử được — `uq_rule_pham_vi`
     // chặn từ 0022, và đường sửa phải trả cùng một mã lỗi với đường tạo.
     const { groupCode } = await makeProduct();
-    const chung = { productGroupCode: groupCode, customerType: 2, thresholdRate2: 1500 };
+    const chung = { productGroupCode: groupCode, customerTypes: [2], thresholdRate2: 1500 };
     expect(
       (await post('/catalog/discount-rules', {
         code: code('CK'), ...chung, effectiveFrom: '2024-01-01',
@@ -1706,19 +1706,19 @@ describe('sửa và xoá quy định chiết khấu', () => {
     expect(dung.body.code).toBe('RULE_SCOPE_DUPLICATE');
   });
 
-  it('0279 đổi nhóm và loại khách, và `specificity` đi theo', async () => {
+  it('0279 đổi nhóm và tập loại khách, và `specificity` đi theo', async () => {
     const { ma, groupCode } = await mkRule();
     const { groupCode: nhomKhac } = await makeProduct();
     expect(nhomKhac).not.toBe(groupCode);
     const sua = await patch(`/catalog/discount-rules/${ma}`, {
       thresholdRate2: 1500,
       productGroupCode: nhomKhac,
-      customerType: 3,
+      customerTypes: [3],
     });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
     const d = await dongCua(ma);
     expect(d.productGroupCode).toBe(nhomKhac);
-    expect(d.customerType).toBe(3);
+    expect(d.customerTypes).toEqual([3]);
     expect(d.specificity).toBe(3); // nhóm 2 + loại 1 (`0026`)
   });
 
@@ -1726,37 +1726,37 @@ describe('sửa và xoá quy định chiết khấu', () => {
     const { ma, groupCode } = await mkRule();
     // Vắng cả hai khoá (client cũ): phạm vi không đổi.
     expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1600 })).status).toBe(200);
-    expect(await dongCua(ma)).toMatchObject({ productGroupCode: groupCode, customerType: 1 });
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: groupCode, customerTypes: [1] });
     // Rỗng: về "mọi nhóm, mọi loại".
     expect(
       (await patch(`/catalog/discount-rules/${ma}`, {
         thresholdRate2: 1600,
         productGroupCode: '',
-        customerType: '',
+        customerTypes: [],
       })).status,
     ).toBe(200);
-    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerType: null, specificity: 0 });
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerTypes: null, specificity: 0 });
     // Chỉ một khoá: khoá kia giữ nguyên.
     expect(
-      (await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1600, customerType: 2 })).status,
+      (await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1600, customerTypes: [2] })).status,
     ).toBe(200);
-    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerType: 2 });
+    expect(await dongCua(ma)).toMatchObject({ productGroupCode: null, customerTypes: [2] });
     // Dòng "mọi nhóm" đã chạm tới tầng toàn cục: dọn, kẻo ca khác đòi "không có quy định nào".
     expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(200);
   });
 
   it('0279 đổi phạm vi vào đúng phạm vi + ngày của dòng khác thì 409; nhóm không có thì 404', async () => {
-    const a = await mkRule({ customerType: 1 });
-    const b = await mkRule({ productGroupCode: a.groupCode, customerType: 2 });
+    const a = await mkRule({ customerTypes: [1] });
+    const b = await mkRule({ productGroupCode: a.groupCode, customerTypes: [2] });
     const dung = await patch(`/catalog/discount-rules/${b.ma}`, {
       thresholdRate2: 1500,
       productGroupCode: a.groupCode,
-      customerType: 1,
+      customerTypes: [1],
     });
     expect(dung.status).toBe(409);
     expect(dung.body.code).toBe('RULE_SCOPE_DUPLICATE');
     // Lượt hỏng không để lại gì: dòng b vẫn ở loại 2.
-    expect(await dongCua(b.ma)).toMatchObject({ customerType: 2 });
+    expect(await dongCua(b.ma)).toMatchObject({ customerTypes: [2] });
 
     const khong = await patch(`/catalog/discount-rules/${b.ma}`, {
       thresholdRate2: 1500,
@@ -1764,6 +1764,147 @@ describe('sửa và xoá quy định chiết khấu', () => {
     });
     expect(khong.status).toBe(404);
     expect(khong.body.code).toBe('GROUP_NOT_FOUND');
+  });
+
+  /*
+   * `0280` — MỘT quy định mang một TẬP loại khách (khách hàng chốt 12/11/2026).
+   *
+   * Bốn thứ đứng trên "một loại hoặc NULL" và phải đúng với tập: chỉ mục duy nhất, điểm
+   * cụ thể, phép tra ngưỡng, và bộ lọc danh sách. Mỗi ca dưới đây canh một trong bốn.
+   */
+  describe('0280 tập loại khách', () => {
+    const tra = async (productId: string, loai: number, on = '2030-01-01') =>
+      (await get(`/catalog/thresholds/resolve?productId=${productId}&customerType=${loai}&on=${on}`)).body;
+
+    it('tạo với {1,3}: MỘT dòng, một mã, và đọc lại đúng tập', async () => {
+      const { ma } = await mkRule({ customerTypes: [1, 3] });
+      expect(await dongCua(ma)).toMatchObject({ customerTypes: [1, 3], specificity: 3 });
+      const soDong = ((await get('/catalog/discount-rules?limit=200')).body.items as { code: string }[]).filter(
+        (x) => x.code === ma,
+      );
+      expect(soDong).toHaveLength(1);
+    });
+
+    it('chuẩn hoá: thứ tự và lặp không quan trọng; rỗng và ĐỦ BA loại đều là "mọi loại"', async () => {
+      const a = await mkRule({ customerTypes: [3, 1, 1] });
+      expect((await dongCua(a.ma)).customerTypes).toEqual([1, 3]);
+      const b = await mkRule({ customerTypes: [] });
+      expect(await dongCua(b.ma)).toMatchObject({ customerTypes: null, specificity: 2 });
+      const c = await mkRule({ customerTypes: [2, 1, 3] });
+      // Đủ ba loại KHÔNG được thành một dòng "cụ thể hơn" mọi loại: hệ thống chỉ có ba loại.
+      expect(await dongCua(c.ma)).toMatchObject({ customerTypes: null, specificity: 2 });
+      const d = await mkRule({ customerTypes: undefined });
+      expect((await dongCua(d.ma)).customerTypes).toBeNull();
+    });
+
+    it('nhận bản vào hỏng thì 400: loại ngoài 1–3, quá ba phần tử, không phải mảng', async () => {
+      const { groupCode } = await makeProduct();
+      const khai = (customerTypes: unknown) =>
+        post('/catalog/discount-rules', {
+          code: code('CK'), productGroupCode: groupCode, customerTypes, effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+        });
+      expect((await khai([4])).status).toBe(400);
+      expect((await khai([0])).status).toBe(400);
+      expect((await khai([1, 2, 3, 1])).status).toBe(400);
+      expect((await khai('1')).status).toBe(400);
+    });
+
+    it('tra ngưỡng: loại trong tập ăn quy định, loại ngoài tập thì không', async () => {
+      const { ma, groupCode } = await mkRule({ customerTypes: [1, 3], thresholdRate2: 2100 });
+      const sp = await post('/catalog/products', { code: code('P'), name: 'SP', groupCode, price: '100000' });
+      for (const loai of [1, 3]) {
+        const r = await tra(sp.body.id, loai);
+        expect(r.source, `loại ${loai}`).toBe('RULE');
+        expect(r.ruleCode).toBe(ma);
+        expect(r.thresholdRate2).toBe(2100);
+      }
+      expect((await tra(sp.body.id, 2)).source).toBe('KHONG_CO');
+    });
+
+    it('quy định có TẬP cụ thể hơn "mọi loại": nó thắng ở loại trong tập, "mọi loại" ăn phần còn lại', async () => {
+      const { groupCode } = await makeProduct();
+      const chung = await post('/catalog/discount-rules', {
+        code: code('CK'), productGroupCode: groupCode, effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+      });
+      const rieng = await post('/catalog/discount-rules', {
+        code: code('CK'), productGroupCode: groupCode, customerTypes: [2, 3], effectiveFrom: '2020-01-01', thresholdRate2: 2600,
+      });
+      expect(chung.status).toBe(201);
+      expect(rieng.status, JSON.stringify(rieng.body)).toBe(201);
+      const sp = await post('/catalog/products', { code: code('P'), name: 'SP', groupCode, price: '100000' });
+      expect((await tra(sp.body.id, 2)).ruleCode).toBe(rieng.body.code);
+      expect((await tra(sp.body.id, 3)).ruleCode).toBe(rieng.body.code);
+      expect((await tra(sp.body.id, 1)).ruleCode).toBe(chung.body.code);
+    });
+
+    it('trùng nhau ở BẤT KỲ loại nào, cùng nhóm, cùng ngày thì 409 — cả khi tập không giống hệt', async () => {
+      const { groupCode } = await makeProduct();
+      const khai = (customerTypes: number[] | undefined, ngay = '2020-01-01') =>
+        post('/catalog/discount-rules', {
+          code: code('CK'), productGroupCode: groupCode, customerTypes, effectiveFrom: ngay, thresholdRate2: 1500,
+        });
+      expect((await khai([1, 3])).status).toBe(201);
+      // {3} giao với {1,3} ở loại 3: hai dòng cùng điểm cụ thể, không phân xử được.
+      const trung = await khai([3]);
+      expect(trung.status).toBe(409);
+      expect(trung.body.code).toBe('RULE_SCOPE_DUPLICATE');
+      expect((await khai([2, 3])).status, 'giao ở loại 3').toBe(409);
+      // Không giao: được.
+      expect((await khai([2])).status).toBe(201);
+      // Khác ngày: được (đó là cách đổi ngưỡng đã chốt ở `0020`).
+      expect((await khai([1, 3], '2021-01-01')).status).toBe(201);
+    });
+
+    it('"mọi loại" chỉ trùng với "mọi loại" — nó khác bậc cụ thể nên chung sống với tập', async () => {
+      const { groupCode } = await makeProduct();
+      const khai = (customerTypes: number[] | undefined) =>
+        post('/catalog/discount-rules', {
+          code: code('CK'), productGroupCode: groupCode, customerTypes, effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+        });
+      expect((await khai([1, 3])).status).toBe(201);
+      expect((await khai(undefined)).status, 'mọi loại cạnh một tập').toBe(201);
+      const hai = await khai([]);
+      expect(hai.status, 'hai dòng cùng nói mọi loại').toBe(409);
+      expect(hai.body.code).toBe('RULE_SCOPE_DUPLICATE');
+    });
+
+    it('sửa tập: đổi sang tập giao với dòng khác thì 409 và KHÔNG để lại nửa vời', async () => {
+      const { groupCode } = await makeProduct();
+      const tao = (customerTypes: number[]) =>
+        post('/catalog/discount-rules', {
+          code: code('CK'), productGroupCode: groupCode, customerTypes, effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+        });
+      const a = await tao([1]);
+      const b = await tao([2]);
+      expect(a.status).toBe(201);
+      expect(b.status).toBe(201);
+      const dung = await patch(`/catalog/discount-rules/${b.body.code}`, { thresholdRate2: 1500, customerTypes: [1, 2] });
+      expect(dung.status).toBe(409);
+      expect(await dongCua(b.body.code)).toMatchObject({ customerTypes: [2] });
+      // Mở rộng sang loại còn trống thì được.
+      const ok = await patch(`/catalog/discount-rules/${b.body.code}`, { thresholdRate2: 1500, customerTypes: [2, 3] });
+      expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+      expect(ok.body.customerTypes).toEqual([2, 3]);
+    });
+
+    it('bộ lọc danh sách theo loại khách: tập CHỨA loại ấy và quy định "mọi loại" đều hiện', async () => {
+      const { groupCode } = await makeProduct();
+      const x = await post('/catalog/discount-rules', {
+        code: code('CKT'), productGroupCode: groupCode, customerTypes: [1, 3], effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+      });
+      const ma = (r: { body: { items: { code: string }[] } }) => r.body.items.map((i) => i.code);
+      const co = async (loai: number) =>
+        ma(await get(`/catalog/discount-rules?groupCode=${groupCode}&customerType=${loai}&limit=200`));
+      expect(await co(1)).toContain(x.body.code);
+      expect(await co(3)).toContain(x.body.code);
+      expect(await co(2)).not.toContain(x.body.code);
+    });
+
+    it('lượt xoá và sự kiện: xoá một dòng nhiều loại xoá cả dòng, và `catalog.changed` mang TẬP', async () => {
+      const { ma } = await mkRule({ customerTypes: [1, 3] });
+      expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(200);
+      expect((await get('/catalog/discount-rules?limit=200')).body.items.some((x: { code: string }) => x.code === ma)).toBe(false);
+    });
   });
 
   it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {
@@ -1801,7 +1942,7 @@ describe('0024 mã quy định chiết khấu', () => {
     post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: undefined,
-      customerType: 1,
+      customerTypes: [1],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1500,
       ...over,
@@ -2225,7 +2366,7 @@ describe('`0049` lọc quy định chiết khấu bằng hai ô chọn', () => {
     await post('/catalog/discount-rules', {
       code: rieng,
       productGroupCode: groupCode,
-      customerType: 2,
+      customerTypes: [2],
       effectiveFrom: '2020-01-01',
       thresholdRate2: 2500,
     });

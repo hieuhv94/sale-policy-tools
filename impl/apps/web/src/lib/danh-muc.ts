@@ -300,7 +300,8 @@ export type QuyDinhChietKhau = {
   code: string;
   /** HAI chiều khớp, không hơn (`0026`). `null` nghĩa là "mọi giá trị". */
   productGroupCode: string | null;
-  customerType: number | null;
+  /** TẬP loại khách (`0280`); `null` = mọi loại. Một quy định mang nhiều loại, không phải nhiều dòng. */
+  customerTypes: number[] | null;
   effectiveFrom: string;
   thresholdRate2: number;
   specificity: number;
@@ -347,7 +348,19 @@ export const nguongTuPhanTram = (s: string): number => Math.round(doiSoThapPhan(
 export function phamViChietKhau(q: QuyDinhChietKhau): string {
   return [
     q.productGroupCode ? `nhóm ${q.productGroupCode}` : 'mọi nhóm sản phẩm',
-    q.customerType === null ? 'mọi loại khách' : `khách loại ${q.customerType}`,
+    tomTatLoaiKhach(q.customerTypes ?? []),
   ].join(' · ');
+}
+
+/**
+ * Câu nói tập loại khách của một quy định: *mọi loại khách* · *khách loại 1* · *khách loại 1 và 3*.
+ *
+ * Rỗng VÀ đủ cả ba loại đều đọc là *mọi loại khách* — máy chủ cũng chuẩn hoá hai cách viết ấy về
+ * một (`chuanLoaiKhach`), nên màn hình không được hiện hai câu khác nhau cho cùng một quy định.
+ */
+export function tomTatLoaiKhach(loai: readonly number[]): string {
+  const tap = [...new Set(loai)].sort((a, b) => a - b);
+  if (tap.length === 0 || tap.length >= LOAI_KHACH_HANG.length) return 'mọi loại khách';
+  return `khách loại ${tap.join(' và ')}`;
 }
 

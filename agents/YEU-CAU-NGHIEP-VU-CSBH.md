@@ -576,6 +576,14 @@ cột *Id* trên bảng quy định, cột *QĐCK* trên từng dòng hồ sơ, 
 thì hệ thống **từ chối tạo**, tính cả khi chỉ khác hoa thường hoặc thừa khoảng trắng — `CK-01` và
 `ck-01` là một mã. Mã **không sửa được** sau khi tạo; đặt nhầm thì xoá dòng rồi khai lại.
 
+**Một quy định áp cho MỘT TẬP loại khách** `sửa 12/11` — không phải một loại. *Không tích loại nào* và
+*tích đủ cả ba* đều là **mọi loại** (hệ thống chỉ có ba loại, nên hai cách viết là một câu); còn lại là
+tập một hoặc hai loại, một mã, một ngưỡng. Quy định cho một tập **cụ thể hơn** *mọi loại* (điểm cụ thể
+của chiều loại khách vẫn là 1, vì chiều ấy chỉ có hai trạng thái: có giới hạn / không giới hạn).
+**Trùng phạm vi tính theo TỪNG LOẠI**: hai quy định cùng nhóm, cùng ngày hiệu lực mà **giao nhau ở bất
+kỳ loại nào** thì từ chối — khi cùng khớp một khách hàng chúng cùng điểm cụ thể, không phân xử được.
+Hai quy định không giao nhau, hoặc khác ngày, hoặc một bên là *mọi loại*, thì chung sống được.
+
 **Quy định VÔ THỜI HẠN** `sửa 15/08`. Không còn ngày kết thúc — cùng luật với chính CSBH (muc 5).
 Cột *Hiệu lực* trên bảng quy định vì thế chỉ hiện **ngày bắt đầu** `sửa 16/08`: chữ "vô thời hạn"
 đứng sau mọi dòng là một luật của cả bảng, không phải dữ liệu phân biệt dòng này với dòng kia, nên
@@ -3843,3 +3851,13 @@ vì nó là đường nhận thư đặt lại mật khẩu · lý do mở ngo�
 tay hay thông báo gắn với tài khoản, và `byRole` chỉ lấy tài khoản đã kích hoạt nên nó chưa được giao việc ·
 tên và email của tài khoản đã vô hiệu hoá **vẫn bị giữ chỗ** (đã kiểm), nên gõ sai email lúc tạo thì sửa tại
 chỗ chứ không vô hiệu hoá để tạo lại.
+
+**Quy định chiết khấu: nhóm · loại khách sửa được, và MỘT quy định áp cho NHIỀU loại khách** (12/11) —
+hộp *Sửa* đổi được nhóm sản phẩm và loại khách hàng (mã quy định vẫn không); đổi phạm vi là đổi **thứ tự
+ưu tiên**, và đổi vào đúng phạm vi + ngày của một quy định khác thì từ chối · loại khách là **một tập**, ba ô
+tích: *không tích* và *tích đủ ba* đều là **mọi loại** · trùng phạm vi tính **theo từng loại** (giao nhau ở bất
+kỳ loại nào, cùng nhóm, cùng ngày) · khách hàng cân nhắc hai hướng — tạo nhiều dòng (rẻ) hay đổi mô hình để
+một dòng mang cả tập (đắt) — và **chọn đổi mô hình**, vì một tờ giấy ký là một quy định, một mã, một ngưỡng.
+Đồng thời: ô chọn có danh sách dài (Tỉnh/Thành phố, Sản phẩm, Nhóm sản phẩm, người duyệt…) **cho gõ để tìm**,
+gõ không dấu vẫn ra; Excel danh sách CSBH **bỏ hai cột cấp hồ sơ** *Nhóm sản phẩm* và *Chiết khấu cao nhất* (đã
+có số liệu của riêng từng dòng).

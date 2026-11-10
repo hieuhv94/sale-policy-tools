@@ -5,6 +5,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
+import { chuanLoaiKhach } from './loai-khach.js';
 
 export type RuleInput = {
   /** Mã do Quản trị đặt, khoá chính từ `0024`. */
@@ -14,7 +15,11 @@ export type RuleInput = {
    * trị" — đó là cách khai một ngưỡng chung, không phải một ô còn thiếu.
    */
   productGroupCode?: string | undefined;
-  customerType?: number | undefined;
+  /**
+   * TẬP loại khách (`0280`). Rỗng hoặc đủ ba loại = mọi loại — `chuanLoaiKhach` quyết,
+   * không để mỗi chỗ tự hiểu.
+   */
+  customerTypes?: number[] | undefined;
   effectiveFrom: string;
   thresholdRate2: number;
 };
@@ -63,12 +68,12 @@ export class RulesService {
       const r = await c
         .query<{ code: string; specificity: number }>(
           `INSERT INTO cat.discount_rule
-             (code, product_group_id, customer_type, effective_from, threshold_rate2)
-           VALUES ($1,$2,$3,$4,$5) RETURNING code, specificity`,
+             (code, product_group_id, customer_types, effective_from, threshold_rate2)
+           VALUES ($1,$2,$3::smallint[],$4,$5) RETURNING code, specificity`,
           [
             input.code,
             groupId,
-            input.customerType ?? null,
+            chuanLoaiKhach(input.customerTypes),
             input.effectiveFrom,
             input.thresholdRate2,
           ],
@@ -81,9 +86,17 @@ export class RulesService {
       await emit(
         c,
         'catalog.changed',
-        changeEvent('discount_rule', row.code, actorId, { before: null, after: input }),
+        changeEvent('discount_rule', row.code, actorId, {
+          before: null,
+          after: { ...input, customerTypes: chuanLoaiKhach(input.customerTypes) },
+        }),
       );
-      return { ...input, code: row.code, specificity: row.specificity };
+      return {
+        ...input,
+        customerTypes: chuanLoaiKhach(input.customerTypes),
+        code: row.code,
+        specificity: row.specificity,
+      };
     });
   }
 
@@ -112,14 +125,14 @@ export class RulesService {
       effectiveFrom?: string | undefined;
       /** `undefined` = giữ nguyên; `null` = mọi nhóm. */
       productGroupCode?: string | null | undefined;
-      /** `undefined` = giữ nguyên; `null` = mọi loại. */
-      customerType?: number | null | undefined;
+      /** `undefined` = giữ nguyên; rỗng/`null`/đủ ba loại = mọi loại. */
+      customerTypes?: number[] | null | undefined;
     },
     actorId: string,
   ) {
     return this.db.tx(async (c) => {
       const truoc = await c.query(
-        `SELECT product_group_id, customer_type, effective_from, threshold_rate2
+        `SELECT product_group_id, customer_types, effective_from, threshold_rate2
            FROM cat.discount_rule WHERE code = $1`,
         [code],
       );
@@ -137,22 +150,22 @@ export class RulesService {
         if (g.rowCount === 0) throw new NotFoundException({ code: 'GROUP_NOT_FOUND' });
         nhomId = g.rows[0]!.id;
       }
-      const doiLoai = input.customerType !== undefined;
+      const doiLoai = input.customerTypes !== undefined;
 
       const r = await c
         .query<{
           threshold_rate2: number;
           effective_from: Date;
           product_group_id: string | null;
-          customer_type: number | null;
+          customer_types: number[] | null;
         }>(
           `UPDATE cat.discount_rule
               SET threshold_rate2  = $2,
                   effective_from   = coalesce($3::date, effective_from),
                   product_group_id = CASE WHEN $4::boolean THEN $5::uuid ELSE product_group_id END,
-                  customer_type    = CASE WHEN $6::boolean THEN $7::smallint ELSE customer_type END
+                  customer_types   = CASE WHEN $6::boolean THEN $7::smallint[] ELSE customer_types END
             WHERE code = $1
-          RETURNING threshold_rate2, effective_from, product_group_id, customer_type`,
+          RETURNING threshold_rate2, effective_from, product_group_id, customer_types`,
           [
             code,
             input.thresholdRate2,
@@ -160,7 +173,7 @@ export class RulesService {
             doiNhom,
             nhomId,
             doiLoai,
-            input.customerType ?? null,
+            chuanLoaiKhach(input.customerTypes),
           ],
         )
         .catch((e: unknown) => {
@@ -182,7 +195,7 @@ export class RulesService {
         thresholdRate2: sau.threshold_rate2,
         effectiveFrom: sau.effective_from,
         productGroupId: sau.product_group_id,
-        customerType: sau.customer_type,
+        customerTypes: sau.customer_types,
       };
     });
   }
@@ -212,7 +225,7 @@ export class RulesService {
 
       const truoc = await c.query(
         `DELETE FROM cat.discount_rule WHERE code = $1
-         RETURNING product_group_id, customer_type, effective_from, threshold_rate2`,
+         RETURNING product_group_id, customer_types, effective_from, threshold_rate2`,
         [code],
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
@@ -243,12 +256,12 @@ export class RulesService {
     loc: { groupCode?: string | undefined; customerType?: number | undefined } = {},
   ) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
-      `SELECT r.code, g.code AS "productGroupCode", r.customer_type AS "customerType",
+      `SELECT r.code, g.code AS "productGroupCode", r.customer_types AS "customerTypes",
               r.effective_from AS "effectiveFrom", r.threshold_rate2 AS "thresholdRate2",
               r.specificity, count(*) OVER() AS total_count
          FROM cat.discount_rule r LEFT JOIN cat.product_group g ON g.id = r.product_group_id
         WHERE ($3::text IS NULL OR g.code = $3 OR r.product_group_id IS NULL)
-          AND ($4::int IS NULL OR r.customer_type = $4 OR r.customer_type IS NULL)
+          AND ($4::int IS NULL OR r.customer_types IS NULL OR $4 = ANY(r.customer_types))
         -- Mã là khoá phá hoà: cột specificity chỉ có bốn giá trị và nhiều quy
         -- định trùng ngày hiệu lực, nên thiếu nó là hai lần gọi cho hai thứ tự
         -- khác nhau, và trang 2 lặp lại một dòng của trang 1.
@@ -294,7 +307,7 @@ export class RulesService {
     const rule = await this.db.one<{ code: string; threshold_rate2: number }>(
       `SELECT code, threshold_rate2 FROM cat.discount_rule
         WHERE (product_group_id IS NULL OR product_group_id = $1)
-          AND (customer_type    IS NULL OR customer_type    = $2)
+          AND (customer_types   IS NULL OR $2 = ANY(customer_types))
           AND effective_from <= coalesce($3::date, current_date)
         ORDER BY specificity DESC, effective_from DESC, code
         LIMIT 1`,
@@ -339,7 +352,7 @@ export class RulesService {
  */
 const trungGiNao = (e: unknown): ConflictException => {
   const rang = (e as { constraint?: string } | null)?.constraint ?? '';
-  if (rang !== 'uq_rule_pham_vi') {
+  if (!rang.startsWith('uq_rule_pham_vi')) {
     return new ConflictException({
       code: 'RULE_CODE_DUPLICATE',
       message:

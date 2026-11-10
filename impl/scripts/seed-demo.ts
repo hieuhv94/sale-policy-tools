@@ -246,12 +246,12 @@ const SAN_PHAM = [
  * Mỗi nhóm còn lại sinh thêm một quy định chung cho mọi loại khách.
  */
 const QUY_DINH_CK = [
-  { code: 'CK-SUA-L1', productGroupCode: 'SUA-BOT', customerType: 1, thresholdRate2: 1800 },
-  { code: 'CK-SUA-L2', productGroupCode: 'SUA-BOT', customerType: 2, thresholdRate2: 2000 },
+  { code: 'CK-SUA-L1', productGroupCode: 'SUA-BOT', customerTypes: [1], thresholdRate2: 1800 },
+  { code: 'CK-SUA-L2', productGroupCode: 'SUA-BOT', customerTypes: [2], thresholdRate2: 2000 },
   {
     code: 'CK-YHOC-L1',
     productGroupCode: 'DINH-DUONG-Y-HOC',
-    customerType: 1,
+    customerTypes: [1],
     thresholdRate2: 1400,
   },
   ...NHOM.map((n) => ({ code: `CK-${n.code}`, productGroupCode: n.code, thresholdRate2: n.nguong })),

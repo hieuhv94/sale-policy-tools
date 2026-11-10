@@ -216,6 +216,7 @@ export const NHAN_TRUONG: Record<string, string> = {
   customerCode: 'Mã khách hàng',
   customerName: 'Tên khách hàng',
   customerType: 'Loại khách hàng',
+  customerTypes: 'Loại khách hàng',
   days: 'Số ngày',
   debtNote: 'Ghi rõ điều khoản',
   debtTerm: 'Công nợ',

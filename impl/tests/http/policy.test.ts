@@ -4334,7 +4334,7 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
         .send({
           code: uniq('CK0023C'),
           productGroupCode: g,
-          customerType: loai,
+          customerTypes: [loai],
           effectiveFrom: '2020-01-01',
           thresholdRate2: nguong,
         });
@@ -5223,7 +5223,7 @@ describe('0029 box Yêu cầu cập nhật', () => {
     // Khách hàng test là loại 1 (`makeCustomer`).
     const maMoi = uniq('CK');
     expect((await khaiQuyDinh({
-      code: maMoi, productGroupCode: nhom, customerType: 1,
+      code: maMoi, productGroupCode: nhom, customerTypes: [1],
       effectiveFrom: '2020-01-01', thresholdRate2: 3300,
     })).status).toBe(201);
     await raSoat();
