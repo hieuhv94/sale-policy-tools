@@ -2000,23 +2000,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .hop-thoai-dau h2 { flex: 1; margin: var(--k2) 0 0; font-size: var(--chu-to); line-height: 1.35; }
 .nut-dong-hop { border-color: transparent; background: transparent; }
 
-/* NGĂN TRƯỢT bên phải (`0257`, `HopThoai ngan`) — biểu mẫu dài. Cao hết khung
-   nhìn, bám mép phải; dưới 640px chiếm cả màn hình. */
-.lop-phu.lop-phu-ngan { padding: 0; justify-content: flex-end; align-items: stretch; }
-.lop-phu-ngan > .hop-thoai-ngan { margin: 0; }
-.hop-thoai.hop-thoai-ngan {
-  width: min(36rem, 100%);
-  height: 100vh;
-  height: 100dvh;
-  max-height: none;
-  border-width: 0 0 0 1px;
-  border-radius: 0;
-  animation: ngan-vao 0.18s ease-out;
-}
-.hop-thoai-ngan .hop-thoai-dau { border-bottom: 1px solid var(--mau-vien); padding-bottom: var(--k3); }
-.hop-thoai-ngan .hop-thoai-than { flex: 1; padding-top: var(--k4); }
-@keyframes ngan-vao { from { transform: translateX(24px); opacity: 0.6; } }
-/* Hàng nút chốt của biểu mẫu trong ngăn GHIM ở đáy (`0257`): biểu mẫu khách hàng
+/* Hàng nút chốt của biểu mẫu trong hộp thoại GHIM ở đáy (`0257`; ngăn trượt đã gỡ,
+   hộp nào cũng căn giữa): biểu mẫu khách hàng
    có mười ba ô, và nút *Lưu* chỉ hiện ra khi cuộn hết cỡ là nút người ta không
    thấy. `bottom` âm đúng bằng đệm dưới của vùng cuộn để hàng nút chạm mép ngăn.
 
@@ -2026,7 +2011,7 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    bốn khổ). Không dùng `:last-child`: chỉ cần một dòng báo lỗi hay một ô ẩn thêm
    sau hàng nút là luật lặng lẽ thôi áp. `:has()` không có ở trình duyệt rất cũ thì
    hàng nút chỉ thôi dính — biểu mẫu vẫn dùng được. */
-.hop-thoai-ngan form > .nhom-nut:has(button[type="submit"]) {
+.hop-thoai form > .nhom-nut:has(button[type="submit"]) {
   position: sticky;
   bottom: calc(-1 * var(--k5));
   z-index: 1;

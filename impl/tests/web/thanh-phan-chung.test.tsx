@@ -46,24 +46,26 @@ describe('`0257` hộp thoại có nút × ở đầu', () => {
   });
 });
 
-describe('`0257` ngăn trượt (`ngan`) cho biểu mẫu dài', () => {
-  it('lớp và luật Escape giữ nguyên như hộp thoại thường', () => {
+describe('ngăn trượt (`ngan`) đã GỠ — mọi hộp thoại căn giữa', () => {
+  it('HopThoai không còn lớp ngăn; Escape vẫn đóng', () => {
     const dong = vi.fn();
     const { container } = render(
-      <HopThoai tieuDe="Lập khách hàng" dong={dong} ngan>
+      <HopThoai tieuDe="Lập khách hàng" dong={dong}>
         <input aria-label="Mã khách hàng" />
       </HopThoai>,
     );
-    expect(container.querySelector('.lop-phu.lop-phu-ngan > .hop-thoai.hop-thoai-ngan')).not.toBeNull();
+    expect(container.querySelector('.lop-phu > .hop-thoai')).not.toBeNull();
+    expect(container.querySelector('.lop-phu-ngan, .hop-thoai-ngan')).toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(dong).toHaveBeenCalled();
   });
 
-  it('đúng ba biểu mẫu dài dùng ngăn trượt: lập/sửa khách hàng, thêm/sửa dòng sản phẩm, sửa sản phẩm', () => {
-    const doc = (p: string) => readFileSync(`apps/web/src/components/${p}`, 'utf8');
-    expect(doc('SuaKhachHang.tsx')).toMatch(/'Lập khách hàng'\} dong=\{dong\} ngan>/);
-    expect(doc('SuaHoSo.tsx')).toMatch(/'Thêm sản phẩm'\}\s*dong=\{dong\}\s*ngan\s*>/);
-    expect(doc('danh-muc/SanPham.tsx')).toMatch(/`Sửa \$\{sp\.code\}`\} dong=\{dong\} ngan>/);
+  it('không tệp nguồn nào truyền `ngan`, và CSS không còn luật ngăn', () => {
+    const doc = (p: string) => readFileSync(`apps/web/src/${p}`, 'utf8');
+    for (const p of ['components/SuaKhachHang.tsx', 'components/SuaHoSo.tsx', 'components/danh-muc/SanPham.tsx', 'components/Chung.tsx']) {
+      expect(doc(p), p).not.toMatch(/\bngan\b\s*(>|\/>|\n)|ngan\??:\s*boolean/);
+    }
+    expect(doc('styles/app.css').replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/hop-thoai-ngan|lop-phu-ngan/);
   });
 });
 

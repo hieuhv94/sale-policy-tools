@@ -111,12 +111,12 @@ describe('`0268` hộp thoại: ô Nội dung cho từng khoản', () => {
   it('cách 1: trong biểu mẫu, ĐÚNG MỘT dải nút khớp luật dính đáy — dải chứa nút gửi', async () => {
     await moVaChon();
     const css = readFileSync('apps/web/src/styles/app.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-    const luat = [...css.matchAll(/([^{}]*\.hop-thoai-ngan form[^{}]*)\{([^}]*)\}/g)].filter((m) => /position:\s*sticky/.test(m[2]!));
-    expect(luat, 'phải có đúng một luật dính đáy cho biểu mẫu trong ngăn').toHaveLength(1);
+    const luat = [...css.matchAll(/([^{}]*\.hop-thoai form[^{}]*)\{([^}]*)\}/g)].filter((m) => /position:\s*sticky/.test(m[2]!));
+    expect(luat, 'phải có đúng một luật dính đáy cho biểu mẫu trong hộp thoại').toHaveLength(1);
     const chon = luat[0]![1]!.trim();
     expect(chon).toContain(':has(button[type="submit"])');
-    // Chạy CHÍNH bộ chọn ấy trên hộp thoại thật (bỏ tiền tố lớp của ngăn).
-    const khop = [...document.querySelectorAll(chon.replace('.hop-thoai-ngan ', '.hop-thoai '))];
+    // Chạy CHÍNH bộ chọn ấy trên hộp thoại thật .
+    const khop = [...document.querySelectorAll(chon)];
     expect(khop, 'số dải nút dính đáy').toHaveLength(1);
     expect(khop[0]!.querySelector('button[type="submit"]')).not.toBeNull();
     expect(within(khop[0] as HTMLElement).queryByRole('button', { name: /Thêm khoản chi phí/ })).toBeNull();

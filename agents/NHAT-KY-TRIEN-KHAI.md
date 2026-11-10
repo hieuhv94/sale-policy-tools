@@ -22574,3 +22574,16 @@ một hàm quay-lại riêng → đổi thành `dong` (Huỷ = đóng hộp, b�
 
 `VERSION` → `1.3.2` (gói `P317`). `1.3.1` đã trên registry với ảnh TRƯỚC `0277`; ghi đè thẻ số sẽ cho một số phiên bản hai nội dung và mất đường lùi,
 nên lên số mới. Không migration nào. **Đẩy ảnh lên registry ở bước kế tiếp.**
+
+
+## P319 — `0278` Gỡ ngăn trượt: mọi hộp thoại căn giữa — CHỈ FRONTEND
+
+Khách hàng thấy hộp *Thêm sản phẩm* của CSBH "lệch sát phải" và hỏi còn hộp nào như thế. Đó là **ngăn trượt** của `0257` (P290): cờ `ngan` của `HopThoai`, bốn hộp dùng — lập/sửa khách hàng, thêm/sửa dòng sản phẩm (chung một hộp), sửa sản phẩm ở danh mục. Chốt gỡ **cả bốn**; mọi hộp thoại còn lại vốn đã căn giữa, hai hộp xem tệp phủ kín màn hình.
+
+Gỡ ở nguồn, không vá cái bóng: prop `ngan`, ba chỗ truyền, khối CSS `.lop-phu-ngan`/`.hop-thoai-ngan`/`@keyframes ngan-vao`. **Một thứ ở lại và đổi phạm vi**: hàng nút chốt GHIM ở đáy (`0257`, `0268`) — biểu mẫu khách hàng mười ba ô cuộn trong hộp giữa vẫn cần nút *Lưu* thấy được, nên bộ chọn `.hop-thoai-ngan form > .nhom-nut:has(button[type="submit"])` thành `.hop-thoai form > …`, tức áp cho MỌI biểu mẫu trong hộp thoại (hộp ngắn thì dải ấy chỉ nằm ở đáy, thêm một đường kẻ trên). Hộp giữa rộng bậc `thuong` (700px) thay cho 36rem của ngăn.
+
+Ca kiểm: ca ghim "đúng ba biểu mẫu dùng ngăn" đảo thành ca cấm — không tệp nguồn nào còn `ngan`, CSS không còn hai lớp; ca `0268` chạy bộ chọn dính đáy trên hộp thật, đổi tiền tố. **Phá lại**: hoàn tác phần `src` thì cả hai ca đỏ; ca "lớp và Escape" xanh cả hai lượt (nó chỉ canh Escape, không canh lớp).
+
+**Đo trên demo thật** (dựng lại `dist` bằng root rồi `chown`; Chrome không giao diện + CDP; tdv01 cho khách hàng và hồ sơ, admin01 cho sản phẩm) ở 1440 · 1024 · 768 · 390 · 320: cả ba hộp căn giữa (lề trái/phải chênh đúng bề rộng thanh cuộn của trang), nút gửi luôn trong khung nhìn, hộp không cuộn ngang. Dưới 640px hộp rộng `100% − 32px`. **Có sẵn, KHÔNG do chặng này:** trang chi tiết hồ sơ cuộn ngang ở 1024 (1116px) và 768 (856px) ngay cả khi không mở hộp nào — chưa sửa.
+
+**1193/1193 ca giao diện xanh** (`docker run` rời, demo bật).

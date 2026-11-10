@@ -679,7 +679,6 @@ export function HopThoai({
   caoNoiDung = null,
   giay = false,
   toanManHinh = false,
-  ngan = false,
   children,
 }: {
   tieuDe: string;
@@ -753,14 +752,6 @@ export function HopThoai({
    * thì đổi việc chứ không mất — xem `.hop-thoai-toan-man .khung-anh img`.
    */
   toanManHinh?: boolean;
-  /**
-   * NGĂN TRƯỢT bên phải thay cho hộp giữa màn hình (`0257`) — cho biểu mẫu DÀI
-   * (khách hàng, dòng sản phẩm, sửa sản phẩm). Cao hết khung nhìn, nội dung cuộn
-   * bên trong, nút chốt luôn ở đáy; trang phía sau vẫn thấy được bên trái. Mọi
-   * luật của hộp thoại giữ nguyên: Escape đóng, Tab không thoát ra ngoài, bấm ra
-   * ngoài KHÔNG đóng (`0237`).
-   */
-  ngan?: boolean;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -802,18 +793,16 @@ export function HopThoai({
   }, [dong]);
 
   return (
-    <div className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}${ngan && tyLe === null ? ' lop-phu-ngan' : ''}`}>
+    <div className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}`}>
       <div
         className={
           tyLe !== null
             ? `hop-thoai hop-thoai-xem${giay ? ' hop-thoai-giay' : ''}${
                 toanManHinh ? ' hop-thoai-toan-man' : ''
               }`
-            : ngan
-              ? 'hop-thoai hop-thoai-ngan'
-              : co === 'thuong'
-                ? 'hop-thoai'
-                : `hop-thoai hop-thoai-${co}`
+            : co === 'thuong'
+              ? 'hop-thoai'
+              : `hop-thoai hop-thoai-${co}`
         }
         role="dialog"
         aria-modal="true"
