@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dang, layJson, taiVe } from '../lib/api.js';
 import { BaoLoi, DangTai, HopThoai } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
-import { nhanTrangThai, tien, tyLe } from '../lib/format.js';
+import { tien, tyLe } from '../lib/format.js';
 
 type ViecXuat = {
   jobId: string;
@@ -32,7 +32,6 @@ type ViecXuat = {
 type DongXem = {
   code: string;
   customerName: string;
-  status: string;
   productCode: string | null;
   productName: string | null;
   groupCode: string | null;
@@ -229,15 +228,13 @@ function HopXemTruocXuat({
           {rong ? (
             <p className="ghi-chu">Không có hồ sơ nào khớp bộ lọc, nên chưa có gì để xuất.</p>
           ) : (
-            <div className="khung-cuon" role="region" aria-label="Bản xem trước file" tabIndex={0}>
+            <div className="khung-cuon bang-xuat-xem-truoc" role="region" aria-label="Bản xem trước file" tabIndex={0}>
               <table className="bang">
                 <thead>
                   <tr>
                     <th>Mã hồ sơ</th>
                     <th>Khách hàng</th>
-                    <th>Trạng thái</th>
-                    <th>Mã sản phẩm</th>
-                    <th>Tên sản phẩm</th>
+                    <th>Sản phẩm</th>
                     <th>Nhóm SP</th>
                     <th className="so">Giá thu về</th>
                     <th className="so">Chiết khấu</th>
@@ -248,9 +245,10 @@ function HopXemTruocXuat({
                     <tr key={`${d.code}|${d.productCode ?? ''}|${i}`}>
                       <td>{d.code}</td>
                       <td>{d.customerName}</td>
-                      <td>{nhanTrangThai(d.status)}</td>
-                      <td>{d.productCode ?? '—'}</td>
-                      <td>{d.productName ?? '—'}</td>
+                      <td>
+                        {d.productName ?? '—'}
+                        {d.productCode && <div className="ghi-chu">{d.productCode}</div>}
+                      </td>
                       <td>{d.groupCode ?? '—'}</td>
                       <td className="so">{d.netPrice === null ? '—' : tien(d.netPrice)}</td>
                       <td className="so">

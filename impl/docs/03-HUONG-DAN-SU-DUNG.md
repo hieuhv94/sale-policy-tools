@@ -2048,7 +2048,7 @@ thêm** để xem tiếp. Bộ lọc bên dưới áp cho **mọi cột**; lọc
 **Năm tiêu chí chọn được nhiều thứ cùng lúc** `mới 21/08`. Gõ vài chữ, danh sách hiện ra, bấm để
 chọn — mỗi thứ đã chọn thành một **thẻ** bấm vào là gỡ. Chọn ba khách hàng thì ra hồ sơ của **cả
 ba**; thêm hai trạng thái thì ra hồ sơ của ba khách hàng ấy **và** đang ở một trong hai trạng thái.
-Trong một ô là *hoặc*, giữa hai ô là *và*.
+Trong một ô là *hoặc*, giữa hai ô là *và*. Danh sách gợi ý hiện **ngay dưới ô đang gõ** `sửa 12/11` (trước đó nó che mất chính ô ấy); phím **↑ ↓** di chuyển trong danh sách, **Enter** chọn mục đang tô, **Esc** đóng.
 
 **Tỷ lệ chiết khấu theo khoảng** `mới 12/11`. Gõ *Từ 20* và *Đến 25* để tìm hồ sơ có **ít nhất một sản phẩm** chiết khấu từ 20% đến 25%; hai đầu đều tính cả giá trị biên. Chỉ gõ *Từ 20* là từ 20% trở lên, chỉ gõ *Đến 10* là tới 10%. Gõ dấu phẩy (*22,5*) như quen. Số đầu lớn hơn số cuối thì ô báo lỗi và chưa lọc.
 

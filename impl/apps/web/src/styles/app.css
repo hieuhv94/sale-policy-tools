@@ -3502,6 +3502,7 @@ td.o-cau-chu { max-width: 32ch; }
 /* `position: relative` để danh sách xoè ra neo vào đúng ô này, không neo vào
    trang. Neo vào trang thì mở ô thứ ba trong lưới lọc là danh sách nhảy lên góc. */
 .chon-nhieu { position: relative; }
+.chon-nhieu-o { position: relative; }
 
 .chon-nhieu-chip {
   display: flex;
@@ -3532,11 +3533,14 @@ td.o-cau-chu { max-width: 32ch; }
   z-index: 10;
   left: 0;
   right: 0;
-  /* KHÔNG đặt `top`, và đó là cả mẹo: một khối tuyệt đối không có `top` lẫn
-     `bottom` đứng nguyên ở chỗ nó vốn nằm trong dòng chảy — tức là ngay dưới ô
-     nhập — chỉ khác là không chiếm chỗ nữa. Đặt `top` bằng một con số thì phải
-     tính cả chiều cao dải chip, mà dải ấy cao thấp theo số chip đang có. */
-  margin: var(--k1) 0 0;
+  /* Bám mép dưới CỦA Ô NHẬP (`.chon-nhieu-o`), không phải của cả `.truong` (`0284`).
+
+     Bản cũ KHÔNG đặt `top` với lý do "đứng nguyên ở chỗ nó vốn nằm trong dòng chảy, tức là ngay dưới ô
+     nhập". Sai với một khối tuyệt đối nằm trong container FLEX: vị trí tĩnh của nó là chỗ nó sẽ đứng nếu
+     nó là phần tử flex DUY NHẤT — tức là ĐỈNH container, chồng lên nhãn và chính ô đang gõ. Đo trên Chrome
+     thật: danh sách bắt đầu ở y=316 còn ô nhập ở y=335. Không ca kiểm nào bắt được vì jsdom không dàn trang. */
+  top: calc(100% + var(--k1));
+  margin: 0;
   padding: var(--k1);
   list-style: none;
   max-height: 16rem;
@@ -3562,7 +3566,8 @@ td.o-cau-chu { max-width: 32ch; }
 }
 
 .chon-nhieu-muc:hover,
-.chon-nhieu-muc:focus-visible { background: var(--mau-nen-hover); }
+.chon-nhieu-muc:focus-visible,
+.chon-nhieu-muc[aria-selected="true"] { background: var(--mau-nen-hover); }
 
 .chon-nhieu-trong {
   padding: var(--k2) var(--k3);
@@ -4946,3 +4951,8 @@ svg.bd-nho { width: 62px; margin: 0; }
 .o-phan-tram > span { position: absolute; right: var(--k3); top: 50%; transform: translateY(-50%); color: var(--mau-chu-nhat); pointer-events: none; }
 .the-tich-rong { flex: none; width: 100%; align-items: flex-start; }
 .the-tich-rong small { display: block; }
+
+/* Bản xem trước file Excel (`0283`): bảng cuộn TRONG khung để nút *Tải file Excel* ở dưới luôn thấy được,
+   không bị đẩy khỏi màn hình bởi 50 dòng. Chiều cao theo khung nhìn, có trần. */
+.bang-xuat-xem-truoc { max-height: min(46dvh, 22rem); overflow: auto; margin-bottom: var(--k2); }
+.bang-xuat-xem-truoc thead th { position: sticky; top: 0; z-index: 1; background: var(--mau-nen-phu); }

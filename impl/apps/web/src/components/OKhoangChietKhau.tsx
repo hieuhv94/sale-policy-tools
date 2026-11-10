@@ -47,7 +47,7 @@ export function OKhoangChietKhau({
   };
 
   return (
-    <fieldset className="truong khoang-chiet-khau" aria-describedby={k.loi ? `${id}-loi` : `${id}-ghi`}>
+    <fieldset className="truong khoang-chiet-khau" {...(k.loi ? { 'aria-describedby': `${id}-loi` } : {})}>
       <legend>Tỷ lệ chiết khấu</legend>
       <div className="khoang-hang">
         <label htmlFor={`${id}-tu`}>Từ</label>
@@ -61,13 +61,9 @@ export function OKhoangChietKhau({
           <span aria-hidden="true">%</span>
         </span>
       </div>
-      {k.loi ? (
+      {k.loi && (
         <p className="truong-loi" id={`${id}-loi`} role="alert">
           {k.loi}
-        </p>
-      ) : (
-        <p className="ghi-chu" id={`${id}-ghi`}>
-          Có ít nhất một sản phẩm trong khoảng này.
         </p>
       )}
     </fieldset>

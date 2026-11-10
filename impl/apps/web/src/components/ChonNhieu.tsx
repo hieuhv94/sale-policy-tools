@@ -77,6 +77,8 @@ export function ChonNhieu({
    */
   const [loiTra, datLoiTra] = useState(false);
   const [mo, datMo] = useState(false);
+  /** Mục đang được tô trong danh sách gợi ý (mũi tên ↑ ↓ di chuyển, Enter chọn). */
+  const [cs, datCs] = useState(0);
   const maDs = useId();
   const khung = useRef<HTMLDivElement>(null);
 
@@ -158,6 +160,11 @@ export function ChonNhieu({
 
   const go = (gia: string) => doi(giaTri.filter((x) => x !== gia));
 
+  // Những mục CÒN CHỌN ĐƯỢC (bỏ mục đã chọn) — danh sách bày ra và danh sách mũi tên đi qua phải là một.
+  const hien = ketQua.filter((t) => !giaTri.includes(t.gia));
+  const dangMoDs = mo && !(typeof nguon === 'function' && tim.trim() === '');
+  const csHopLe = Math.min(cs, Math.max(hien.length - 1, 0));
+
   return (
     <div className="truong chon-nhieu" ref={khung}>
       <label htmlFor={id}>{nhan}</label>
@@ -181,65 +188,84 @@ export function ChonNhieu({
         </div>
       )}
 
-      <input
-        id={id}
-        className="o-nhap"
-        type="text"
-        value={tim}
-        placeholder={goiY}
-        autoComplete="off"
-        role="combobox"
-        aria-expanded={mo}
-        aria-controls={maDs}
-        onFocus={() => datMo(true)}
-        onChange={(e) => {
-          datTim(e.target.value);
-          datMo(true);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') datMo(false);
-          // Enter chọn mục ĐẦU TIÊN còn lại. Đường nhanh cho người gõ đúng tên
-          // rồi muốn đi tiếp mà không phải rời tay khỏi bàn phím.
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            const dau = ketQua.find((t) => !giaTri.includes(t.gia));
-            if (dau) them(dau);
-          }
-        }}
-      />
+      {/* Ô nhập và danh sách gợi ý chung MỘT khung định vị — danh sách bám mép dưới CỦA Ô NHẬP, không phải của
+          cả `.truong` (nhãn, thẻ đã chọn): xem `.chon-nhieu-o` ở app.css. */}
+      <div className="chon-nhieu-o">
+        <input
+          id={id}
+          className="o-nhap"
+          type="text"
+          value={tim}
+          placeholder={goiY}
+          autoComplete="off"
+          role="combobox"
+          aria-expanded={mo}
+          aria-controls={maDs}
+          aria-autocomplete="list"
+          aria-activedescendant={dangMoDs && hien[csHopLe] ? `${maDs}-${csHopLe}` : undefined}
+          onFocus={() => datMo(true)}
+          onChange={(e) => {
+            datTim(e.target.value);
+            datCs(0);
+            datMo(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') datMo(false);
+            // Mũi tên di chuyển trong danh sách gợi ý như mọi ô gợi ý khác; ↓ khi đang đóng thì mở ra.
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              if (!mo) datMo(true);
+              else datCs(Math.min(csHopLe + 1, Math.max(hien.length - 1, 0)));
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              datCs(Math.max(csHopLe - 1, 0));
+            }
+            // Enter chọn mục ĐANG TÔ — mặc định là mục đầu tiên, nên người gõ đúng tên rồi Enter vẫn
+            // đi tiếp mà không phải rời tay khỏi bàn phím.
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const dau = hien[csHopLe];
+              if (dau) them(dau);
+            }
+          }}
+        />
 
-      {/*
-        Chưa gõ gì mà nguồn ở máy chủ thì KHÔNG mở hộp rỗng ra (`0078`).
+        {/*
+          Chưa gõ gì mà nguồn ở máy chủ thì KHÔNG mở hộp rỗng ra (`0078`).
 
-        Bản trước mở một hộp chứa đúng một dòng chữ *"Gõ vài chữ để tìm"* — một
-        khung trống nói lại điều mà chỗ gợi ý trong ô nhập đã nói, và nó che mất
-        ô ngay bên dưới. Không có gì để bày thì đừng bày gì cả.
-      */}
-      {mo && !(typeof nguon === 'function' && tim.trim() === '') && (
-        <ul className="chon-nhieu-ds" id={maDs} role="listbox" aria-multiselectable="true">
-          {ketQua.filter((t) => !giaTri.includes(t.gia)).length === 0 ? (
-            <li className="chon-nhieu-trong">
-              {loiTra ? 'Không tra được danh sách. Kiểm tra kết nối rồi gõ lại.' : 'Không có mục nào khớp'}
-            </li>
-          ) : (
-            ketQua
-              .filter((t) => !giaTri.includes(t.gia))
-              .map((t) => (
+          Bản trước mở một hộp chứa đúng một dòng chữ *"Gõ vài chữ để tìm"* — một
+          khung trống nói lại điều mà chỗ gợi ý trong ô nhập đã nói, và nó che mất
+          ô ngay bên dưới. Không có gì để bày thì đừng bày gì cả.
+        */}
+        {dangMoDs && (
+          <ul className="chon-nhieu-ds" id={maDs} role="listbox" aria-multiselectable="true">
+            {hien.length === 0 ? (
+              <li className="chon-nhieu-trong">
+                {loiTra ? 'Không tra được danh sách. Kiểm tra kết nối rồi gõ lại.' : 'Không có mục nào khớp'}
+              </li>
+            ) : (
+              hien.map((t, i) => (
                 <li key={t.gia}>
                   <button
                     type="button"
+                    id={`${maDs}-${i}`}
                     className="chon-nhieu-muc"
                     role="option"
-                    aria-selected="false"
+                    aria-selected={i === csHopLe}
+                    onMouseMove={() => i !== csHopLe && datCs(i)}
+                    // `mousedown` + `preventDefault`: giữ tiêu điểm ở ô nhập, để chọn xong gõ tiếp được.
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => them(t)}
                   >
                     {t.nhan}
                   </button>
                 </li>
               ))
-          )}
-        </ul>
-      )}
+            )}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

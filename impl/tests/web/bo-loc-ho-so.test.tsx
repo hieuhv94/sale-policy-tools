@@ -106,6 +106,62 @@ describe('`0077` ô chọn nhiều', () => {
     expect(screen.getByRole('button', { name: /Bỏ/ }).textContent).toContain('Sữa dinh dưỡng');
   });
 
+  it('mũi tên ↓ ↑ di chuyển mục đang tô, Enter chọn ĐÚNG mục đang tô (`0284`)', async () => {
+    const nguoi = userEvent.setup();
+    const doi = vi.fn();
+    render(<ChonNhieu id="t" nhan="Nhóm sản phẩm" giaTri={[]} nguon={NHOM} doi={doi} />);
+    const o = screen.getByLabelText('Nhóm sản phẩm');
+    await nguoi.click(o);
+    const tomDau = () => screen.getAllByRole('option').findIndex((x) => x.getAttribute('aria-selected') === 'true');
+    expect(tomDau(), 'mặc định tô mục đầu — Enter ngay vẫn chọn mục đầu như trước').toBe(0);
+    await nguoi.keyboard('{ArrowDown}{ArrowDown}');
+    expect(tomDau()).toBe(2);
+    // `aria-activedescendant` trỏ đúng mục đang tô, để trình đọc màn hình đọc được.
+    expect(o.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[2]!.id);
+    await nguoi.keyboard('{ArrowUp}');
+    expect(tomDau()).toBe(1);
+    await nguoi.keyboard('{Enter}');
+    expect(doi).toHaveBeenLastCalledWith(['BOT']);
+  });
+
+  it('mũi tên không vượt khỏi hai đầu danh sách', async () => {
+    const nguoi = userEvent.setup();
+    render(<ChonNhieu id="t" nhan="Nhóm sản phẩm" giaTri={[]} nguon={NHOM} doi={() => undefined} />);
+    await nguoi.click(screen.getByLabelText('Nhóm sản phẩm'));
+    await nguoi.keyboard('{ArrowUp}{ArrowUp}');
+    expect(screen.getAllByRole('option')[0]!.getAttribute('aria-selected')).toBe('true');
+    await nguoi.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}');
+    expect(screen.getAllByRole('option')[2]!.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('danh sách gợi ý bám ô NHẬP, không che nó (`0284`)', () => {
+    /*
+     * jsdom không dàn trang nên không đo được vị trí; hai điều kiện sau là thứ giữ vị trí đúng:
+     *   1. ô nhập và danh sách chung MỘT khung định vị (`.chon-nhieu-o`), không phải khung `.truong` có cả
+     *      nhãn và thẻ đã chọn;
+     *   2. luật `.chon-nhieu-ds` có `top` tường minh. Thiếu nó thì danh sách đứng ở vị trí TĨNH — trong
+     *      container flex là ĐỈNH container, chồng lên chính ô đang gõ (đo trên Chrome thật: danh sách ở
+     *      y=316, ô nhập ở y=335).
+     */
+    render(
+      <ChonNhieu id="t" nhan="Nhóm sản phẩm" giaTri={['SUA']} nguon={NHOM} doi={() => undefined} />,
+    );
+    screen.getByLabelText('Nhóm sản phẩm').focus();
+    const o = screen.getByLabelText('Nhóm sản phẩm');
+    fireEvent.focus(o);
+    const ds = document.querySelector('.chon-nhieu-ds');
+    expect(ds, 'danh sách phải hiện khi ô được chọn').not.toBeNull();
+    expect(ds!.parentElement).toBe(o.parentElement);
+    expect(o.parentElement!.className).toContain('chon-nhieu-o');
+    // Nhãn và thẻ đã chọn nằm NGOÀI khung định vị.
+    expect(o.parentElement!.querySelector('label, .chon-nhieu-chip')).toBeNull();
+
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const luat = (ten: string) => new RegExp(`(?:^|\\n)${ten.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    expect(luat('.chon-nhieu-o')).toMatch(/position:\s*relative/);
+    expect(luat('.chon-nhieu-ds')).toMatch(/\btop:\s*calc\(100%/);
+  });
+
   it('BÀN PHÍM chọn được: Tab tới ô, gõ, rồi Enter', async () => {
     /*
      * Dựng bằng `<div onClick>` thì bàn phím không tới được, và đó là kiểu hỏng

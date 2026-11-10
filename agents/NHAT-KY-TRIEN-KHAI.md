@@ -22663,3 +22663,14 @@ Brainstorm mục 6 chốt bốn điều: **ý nghĩa** *"có ít nhất một s�
 Không làm: chụp lại ảnh *Hướng dẫn* cho hộp xem trước mới.
 
 **3564/3564 xanh** (`make test` đầy đủ, demo tắt).
+
+
+## P325 — `0284` Danh sách gợi ý của bộ lọc không che ô đang gõ; ảnh hộp xem trước Excel — CHỈ FRONTEND
+
+Người dùng chụp bộ lọc và hỏi *"phần gợi ý khi gõ có che mất phần gõ không"*. **Có, và là lỗi có từ `0077`**: danh sách của `ChonNhieu` bắt đầu ở y=316 trong khi ô nhập ở y=335 (đo trên Chrome thật), chồng lên nhãn và chính ô đang gõ — ở cả năm ô chọn nhiều. Nguyên nhân là một **lập luận sai được viết ra trong chú thích CSS**: *"KHÔNG đặt `top`, và đó là cả mẹo: một khối tuyệt đối không có `top` đứng nguyên ở chỗ nó vốn nằm trong dòng chảy"*. Đúng với container thường, **sai với container FLEX**: vị trí tĩnh của phần tử tuyệt đối trong flex là chỗ nó sẽ đứng nếu nó là phần tử flex DUY NHẤT — tức ĐỈNH container (`.truong` là `display: flex; column`). Không ca kiểm nào bắt được vì jsdom không dàn trang; chú thích **giữ nguyên văn lập luận cũ rồi nói nó sai ở đâu** (cùng lối `0202`).
+
+Sửa theo cơ chế gợi ý chung: ô nhập và danh sách chung MỘT khung `.chon-nhieu-o { position: relative }`, danh sách `top: calc(100% + var(--k1))` — bám mép dưới CỦA Ô NHẬP chứ không của cả `.truong` (nhãn, thẻ đã chọn). Thêm **↑ ↓ di chuyển mục đang tô** (mặc định mục đầu, nên "gõ đúng tên rồi Enter" giữ nguyên), `aria-activedescendant`, `mousedown`+`preventDefault` để chọn xong còn tiêu điểm ở ô nhập. Ca kiểm: hai ca mũi tên, và một ca quét hai điều kiện giữ vị trí (ô nhập và danh sách cùng cha `.chon-nhieu-o`, luật `.chon-nhieu-ds` có `top: calc(100%…)`) — **phá lại** (bỏ `top`) thì ca ấy đỏ; đo lại trên Chrome: danh sách ở y=383, ô nhập kết thúc ở y=379.
+
+Cùng lượt: bỏ dòng *"Có ít nhất một sản phẩm trong khoảng này"* dưới ô *Tỷ lệ chiết khấu* (người dùng yêu cầu); **bản xem trước Excel** thu còn sáu cột (Mã hồ sơ · Khách hàng · Sản phẩm kèm mã · Nhóm SP · Giá thu về · Chiết khấu) và bảng cuộn TRONG khung (`max-height: min(46dvh, 22rem)`, tiêu đề dính) — bản đầu có mười cột, cột chiết khấu nằm ngoài màn hình và nút *Tải file Excel* bị đẩy khỏi khung nhìn, đúng điều yêu cầu đặt ra (*nút nằm dưới bảng*). Lớp `.khung-xem-xuat` bị ca quét `.khung-xem` của `0073` bắt vì trùng TIỀN TỐ → đổi tên `.bang-xuat-xem-truoc`. **Ảnh *Hướng dẫn***: bốn ảnh `xuat-excel-xem-truoc.png` (Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) gắn vào bước *Lọc và xuất Excel*, mỗi vai trò một tệp vì ca quét cấm một ảnh nhắc hai lần.
+
+**1243/1243 ca giao diện xanh.**
