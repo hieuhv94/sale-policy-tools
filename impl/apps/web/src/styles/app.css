@@ -4949,10 +4949,35 @@ svg.bd-nho { width: 62px; margin: 0; }
 .o-phan-tram { position: relative; display: block; min-width: 0; }
 .o-phan-tram .o-nhap { padding-right: var(--k5); }
 .o-phan-tram > span { position: absolute; right: var(--k3); top: 50%; transform: translateY(-50%); color: var(--mau-chu-nhat); pointer-events: none; }
-.the-tich-rong { flex: none; width: 100%; align-items: flex-start; }
-.the-tich-rong small { display: block; }
 
-/* Bản xem trước file Excel (`0283`): bảng cuộn TRONG khung để nút *Tải file Excel* ở dưới luôn thấy được,
-   không bị đẩy khỏi màn hình bởi 50 dòng. Chiều cao theo khung nhìn, có trần. */
-.bang-xuat-xem-truoc { max-height: min(46dvh, 22rem); overflow: auto; margin-bottom: var(--k2); }
+/* Hộp xem trước file Excel (`0283`, làm lại ở `0285` sau khi soi ảnh thật ở ba khổ).
+   Một cột, khoảng cách bằng `gap` chứ không bằng lề từng khối. Bảng cuộn TRONG khung để nút *Tải file Excel*
+   ở chân luôn thấy được; ô tích không viền (nó là một lựa chọn, không phải một thẻ); ô trống là một khối
+   nói thẳng điều đã xảy ra thay vì một dòng chữ lọt thỏm dưới ô tích. */
+.xuat-than { display: grid; gap: var(--k3); min-width: 0; }
+.xuat-tong { margin: 0; color: var(--mau-chu-phu); }
+.xuat-tong strong { color: var(--mau-chu); font-variant-numeric: tabular-nums; }
+.xuat-lua-chon { display: flex; align-items: flex-start; gap: var(--k3); cursor: pointer; padding-block: var(--k1); }
+.xuat-lua-chon:has(input:disabled) { cursor: default; }
+.xuat-lua-chon input { width: 1.125rem; height: 1.125rem; margin: 0.15rem 0 0; flex: none; accent-color: var(--mau-thuong-hieu); }
+.xuat-lua-chon > span { display: grid; gap: 2px; min-width: 0; }
+.xuat-lua-chon-nhan { font-weight: 500; color: var(--mau-chu); }
+.xuat-rong { display: grid; gap: var(--k1); justify-items: center; text-align: center; padding: var(--k5) var(--k4); border: 1px dashed var(--mau-vien-dam); border-radius: var(--bo-goc); color: var(--mau-chu-phu); }
+.xuat-rong strong { color: var(--mau-chu); }
+.bang-xuat-xem-truoc { max-height: min(46dvh, 22rem); overflow: auto; }
 .bang-xuat-xem-truoc thead th { position: sticky; top: 0; z-index: 1; background: var(--mau-nen-phu); }
+.bang-xuat-xem-truoc td { padding-block: var(--k2); vertical-align: top; white-space: normal; }
+/* Số vẫn nguyên một dòng (`white-space: nowrap` của `td` bị gỡ ở trên cho tên dài xuống dòng). */
+.bang-xuat-xem-truoc td.so { white-space: nowrap; }
+.xuat-chinh, .xuat-phu { display: block; }
+.xuat-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); overflow-wrap: anywhere; }
+.xuat-chan { margin-top: var(--k1); }
+/* Mã hồ sơ nguyên một dòng (bẻ ở dấu gạch ngang thì không còn đọc ra mã); cột *Chiết khấu* — thứ bộ lọc hỏi —
+   luôn trong khung nhờ ẩn *Giá thu về*, các dòng phụ (tên khách, mã sản phẩm, nhóm) và thu lề ô — file Excel vẫn đủ. */
+.bang-xuat-xem-truoc td:first-child .xuat-chinh { white-space: nowrap; }
+@media (max-width: 640px) {
+  .bang-xuat-xem-truoc .cot-phu, .bang-xuat-xem-truoc .xuat-phu { display: none; }
+  .bang-xuat-xem-truoc { font-size: var(--chu-nho); }
+  .bang-xuat-xem-truoc th { white-space: normal; }
+  .bang-xuat-xem-truoc th, .bang-xuat-xem-truoc td { padding-inline: var(--k2); }
+}

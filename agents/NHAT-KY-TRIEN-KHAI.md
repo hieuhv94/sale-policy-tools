@@ -22674,3 +22674,16 @@ Sửa theo cơ chế gợi ý chung: ô nhập và danh sách chung MỘT khung 
 Cùng lượt: bỏ dòng *"Có ít nhất một sản phẩm trong khoảng này"* dưới ô *Tỷ lệ chiết khấu* (người dùng yêu cầu); **bản xem trước Excel** thu còn sáu cột (Mã hồ sơ · Khách hàng · Sản phẩm kèm mã · Nhóm SP · Giá thu về · Chiết khấu) và bảng cuộn TRONG khung (`max-height: min(46dvh, 22rem)`, tiêu đề dính) — bản đầu có mười cột, cột chiết khấu nằm ngoài màn hình và nút *Tải file Excel* bị đẩy khỏi khung nhìn, đúng điều yêu cầu đặt ra (*nút nằm dưới bảng*). Lớp `.khung-xem-xuat` bị ca quét `.khung-xem` của `0073` bắt vì trùng TIỀN TỐ → đổi tên `.bang-xuat-xem-truoc`. **Ảnh *Hướng dẫn***: bốn ảnh `xuat-excel-xem-truoc.png` (Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) gắn vào bước *Lọc và xuất Excel*, mỗi vai trò một tệp vì ca quét cấm một ảnh nhắc hai lần.
 
 **1243/1243 ca giao diện xanh.**
+
+
+## P326 — `0285` Soi lại hộp xem trước Excel theo `agents/professional-frontend-design-skill.md` — CHỈ FRONTEND
+
+Chạy vòng QA thị giác của skill (§7) trên demo thật: Chrome không giao diện, ảnh ở 1440×900 · 768×1024 · 390×844 và các trạng thái mặc định · đã tích · trống · đang dựng · đã dựng xong · Esc đóng. **Sáu lỗi nhìn ra từ ảnh, không đọc được từ mã:** (1) điện thoại: cột *Chiết khấu* — thứ bộ lọc hỏi — nằm NGOÀI khung, chỉ thấy hai cột đầu; (2) bảng mười cột phẳng, mỗi dòng cao 65px nên chỉ thấy năm dòng; (3) ô tích bọc một thẻ có viền, dính sát bảng (không có khoảng cách); (4) trạng thái trống: một dòng chữ lọt thỏm dưới ô tích, nút *Tải file Excel (0 dòng)* đọc kỳ; (5) `td { white-space: nowrap }` toàn cục khiến bảng tràn ngang ở 390px dù đã bỏ cột; (6) tiêu đề *Chiết khấu* nowrap vẫn tràn thêm 15px.
+
+Làm lại: một cột `gap` thay cho lề từng khối; **bốn cột, mỗi ô hai tầng** (Hồ sơ = mã + tên khách; Sản phẩm = tên + mã · nhóm; Giá thu về; Chiết khấu) — bản xem trước để NHÌN ra hình dạng file và kiểm tiêu chí vừa đặt, file mới đủ cột; ô tích không viền; trạng thái trống là một khối nét đứt nói thẳng điều đã xảy ra, **ẩn ô tích** (không có gì để chọn) và nút đọc *Tải file Excel*; hàng dày 8px; bảng cuộn trong khung (`max-height: min(46dvh, 22rem)`, tiêu đề dính). Điện thoại (≤640px): ẩn cột *Giá thu về* và các dòng phụ, chữ nhỏ, lề ô thu, tiêu đề được xuống dòng, mã hồ sơ giữ một dòng — đo lại: bảng **không còn cuộn ngang** ở 390px và nút tải luôn trong khung ở cả ba khổ. Số trong bảng vẫn căn TRÁI (`0057` — chủ ý của khách hàng, không phải lỗi).
+
+Ca kiểm mới: trống không có ô tích; bảng bốn cột kèm hai dòng chữ trong ô; quét CSS (trần chiều cao + luật ẩn cột phụ ở điện thoại). Bốn ảnh *Hướng dẫn* chụp lại theo thiết kế mới.
+
+**Không kiểm:** giao diện tối (nút đổi giao diện không đổi được trong Chrome không giao diện — không khẳng định gì về nó); trạng thái vượt trần 20.000 dòng (kiểm bằng ca đơn vị, chưa có ảnh thật); trình đọc màn hình.
+
+**1245/1245 ca giao diện xanh.**

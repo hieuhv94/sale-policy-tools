@@ -414,6 +414,29 @@ describe('`0077`/`0283` xuất Excel: xem trước rồi mới tải', () => {
     expect((screen.getByRole('button', { name: /Tải file Excel/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('trống: KHÔNG bày ô tích (không có gì để chọn), nói thẳng điều đã xảy ra, nút tải khoá', async () => {
+    chan({ ...XEM, soHoSo: 0, soDong: 0, dong: [] });
+    await moHop({ productGroupCode: 'SUA' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('status').textContent).toMatch(/Không có hồ sơ nào khớp bộ lọc/);
+    expect((screen.getByRole('button', { name: 'Tải file Excel' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('bảng xem trước có bốn cột và cuộn TRONG khung; điện thoại ẩn cột phụ để cột Chiết khấu luôn trong khung (`0285`)', async () => {
+    chan();
+    await moHop({ discountFrom: '20' });
+    const th = [...document.querySelectorAll('.bang-xuat-xem-truoc th')].map((x) => x.textContent);
+    expect(th).toEqual(['Hồ sơ', 'Sản phẩm', 'Giá thu về', 'Chiết khấu']);
+    // Hai dòng chữ trong một ô: tên khách ở cột Hồ sơ, mã + nhóm ở cột Sản phẩm — không mười cột phẳng.
+    expect(screen.getAllByText('Nhà thuốc A')).toHaveLength(2); // hai dòng sản phẩm của cùng một hồ sơ
+    expect(screen.getByText('SP-1 · SUA')).toBeDefined();
+
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.bang-xuat-xem-truoc\s*\{[^}]*max-height:\s*min\(46dvh/);
+    // Ẩn cột phụ ở điện thoại: nếu không, cột *Chiết khấu* nằm ngoài khung ở 390px (đo trên Chrome thật).
+    expect(css).toMatch(/@media \(max-width: 640px\)\s*\{[^@]*\.bang-xuat-xem-truoc \.cot-phu[^{]*\{\s*display:\s*none/);
+  });
+
   it('bản xem trước hỏng thì có nút Thử lại, không treo ở "đang dựng"', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ code: 'INTERNAL' }), { status: 500, headers: { 'content-type': 'application/json' } }))));
     const nguoi = userEvent.setup();

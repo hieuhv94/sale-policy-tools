@@ -195,79 +195,90 @@ function HopXemTruocXuat({
       {loiXem === null && xem === null && <DangTai nhan="Đang dựng bản xem trước…" />}
 
       {xem !== null && (
-        <>
-          <p className="mo-ta-trang" aria-live="polite">
-            <strong>{xem.soHoSo}</strong> hồ sơ · <strong>{xem.soDong}</strong> dòng sản phẩm trong file.
+        <div className="xuat-than">
+          <p className="xuat-tong" aria-live="polite">
+            <strong>{xem.soHoSo}</strong> hồ sơ · <strong>{xem.soDong}</strong> dòng sản phẩm trong file
           </p>
 
-          <label className="the-tich the-tich-rong">
-            <input
-              type="checkbox"
-              checked={tatCaHieuLuc}
-              disabled={!coTieuChiSanPham}
-              onChange={(e) => datTatCa(e.target.checked)}
-            />
-            <span>
-              Thêm mọi sản phẩm trong CSBH
-              <small className="ghi-chu">
-                {coTieuChiSanPham
-                  ? tatCaHieuLuc
-                    ? 'File gồm cả các sản phẩm không khớp tiêu chí của mỗi hồ sơ.'
-                    : 'File chỉ gồm các sản phẩm khớp tiêu chí về sản phẩm (tên, nhóm, tỷ lệ chiết khấu).'
-                  : 'Bộ lọc không có tiêu chí về sản phẩm nên file luôn gồm mọi sản phẩm của hồ sơ.'}
-              </small>
-            </span>
-          </label>
-
-          {quaTran && (
-            <p className="bao-loi" role="alert">
-              File sẽ có {xem.soDong} dòng, vượt trần {xem.tran} dòng. Hãy thu hẹp bộ lọc rồi xuất lại.
-            </p>
-          )}
-
           {rong ? (
-            <p className="ghi-chu">Không có hồ sơ nào khớp bộ lọc, nên chưa có gì để xuất.</p>
-          ) : (
-            <div className="khung-cuon bang-xuat-xem-truoc" role="region" aria-label="Bản xem trước file" tabIndex={0}>
-              <table className="bang">
-                <thead>
-                  <tr>
-                    <th>Mã hồ sơ</th>
-                    <th>Khách hàng</th>
-                    <th>Sản phẩm</th>
-                    <th>Nhóm SP</th>
-                    <th className="so">Giá thu về</th>
-                    <th className="so">Chiết khấu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {xem.dong.map((d, i) => (
-                    <tr key={`${d.code}|${d.productCode ?? ''}|${i}`}>
-                      <td>{d.code}</td>
-                      <td>{d.customerName}</td>
-                      <td>
-                        {d.productName ?? '—'}
-                        {d.productCode && <div className="ghi-chu">{d.productCode}</div>}
-                      </td>
-                      <td>{d.groupCode ?? '—'}</td>
-                      <td className="so">{d.netPrice === null ? '—' : tien(d.netPrice)}</td>
-                      <td className="so">
-                        {d.discountRate === null ? (
-                          '—'
-                        ) : (
-                          <span className={`ty-le${d.overThreshold ? ' vuot' : ''}`}>{tyLe(d.discountRate)}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="xuat-rong" role="status">
+              <strong>Không có hồ sơ nào khớp bộ lọc</strong>
+              <span>Đóng hộp này, nới bộ lọc rồi xuất lại.</span>
             </div>
-          )}
-          {xem.daCat && (
-            <p className="ghi-chu">
-              Đang hiện {xem.dong.length} dòng đầu trong {xem.soDong} dòng. File tải về có đủ.
-            </p>
+          ) : (
+            <>
+              <label className="xuat-lua-chon">
+                <input
+                  type="checkbox"
+                  checked={tatCaHieuLuc}
+                  disabled={!coTieuChiSanPham}
+                  onChange={(e) => datTatCa(e.target.checked)}
+                />
+                <span>
+                  <span className="xuat-lua-chon-nhan">Thêm mọi sản phẩm trong CSBH</span>
+                  <small className="ghi-chu">
+                    {coTieuChiSanPham
+                      ? tatCaHieuLuc
+                        ? 'File gồm cả các sản phẩm không khớp tiêu chí của mỗi hồ sơ.'
+                        : 'File chỉ gồm các sản phẩm khớp tiêu chí về sản phẩm (tên, nhóm, tỷ lệ chiết khấu).'
+                      : 'Bộ lọc không có tiêu chí về sản phẩm nên file luôn gồm mọi sản phẩm của hồ sơ.'}
+                  </small>
+                </span>
+              </label>
+
+              {quaTran && (
+                <p className="bao-loi" role="alert">
+                  File sẽ có {xem.soDong} dòng, vượt trần {xem.tran} dòng. Hãy thu hẹp bộ lọc rồi xuất lại.
+                </p>
+              )}
+
+              {/*
+                Bốn cột, mỗi ô xếp CHỒNG hai tầng (chính · phụ), không mười cột phẳng như file Excel: bản xem
+                trước để NHÌN ra hình dạng file và kiểm tiêu chí vừa đặt, còn file mới đủ cột. Trên điện thoại
+                cột *Giá thu về* ẩn đi để cột *Chiết khấu* — thứ bộ lọc hỏi — luôn nằm trong khung.
+              */}
+              <div className="khung-cuon bang-xuat-xem-truoc" role="region" aria-label="Bản xem trước file" tabIndex={0}>
+                <table className="bang">
+                  <thead>
+                    <tr>
+                      <th>Hồ sơ</th>
+                      <th>Sản phẩm</th>
+                      <th className="so cot-phu">Giá thu về</th>
+                      <th className="so">Chiết khấu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {xem.dong.map((d, i) => (
+                      <tr key={`${d.code}|${d.productCode ?? ''}|${i}`}>
+                        <td>
+                          <span className="xuat-chinh">{d.code}</span>
+                          <span className="xuat-phu">{d.customerName}</span>
+                        </td>
+                        <td>
+                          <span className="xuat-chinh">{d.productName ?? '—'}</span>
+                          {(d.productCode || d.groupCode) && (
+                            <span className="xuat-phu">{[d.productCode, d.groupCode].filter(Boolean).join(' · ')}</span>
+                          )}
+                        </td>
+                        <td className="so cot-phu">{d.netPrice === null ? '—' : tien(d.netPrice)}</td>
+                        <td className="so">
+                          {d.discountRate === null ? (
+                            '—'
+                          ) : (
+                            <span className={`ty-le${d.overThreshold ? ' vuot' : ''}`}>{tyLe(d.discountRate)}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {xem.daCat && (
+                <p className="ghi-chu">
+                  Đang hiện {xem.dong.length} dòng đầu trong {xem.soDong} dòng. File tải về có đủ.
+                </p>
+              )}
+            </>
           )}
 
           {viec?.status === 'LOI' && (
@@ -275,7 +286,7 @@ function HopXemTruocXuat({
               Dựng file hỏng. Bấm <strong>Tải file Excel</strong> để thử lại.
             </p>
           )}
-          <div className="nhom-nut">
+          <div className="nhom-nut xuat-chan">
             {viec?.status === 'XONG' && viec.downloadUrl ? (
               <button
                 type="button"
@@ -292,14 +303,14 @@ function HopXemTruocXuat({
                 disabled={dangChay || rong || quaTran}
                 onClick={() => void xuat()}
               >
-                {dangChay ? 'Đang dựng file…' : `Tải file Excel (${xem.soDong} dòng)`}
+                {dangChay ? 'Đang dựng file…' : rong ? 'Tải file Excel' : `Tải file Excel (${xem.soDong} dòng)`}
               </button>
             )}
             <button type="button" className="nut nut-nhe" onClick={dong}>
               Đóng
             </button>
           </div>
-        </>
+        </div>
       )}
     </HopThoai>
   );
