@@ -22703,3 +22703,10 @@ Tìm ra: **chữ hướng dẫn quá dày** — hộp *Thêm* có ba đoạn ghi
 **Không kiểm:** giao diện tối; trình đọc màn hình; trình duyệt khác Chrome. Danh sách nhóm ở điện thoại bẻ dòng giữa mã nhóm dài (`CAO-TUOI`) — chấp nhận, chưa sửa.
 
 **1245/1245 ca giao diện xanh** (`tests/web`, chạy trong ảnh rời vì demo bật; `make test` đầy đủ chưa chạy — chỉ đổi chữ).
+
+
+## P329 — `0287` Ô tích loại khách hàng: bỏ nền xanh, bỏ viền, xếp dọc — CHỈ CSS
+
+Khách hàng xem `0286` và nói tô xanh cả ô khi tích *"nhìn không cân đối"*, rồi hỏi viền từng loại có cần không. Không cần: viền chỉ có nghĩa khi nó báo trạng thái, mà dấu tích đã báo. `.the-tich` thành một dòng trơn (ô tích + chữ) trong cột dọc; **vùng chạm giữ `--vung-cham`** vì cả dòng là `label`; vòng tiêu điểm bàn phím giữ. Cái được kèm theo: thẻ *Loại 3* thôi cao hơn hai thẻ kia (chữ dài ba dòng) vì không còn khung để so. Ảnh 1440×900 đã xem; 768 và 390 chỉ đo (không tràn ngang), chưa xem ảnh.
+
+**1245/1245 ca giao diện xanh** (`tests/web`, ảnh rời vì demo bật).

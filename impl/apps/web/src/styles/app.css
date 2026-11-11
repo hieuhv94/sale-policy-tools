@@ -4920,22 +4920,17 @@ svg.bd-nho { width: 62px; margin: 0; }
    dưới. Mỗi thẻ cả khối đều bấm được (nhãn bọc ô tích) và đủ cao theo `--vung-cham`. */
 .nhom-tich { border: 0; margin: 0 0 var(--k3); padding: 0; display: flex; flex-direction: column; gap: var(--k2); min-width: 0; }
 .nhom-tich legend { padding: 0; margin-bottom: var(--k1); font-size: var(--chu-nho); color: var(--mau-chu); font-weight: 500; }
-.nhom-tich-lua-chon { display: flex; flex-wrap: wrap; gap: var(--k2); }
+.nhom-tich-lua-chon { display: flex; flex-direction: column; gap: 0; }
 .the-tich {
   display: flex;
   align-items: center;
   gap: var(--k2);
-  flex: 1 1 11rem;
   min-height: var(--vung-cham);
-  padding: var(--k2) var(--k3);
-  border: 1px solid var(--mau-vien-dam);
-  border-radius: var(--bo-goc-nho);
-  background: var(--mau-nen);
+  padding: var(--k1) 0;
   color: var(--mau-chu);
   cursor: pointer;
 }
-.the-tich:hover { border-color: var(--mau-chu-nhat); }
-.the-tich:has(input:focus-visible) { box-shadow: var(--vong-tieu-diem); }
+.the-tich:has(input:focus-visible) { box-shadow: var(--vong-tieu-diem); border-radius: var(--bo-goc-nho); }
 .the-tich input { width: 1.125rem; height: 1.125rem; margin: 0; flex: none; accent-color: var(--mau-thuong-hieu); }
 .nhom-tich .ghi-chu { margin: 0; }
 
