@@ -22692,3 +22692,14 @@ Ca kiểm mới: trống không có ô tích; bảng bốn cột kèm hai dòng 
 ## P327 — Phiên bản `1.4.0`
 
 `VERSION` → `1.4.0` (gói `P319`–`P326`: ô chọn có gõ, quy định chiết khấu nhiều loại khách, lọc khoảng chiết khấu, bản xem trước Excel). Hai migration (`0133` — **không lùi được**, `0134`). Từ `1.3.2` KHÔNG tệp nào của bộ cài đổi (`deploy/`, `csbh`, `cai-dat.sh`), nên máy chạy `1.3.1` trở lên chỉ cần `sudo csbh cap-nhat`; `04-TRIEN-KHAI` §8 có đoạn riêng. **3569/3569 xanh** (`make test` đầy đủ).
+
+
+## P328 — `0286` Soi hai hộp *Thêm* / *Sửa quy định chiết khấu* theo `agents/professional-frontend-design-skill.md` — CHỈ FRONTEND
+
+Vòng QA thị giác (§7) trên demo thật: Chrome không giao diện, ảnh ở 1440×900 · 768×1024 · 390×844, các trạng thái mặc định · tích loại 1 và 3 · ngưỡng 150 (báo lỗi, nút Tạo xám) · ô nhóm sổ danh sách (điện thoại). **Không khổ nào cuộn ngang**, nút Tạo/Lưu luôn trong màn hình, ba thẻ tích đều hàng ở 1440/768 và xếp dọc ở 390.
+
+Tìm ra: **chữ hướng dẫn quá dày** — hộp *Thêm* có ba đoạn ghi chú (~7 dòng) trước ô đầu tiên có ý nghĩa, trong đó đoạn *"Ngưỡng chỉ phụ thuộc hai yếu tố…"* lặp đúng câu *"Không tích loại nào nghĩa là mọi loại"* mà dòng trạng thái dưới thẻ tích đã nói. Gộp còn MỘT dòng ngắn dưới mã và MỘT dòng dưới nhóm/loại; hộp *Thêm* thấp hơn 40px, hộp *Sửa* cũng rút gọn hai ghi chú. Docstring của `HopThoaiSuaQuyDinh` còn nói *"mỗi quy định chỉ MỘT loại khách"* — sai từ `0280`, sửa.
+
+**Không kiểm:** giao diện tối; trình đọc màn hình; trình duyệt khác Chrome. Danh sách nhóm ở điện thoại bẻ dòng giữa mã nhóm dài (`CAO-TUOI`) — chấp nhận, chưa sửa.
+
+**1245/1245 ca giao diện xanh** (`tests/web`, chạy trong ảnh rời vì demo bật; `make test` đầy đủ chưa chạy — chỉ đổi chữ).

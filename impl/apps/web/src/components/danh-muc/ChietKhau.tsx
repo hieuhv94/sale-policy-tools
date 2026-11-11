@@ -328,8 +328,7 @@ function NhomTichLoaiKhach({
  * thứ tự ưu tiên giữa các dòng cùng khớp (`CAT-11`). Khách hàng muốn sửa tại chỗ
  * thay vì xoá rồi khai lại — hậu quả ấy giờ được NÓI RA ở ghi chú dưới hai ô.
  *
- * Mỗi quy định vẫn chỉ MỘT loại khách (hoặc mọi loại): đây là ô chọn, không phải
- * ô tích như hộp *Thêm* — một dòng không biểu diễn được "loại 1 và loại 3".
+ * Loại khách là ô tích giống hộp *Thêm* (`0280`: một quy định mang TẬP loại khách).
  */
 function HopThoaiSuaQuyDinh({
   q,
@@ -384,8 +383,7 @@ function HopThoaiSuaQuyDinh({
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          Mã <strong>{q.code}</strong> <strong>không sửa được</strong> — hồ sơ đã lập ghi lại mã này
-          để truy vết.
+          Mã <strong>{q.code}</strong> <strong>không sửa được</strong> — hồ sơ đã lập ghi lại mã này.
         </p>
 
         <Truong id="ck-sua-nhom" nhan="Nhóm sản phẩm">
@@ -409,9 +407,8 @@ function HopThoaiSuaQuyDinh({
 
         <NhomTichLoaiKhach id="ck-sua-loai" giaTri={loaiKhach} doi={datLoaiKhach} />
         <p className="ghi-chu">
-          Đổi nhóm hoặc loại khách là đổi <strong>thứ tự ưu tiên</strong>: quy định cụ thể hơn thắng
-          quy định chung khi nhiều dòng cùng khớp. Đã có quy định khác{' '}
-          <strong>cùng phạm vi và cùng ngày</strong> thì hệ thống từ chối.
+          Đổi nhóm hoặc loại khách là đổi <strong>thứ tự ưu tiên</strong> (cụ thể hơn thì thắng).
+          Trùng phạm vi và ngày với quy định khác thì hệ thống từ chối.
         </p>
 
         <Truong
@@ -429,9 +426,8 @@ function HopThoaiSuaQuyDinh({
           )}
         </Truong>
         <p className="ghi-chu">
-          Quy định <strong>vô thời hạn</strong> — muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể
-          hơn đè lên. Sửa <strong>không</strong> làm đổi hồ sơ
-          đã lập: mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
+          Sửa <strong>không</strong> làm đổi hồ sơ đã lập: mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc
+          lập.
         </p>
 
         <div className="nhom-nut">
@@ -520,15 +516,8 @@ function HopThoaiTaoQuyDinh({
           )}
         </Truong>
         <p className="ghi-chu">
-          Mã <strong>không sửa được sau khi tạo</strong> — hồ sơ đã lập ghi lại mã này để truy vết.
-          Đặt nhầm thì xoá dòng rồi khai lại. Mã <strong>không phân biệt hoa thường</strong>:{' '}
-          <code>CK-01</code> và <code>ck-01</code> là một.
-        </p>
-
-        <p className="ghi-chu">
-          Ngưỡng chỉ phụ thuộc <strong>hai yếu tố</strong>: nhóm sản phẩm và loại khách hàng. Bỏ
-          trống một ô nghĩa là <strong>áp dụng cho mọi giá trị</strong> của ô đó; điền cả hai thì
-          quy định cụ thể hơn và nó thắng khi nhiều dòng cùng khớp.
+          Mã <strong>không sửa được sau khi tạo</strong> và không phân biệt hoa thường (
+          <code>CK-01</code> = <code>ck-01</code>).
         </p>
 
         <Truong id="ck-nhom" nhan="Nhóm sản phẩm">
@@ -538,6 +527,10 @@ function HopThoaiTaoQuyDinh({
         </Truong>
 
         <NhomTichLoaiKhach id="ck-loai" giaTri={loaiKhach} doi={datLoaiKhach} />
+        <p className="ghi-chu">
+          Để trống nhóm hoặc loại khách là áp cho mọi giá trị; điền cả hai thì quy định{' '}
+          <strong>cụ thể hơn</strong> và thắng khi nhiều dòng cùng khớp.
+        </p>
 
         <Truong
           id="ck-nguong"
@@ -554,8 +547,8 @@ function HopThoaiTaoQuyDinh({
           )}
         </Truong>
         <p className="ghi-chu">
-          Quy định có hiệu lực từ ngày trên và <strong>vô thời hạn</strong> — cùng luật với chính
-          CSBH. Muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể hơn đè lên.
+          <strong>Vô thời hạn</strong> kể từ ngày trên. Muốn dừng thì xoá dòng, hoặc khai một dòng
+          cụ thể hơn đè lên.
         </p>
 
         <div className="nhom-nut">
