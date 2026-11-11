@@ -22710,3 +22710,8 @@ Tìm ra: **chữ hướng dẫn quá dày** — hộp *Thêm* có ba đoạn ghi
 Khách hàng xem `0286` và nói tô xanh cả ô khi tích *"nhìn không cân đối"*, rồi hỏi viền từng loại có cần không. Không cần: viền chỉ có nghĩa khi nó báo trạng thái, mà dấu tích đã báo. `.the-tich` thành một dòng trơn (ô tích + chữ) trong cột dọc; **vùng chạm giữ `--vung-cham`** vì cả dòng là `label`; vòng tiêu điểm bàn phím giữ. Cái được kèm theo: thẻ *Loại 3* thôi cao hơn hai thẻ kia (chữ dài ba dòng) vì không còn khung để so. Ảnh 1440×900 đã xem; 768 và 390 chỉ đo (không tràn ngang), chưa xem ảnh.
 
 **1245/1245 ca giao diện xanh** (`tests/web`, ảnh rời vì demo bật).
+
+
+## P330 — Phiên bản `1.4.1`
+
+`VERSION` → `1.4.1` (gói `P328`–`P329`: gọn chữ hai hộp quy định chiết khấu, ô tích loại khách hàng không viền, xếp dọc). Chỉ giao diện: không migration, không tệp triển khai đổi. Dựng ba ảnh (`make anh`) và đẩy thẻ số cùng `-latest` (`make day-anh`) — **thẻ `1.4.0` giữ nguyên trên registry**, không ghi đè. Máy chủ chạy thẻ `-latest` nên chỉ cần `sudo csbh cap-nhat`. Chưa dựng gói tệp nén (không có tệp cài nào đổi). Chưa chạy `make test` đầy đủ.
